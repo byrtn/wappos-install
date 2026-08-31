@@ -90,9 +90,9 @@ NETEOF
     fi
 fi
 
-if ! command -v curl >/dev/null 2>&1; then
+if ! command -v curl >/dev/null 2>&1 || ! command -v rsync >/dev/null 2>&1; then
     apt-get update
-    apt-get install -y curl
+    apt-get install -y curl rsync
 fi
 
 if ! command -v yunohost >/dev/null 2>&1; then

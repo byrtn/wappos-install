@@ -48,6 +48,7 @@ systemctl start "$app"
 deploy_crossdomain_hook
 deploy_maildir_hook
 deploy_prometheus_readonly_user
+deploy_backup_hooks
 
 cat > /usr/local/bin/wappos <<'WAPPOS_CLI_ALIAS'
 #!/bin/sh

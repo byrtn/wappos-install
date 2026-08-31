@@ -1,0 +1,25 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+set -eu
+
+source /usr/share/yunohost/helpers
+
+backup_dir="${1}/wappos"
+
+for component in wappos_api wappos_admin wappos_portal; do
+    install_dir="/opt/yunohost/$component"
+    ynh_backup --src_path="$install_dir/data" --dest_path="$backup_dir/$component/data" --not_mandatory
+    ynh_backup --src_path="$install_dir/.package" --dest_path="$backup_dir/$component/.package" --not_mandatory
+done
+
+ynh_backup --src_path="/etc/prometheus/prometheus.yml" --dest_path="$backup_dir/prometheus/prometheus.yml" --not_mandatory
+ynh_backup --src_path="/etc/prometheus/web.yml" --dest_path="$backup_dir/prometheus/web.yml" --not_mandatory
+ynh_backup --src_path="/etc/prometheus/basic_auth_password" --dest_path="$backup_dir/prometheus/basic_auth_password" --not_mandatory
+
+if [ -d /var/lib/docker/volumes ]; then
+    for volume_dir in /var/lib/docker/volumes/docker-gate-*; do
+        [ -d "$volume_dir/_data" ] || continue
+        volume_name="$(basename "$volume_dir")"
+        ynh_backup --src_path="$volume_dir/_data" --dest_path="$backup_dir/docker-volumes/$volume_name" --is_big --not_mandatory
+    done
+fi

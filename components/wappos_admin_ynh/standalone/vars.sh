@@ -82,6 +82,13 @@ deploy_crossdomain_hook() {
     done
 }
 
+deploy_backup_hooks() {
+    mkdir -p /etc/yunohost/hooks.d/backup /etc/yunohost/hooks.d/restore
+    cp "$pkg_dir/sources/hooks/backup/60-wappos_data" /etc/yunohost/hooks.d/backup/60-wappos_data
+    cp "$pkg_dir/sources/hooks/restore/60-wappos_data" /etc/yunohost/hooks.d/restore/60-wappos_data
+    chmod 755 /etc/yunohost/hooks.d/backup/60-wappos_data /etc/yunohost/hooks.d/restore/60-wappos_data
+}
+
 deploy_maildir_hook() {
     cp "$pkg_dir/sources/hooks/50-post_user_create" "$install_dir/hooks/50-post_user_create"
     chmod 755 "$install_dir/hooks/50-post_user_create"

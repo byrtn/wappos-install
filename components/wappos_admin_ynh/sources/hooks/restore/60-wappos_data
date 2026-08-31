@@ -1,0 +1,36 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+set -eu
+
+source /usr/share/yunohost/helpers
+
+backup_dir="wappos"
+
+for component in wappos_api wappos_admin wappos_portal; do
+    install_dir="/opt/yunohost/$component"
+    ynh_restore_file --origin_path="$backup_dir/$component/data" --dest_path="$install_dir/data" --not_mandatory
+    ynh_restore_file --origin_path="$backup_dir/$component/.package" --dest_path="$install_dir/.package" --not_mandatory
+    if id "$component" >/dev/null 2>&1 && [ -d "$install_dir" ]; then
+        chown -R "$component:$component" "$install_dir/data" "$install_dir/.package" 2>/dev/null || true
+    fi
+done
+
+ynh_restore_file --origin_path="$backup_dir/prometheus/prometheus.yml" --dest_path="/etc/prometheus/prometheus.yml" --not_mandatory
+ynh_restore_file --origin_path="$backup_dir/prometheus/web.yml" --dest_path="/etc/prometheus/web.yml" --not_mandatory
+ynh_restore_file --origin_path="$backup_dir/prometheus/basic_auth_password" --dest_path="/etc/prometheus/basic_auth_password" --not_mandatory
+if id prometheus >/dev/null 2>&1 && [ -d /etc/prometheus ]; then
+    chown -R prometheus:prometheus /etc/prometheus 2>/dev/null || true
+fi
+
+if [ -d "$backup_dir/docker-volumes" ] && command -v docker >/dev/null 2>&1; then
+    for volume_backup in "$backup_dir"/docker-volumes/*/; do
+        [ -d "$volume_backup" ] || continue
+        volume_name="$(basename "$volume_backup")"
+        docker volume create "$volume_name" >/dev/null 2>&1 || true
+        target="/var/lib/docker/volumes/$volume_name/_data"
+        mkdir -p "$target"
+        ynh_restore_file --origin_path="$backup_dir/docker-volumes/$volume_name" --dest_path="$target" --not_mandatory
+    done
+fi
+
+systemctl restart wappos_api wappos_admin wappos_portal prometheus 2>/dev/null || true

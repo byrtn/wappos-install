@@ -1,0 +1,1 @@
+Custom BYRTN portal showing app tiles read from YunoHost's own permissions, with reorderable tiles, new-tab links, profile editing, and a custom login screen — all delegated to YunoHost's own internal portal API, never a home-grown authentication system.

@@ -1,0 +1,164 @@
+{% extends "base.html" %}
+{% import "_option_fields.html" as fields %}
+{% set active_tab = "settings" %}
+{% block title %}Réglages{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Réglages</span>{% endblock %}
+
+{% block content %}
+        <div class="card create-card section-block">
+      <div class="card-header"><h3>Apparence</h3></div>
+      <div class="card-body">
+      <div class="field" style="max-width: 260px;">
+        <label for="admin-theme">Thème</label>
+        <select id="admin-theme" onchange="setWapposAdminTheme(this.value);">
+          <option value="system">Système</option>
+          <option value="light">Clair</option>
+          <option value="dark">Sombre</option>
+        </select>
+      </div>
+      </div>
+    </div>
+
+        {% if panels %}
+      <form method="post" action="{{ url_for('settings_reset_all') }}"
+            onsubmit="return confirm('Réinitialiser TOUS les réglages système à leurs valeurs par défaut ? Cette action est irréversible et peut affecter le fonctionnement du serveur (sécurité, SSH, etc.).');">
+        <button type="submit" class="btn btn-danger">Tout réinitialiser</button>
+      </form>
+    {% endif %}
+
+        {% for panel in panels %}
+      <h2>{{ panel.name }}</h2>
+      {% if panel.help %}<p class="field-info">{{ panel.help }}</p>{% endif %}
+            <div class="panel-group">
+      {% for section in panel.sections %}
+                {% set section_tag = 'details' if section.collapsed else 'div' %}
+        <{{ section_tag }} class="card create-card section-block"
+             {% if section.visible is defined and section.visible is not sameas true %}data-visible-expr="{{ section.visible }}"{% endif %}
+             {% if section.collapsed %}{{ 'open' if not section.name else '' }}{% endif %}>
+          {% if section.collapsed and section.name %}
+            <summary class="card-header-summary">{{ section.name }}</summary>
+          {% elif section.name %}
+            <div class="card-header"><h3>{{ section.name }}</h3></div>
+          {% endif %}
+          <div class="card-body">
+          {% if section.help %}<p class="field-info">{{ section.help }}</p>{% endif %}
+          <form method="post" action="{{ url_for('settings_submit', panel_key=panel.id) }}" class="config-panel-form" enctype="multipart/form-data">
+            <input type="hidden" name="__section_id__" value="{{ section.id }}">
+            {% for o in section.options %}
+              {{ fields.render_option(o) }}
+              {% if o.type not in ('display_text', 'markdown', 'alert', 'button') %}
+                <button type="submit" class="btn option-reset-btn"
+                        formaction="{{ url_for('setting_reset', key=o.id) }}"
+                        onclick="return confirm('Réinitialiser « ' + {{ (o.ask or o.id)|tojson }} + ' » à sa valeur par défaut ?');">
+                  Réinitialiser
+                </button>
+              {% endif %}
+                            {% if o.id == 'security_experimental_enabled' %}
+                <details class="option-help">
+                  <summary>En savoir plus</summary>
+                  <p>
+                    Active des en-têtes de sécurité HTTP plus stricts sur toutes les applications
+                    servies par ce serveur (Content-Security-Policy renforcée, Permissions-Policy
+                    complétée) — recommandé par la Fondation Mozilla, mais peut casser des
+                    applications qui chargent des ressources externes ou utilisent certaines API du
+                    navigateur (caméra, capteurs, etc.). À tester après activation.
+                  </p>
+                </details>
+              {% endif %}
+            {% endfor %}
+            <button type="submit" class="btn">Appliquer</button>
+          </form>
+          </div>
+        </{{ section_tag }}>
+      {% endfor %}
+      </div>
+    {% else %}
+      <div class="error">Aucun réglage disponible.</div>
+    {% endfor %}
+{% endblock %}
+
+{% block extra_style %}
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .card.create-card { margin-bottom: 1.25rem; }
+    .config-panel-form .field { margin-bottom: 0.9rem; }
+    .config-panel-form label { display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem; }
+    .config-panel-form input[type="text"], .config-panel-form input[type="password"],
+    .config-panel-form input[type="number"], .config-panel-form input[type="date"],
+    .config-panel-form input[type="time"], .config-panel-form input[type="email"],
+    .config-panel-form input[type="url"], .config-panel-form select, .config-panel-form textarea {
+      padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; width: 100%; max-width: 420px;
+    }
+    .option-field[data-hidden="true"] { display: none; }
+    .section-block[data-hidden="true"] { display: none; }
+    .option-help { margin: -0.5rem 0 0.9rem; }
+    .option-help summary { cursor: pointer; font-size: 0.82rem; color: var(--color-link); }
+    .option-help p { margin: 0.5rem 0 0; font-size: 0.82rem; color: var(--color-text-muted); }
+    .option-reset-btn { font-size: 0.78rem; padding: 0.2rem 0.5rem; margin: -0.6rem 0 0.9rem; background: transparent; border: 1px solid var(--color-border-strong); color: var(--color-text-muted); }
+{% endblock %}
+
+{% block extra_script %}
+    (function () {
+      var themeSelect = document.getElementById('admin-theme');
+      if (!themeSelect) return;
+      var saved = localStorage.getItem('wappos_admin_theme');
+      themeSelect.value = saved === 'dark' ? 'dark' : saved === 'light' ? 'light' : 'system';
+    })();
+    window.setWapposAdminTheme = function (value) {
+      if (value === 'system') {
+        localStorage.removeItem('wappos_admin_theme');
+        var wantDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', wantDark ? 'dark' : 'light');
+      } else {
+        localStorage.setItem('wappos_admin_theme', value);
+        document.documentElement.setAttribute('data-theme', value);
+      }
+    };
+
+    function wappasEvalVisible(expr, values) {
+      function wappasMatch(value, pattern) {
+        try { return new RegExp('^(?:' + pattern + ')').test(value == null ? '' : value); }
+        catch (e) { return false; }
+      }
+      var strings = [];
+      var withoutStrings = expr.replace(/"[^"]*"|'[^']*'/g, function (s) {
+        strings.push(s);
+        return 'WAPPOSSTR' + (strings.length - 1) + 'ENDSTR';
+      });
+      var withMatch = withoutStrings.replace(
+        /\bmatch\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(WAPPOSSTR\d+ENDSTR)\s*\)/g,
+        function (_, field, ph) { return '__wappasMatch(values[' + JSON.stringify(field) + '], ' + ph + ')'; }
+      );
+      var rewritten = withMatch.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function (token) {
+        if (['true', 'false', 'null', '__wappasMatch'].includes(token)) return token;
+        var m = /^WAPPOSSTR(\d+)ENDSTR$/.exec(token);
+        if (m) return strings[+m[1]];
+        return Object.prototype.hasOwnProperty.call(values, token) ? 'values[' + JSON.stringify(token) + ']' : 'undefined';
+      });
+      return !!Function('values', '__wappasMatch', 'return (' + rewritten + ')')(values, wappasMatch);
+    }
+    function wappasCollectValues(scope) {
+      var values = {};
+      scope.querySelectorAll('[name]').forEach(function (el) {
+        values[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+      });
+      return values;
+    }
+    function wappasApplyVisibility(form) {
+      var scope = form.closest('.panel-group') || form;
+      var values = wappasCollectValues(scope);
+      scope.querySelectorAll('.option-field[data-visible-expr], .section-block[data-visible-expr]').forEach(function (field) {
+        var expr = field.dataset.visibleExpr;
+        var visible = true;
+        try {
+          visible = wappasEvalVisible(expr, values);
+        } catch (e) { visible = true; }
+        field.dataset.hidden = visible ? 'false' : 'true';
+      });
+    }
+    document.querySelectorAll('.config-panel-form').forEach(function (form) {
+      wappasApplyVisibility(form);
+      form.addEventListener('input', function () { wappasApplyVisibility(form); });
+      form.addEventListener('change', function () { wappasApplyVisibility(form); });
+    });
+{% endblock %}

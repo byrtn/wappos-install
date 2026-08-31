@@ -1,0 +1,28 @@
+[Unit]
+Description=Wappos Admin
+After=network.target
+
+[Service]
+Type=simple
+User=__APP__
+Group=__APP__
+WorkingDirectory=__INSTALL_DIR__
+Environment="PATH=__INSTALL_DIR__/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# --timeout 320 : la page /diagnosis (action "relancer") relaie un appel
+# bloquant à wappos_api qui peut prendre jusqu'à ~2 minutes, et l'installation
+# d'une app peut prendre jusqu'à 300s (cf. `_wappos_api_install_app`,
+# alignée avec `_APP_LIFECYCLE_TIMEOUT_SECONDS` côté wappos_api). Bug réel
+# trouvé le 09/08/2026 : ce worker gunicorn était tué à 150s en pleine
+# installation de SOGo (qui réussissait pourtant réellement côté YunoHost),
+# affichant "l'action a échoué" à tort — corrigé en relevant ce timeout
+# au-delà des 300s attendus, même raison que côté wappos_api, cf. son
+# propre systemd.service.
+ExecStart=__INSTALL_DIR__/venv/bin/gunicorn --workers 1 --timeout 320 --bind 127.0.0.1:__PORT__ --no-control-socket app:app
+Restart=on-failure
+RestartSec=5
+
+# Basic hardening
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

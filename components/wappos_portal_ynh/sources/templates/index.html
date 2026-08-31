@@ -1,0 +1,171 @@
+{% extends "base.html" %}
+
+{% block content %}
+  {% if error %}
+    <div class="error">{{ error }}</div>
+  {% else %}
+    {% if user_intro %}
+      <div class="intro">{{ user_intro|safe }}</div>
+    {% endif %}
+
+    {% if search_engine %}
+      <form class="search-bar web-search" id="web-search" data-search-url="{{ search_engine }}">
+        <input type="search" id="web-search-input" name="q"
+               placeholder="{{ t('web_search_placeholder', engine=(search_engine_name or t('web_search_fallback'))) }}" autocomplete="off">
+        <button type="submit" aria-label="{{ t('aria_search') }}"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
+      </form>
+    {% endif %}
+
+    {% if tiles %}
+      <div class="search-bar">
+        <input type="search" id="search" placeholder="{{ t('app_search_placeholder') }}" autocomplete="off">
+        <button type="button" aria-label="{{ t('aria_search_app') }}" tabindex="-1"><svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><line x1="21" y1="21" x2="16.65" y2="16.65"></line></svg></button>
+      </div>
+    {% endif %}
+    {% set allow_reorder = true %}
+    {% include "_tiles.html" with context %}
+  {% endif %}
+{% endblock %}
+
+{% block extra_script %}
+    const webSearchForm = document.getElementById('web-search');
+    if (webSearchForm) {
+      webSearchForm.addEventListener('submit', (e) => {
+        e.preventDefault();
+        const q = document.getElementById('web-search-input').value.trim();
+        if (!q) return;
+        window.open(webSearchForm.dataset.searchUrl + encodeURIComponent(q), '_blank', 'noopener');
+      });
+    }
+
+    const searchInput = document.getElementById('search');
+    if (searchInput) {
+      searchInput.addEventListener('input', () => {
+        const q = searchInput.value.trim().toLowerCase();
+        document.querySelectorAll('.tile').forEach((tile) => {
+          tile.classList.toggle('hidden', q !== '' && !tile.dataset.label.includes(q));
+        });
+      });
+    }
+
+    const container = document.getElementById('tiles');
+    let dragged = null;
+
+    if (container) {
+      function moveDraggedOver(clientX, targetEl) {
+        const target = targetEl ? targetEl.closest('.tile') : null;
+        if (!target || target === dragged) return false;
+        const rect = target.getBoundingClientRect();
+        const before = (clientX - rect.left) < rect.width / 2;
+        const insertionPoint = before ? target : target.nextSibling;
+        if (insertionPoint === dragged) return false;
+        container.insertBefore(dragged, insertionPoint);
+        return true;
+      }
+
+      function savedOrder() {
+        const order = [...container.querySelectorAll('.tile')].map(t => t.dataset.id);
+        fetch('reorder', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ order }),
+        });
+      }
+
+      container.addEventListener('contextmenu', (e) => {
+        if (e.target.closest('.tile')) e.preventDefault();
+      });
+
+      container.addEventListener('dragstart', (e) => {
+        dragged = e.target.closest('.tile');
+        dragged.classList.add('dragging');
+      });
+
+      container.addEventListener('dragend', () => {
+        if (dragged) dragged.classList.remove('dragging');
+        dragged = null;
+        savedOrder();
+      });
+
+      container.addEventListener('dragover', (e) => {
+        e.preventDefault();
+        moveDraggedOver(e.clientX, e.target);
+      });
+
+      container.querySelectorAll('.tile').forEach((tile) => { tile.style.touchAction = 'none'; });
+
+      let touchStartX = 0;
+      let touchStartY = 0;
+      let touchTarget = null;
+      let touchTimer = null;
+      let touchDragging = false;
+      let suppressClick = false;
+
+      container.addEventListener('touchstart', (e) => {
+        const tile = e.target.closest('.tile');
+        if (!tile) return;
+        touchTarget = tile;
+        touchStartX = e.touches[0].clientX;
+        touchStartY = e.touches[0].clientY;
+        touchDragging = false;
+        touchTimer = setTimeout(() => {
+          touchDragging = true;
+          dragged = touchTarget;
+          dragged.classList.add('dragging');
+          dragged.style.transform = 'scale(1.15)';
+          dragged.style.pointerEvents = 'none';
+          document.body.style.userSelect = 'none';
+          if (navigator.vibrate) navigator.vibrate(20);
+        }, 250);
+      }, { passive: true });
+
+      container.addEventListener('touchmove', (e) => {
+        if (!touchTarget) return;
+        const x = e.touches[0].clientX;
+        const y = e.touches[0].clientY;
+        if (!touchDragging) {
+          const moved = Math.abs(x - touchStartX) > 10 || Math.abs(y - touchStartY) > 10;
+          if (moved) {
+            clearTimeout(touchTimer);
+            touchTarget = null;
+          }
+          return;
+        }
+        e.preventDefault();
+        const dx = x - touchStartX;
+        const dy = y - touchStartY;
+        dragged.style.transform = `translate(${dx}px, ${dy}px) scale(1.15)`;
+        const overEl = document.elementFromPoint(x, y);
+        const moved = moveDraggedOver(x, overEl);
+        if (moved) {
+          touchStartX = x;
+          touchStartY = y;
+          dragged.style.transform = 'scale(1.15)';
+        }
+      }, { passive: false });
+
+      container.addEventListener('touchend', () => {
+        clearTimeout(touchTimer);
+        if (touchDragging) {
+          if (dragged) {
+            dragged.classList.remove('dragging');
+            dragged.style.transform = '';
+            dragged.style.pointerEvents = '';
+          }
+          document.body.style.userSelect = '';
+          dragged = null;
+          suppressClick = true;
+          savedOrder();
+        }
+        touchTarget = null;
+        touchDragging = false;
+      });
+
+      container.addEventListener('click', (e) => {
+        if (suppressClick) {
+          e.preventDefault();
+          suppressClick = false;
+        }
+      }, true);
+    }
+{% endblock %}

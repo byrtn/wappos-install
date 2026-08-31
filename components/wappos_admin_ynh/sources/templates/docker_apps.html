@@ -1,0 +1,116 @@
+{% extends "base.html" %}
+{% set active_tab = "docker" %}
+{% block title %}Applications Docker{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Applications Docker</span>{% endblock %}
+
+{% block content %}
+        {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
+    {% if message %}<div class="message" style="margin-bottom: 1.25rem;">{{ message }}</div>{% endif %}
+
+    {% if not docker_installed %}
+      <div class="message" style="background: var(--color-warning-bg); color: var(--color-warning-text); margin-bottom: 1.25rem;">
+        Docker n'est pas installé (ou son démon est injoignable) sur ce serveur — aucune app Docker ne peut être listée ou installée pour l'instant.
+      </div>
+    {% endif %}
+
+    <div class="quick-add-row" style="gap: 0.6rem;">
+      <a href="{{ url_for('docker_add') }}" class="btn btn-success">+ Ajouter une app Docker</a>
+      <a href="{{ url_for('docker_audit') }}" class="btn">Audit &amp; nettoyage</a>
+      <button type="button" id="check-updates-btn" class="btn">Vérifier les mises à jour</button>
+    </div>
+
+    {% if apps %}
+      <div class="link-list">
+        {% for a in apps %}
+          <div class="link-list-item" style="cursor: default;">
+            <span class="link-list-text">
+              <span class="link-list-main">
+                <strong>{{ a.slug }}</strong>
+                {% if a.container_status %}
+                  <span class="docker-badge docker-badge-{{ 'ok' if a.container_status == 'running' else 'off' }}">{{ a.container_status }}</span>
+                {% elif a.container_missing %}
+                  <span class="badge-warning" title="Le conteneur Docker attendu est introuvable">conteneur introuvable</span>
+                {% endif %}
+                {% if a.cpu_limit or a.mem_limit %}
+                  <span class="docker-badge docker-badge-off" title="Limites de ressources appliquées">{{ a.cpu_limit ~ ' CPU' if a.cpu_limit else '' }}{{ ' / ' if a.cpu_limit and a.mem_limit else '' }}{{ a.mem_limit if a.mem_limit else '' }}</span>
+                {% endif %}
+                <span class="docker-badge docker-badge-off" data-update-badge="{{ a.slug }}" style="display: none;">mise à jour disponible</span>
+              </span>
+              <span class="link-list-sub">{{ a.image }} — {{ a.domain }}{{ a.path if a.path != '/' else '' }}</span>
+            </span>
+            <span style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
+              <a href="{{ url_for('docker_logs', slug=a.slug) }}" class="btn">Logs</a>
+              <a href="{{ url_for('docker_edit', slug=a.slug) }}" class="btn">Modifier</a>
+              <a href="{{ url_for('docker_update', slug=a.slug) }}" class="btn">Mettre à jour</a>
+              {% if a.container_status == 'running' %}
+                <form method="post" action="{{ url_for('docker_action', slug=a.slug, action='stop') }}" style="margin: 0;">
+                  <button type="submit" class="btn">Arrêter</button>
+                </form>
+              {% else %}
+                <form method="post" action="{{ url_for('docker_action', slug=a.slug, action='start') }}" style="margin: 0;">
+                  <button type="submit" class="btn">Démarrer</button>
+                </form>
+              {% endif %}
+              <form method="post" action="{{ url_for('docker_action', slug=a.slug, action='restart') }}" style="margin: 0;">
+                <button type="submit" class="btn">Redémarrer</button>
+              </form>
+              <form method="post" action="{{ url_for('docker_remove', slug=a.slug) }}"
+                    onsubmit="return confirm('Supprimer {{ a.slug }} ? Cette action est irréversible.');" style="margin: 0;">
+                <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; margin-right: 0.5rem;">
+                  <input type="checkbox" name="delete_data"> Purger les données
+                </label>
+                <button type="submit" class="btn btn-danger">Supprimer</button>
+              </form>
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    {% else %}
+      <div class="link-list">
+        <p class="field-info" style="margin: 0; padding: 1rem 1.5rem;">Aucune app Docker suivie pour l'instant.</p>
+      </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_style %}
+    .badge-warning { display: inline-block; font-size: 0.72rem; background: var(--color-warning-bg); color: var(--color-warning-text);
+                     border-radius: 4px; padding: 0.1rem 0.4rem; margin-left: 0.4rem; }
+    .docker-badge { display: inline-block; font-size: 0.72rem; border-radius: 4px; padding: 0.1rem 0.4rem; margin-left: 0.4rem; }
+    .docker-badge-ok { background: var(--color-message-bg); color: var(--color-message-text); }
+    .docker-badge-off { background: var(--color-hover-bg); color: var(--color-text-dim); }
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .link-list-item { flex-wrap: wrap; gap: 0.5rem; }
+{% endblock %}
+
+{% block extra_script %}
+    document.getElementById("check-updates-btn").addEventListener("click", function () {
+      var btn = this;
+      btn.disabled = true;
+      btn.textContent = "Vérification…";
+      var badges = document.querySelectorAll("[data-update-badge]");
+      var remaining = badges.length;
+      if (remaining === 0) {
+        btn.disabled = false;
+        btn.textContent = "Vérifier les mises à jour";
+        return;
+      }
+      badges.forEach(function (badge) {
+        var slug = badge.getAttribute("data-update-badge");
+        fetch("/docker/check_update/" + encodeURIComponent(slug))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.update_available) {
+              badge.style.display = "inline-block";
+            }
+          })
+          .finally(function () {
+            remaining -= 1;
+            if (remaining === 0) {
+              btn.disabled = false;
+              btn.textContent = "Vérifier les mises à jour";
+            }
+          });
+      });
+    });
+{% endblock %}

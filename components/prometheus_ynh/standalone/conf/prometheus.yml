@@ -1,0 +1,21 @@
+global:
+  scrape_interval: 15s
+
+scrape_configs:
+  - job_name: wappos_admin
+    metrics_path: /metrics
+    bearer_token: __TOKEN_ADMIN__
+    static_configs:
+      - targets: ["127.0.0.1:9500"]
+
+  - job_name: wappos_portal
+    metrics_path: /metrics
+    bearer_token: __TOKEN_PORTAL__
+    static_configs:
+      - targets: ["127.0.0.1:9300"]
+
+  - job_name: wappos_api
+    metrics_path: /metrics
+    bearer_token: __TOKEN_API__
+    static_configs:
+      - targets: ["127.0.0.1:9400"]

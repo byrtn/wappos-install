@@ -1,0 +1,50 @@
+{% extends "base.html" %}
+{% set active_tab = "docker" %}
+{% block title %}Mettre à jour {{ slug }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">Applications Docker</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Mise à jour — {{ slug }}</span>{% endblock %}
+
+{% block content %}
+    {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
+
+    <div class="message" style="background: var(--color-warning-bg); color: var(--color-warning-text); margin-bottom: 1.25rem;">
+      Une mise à jour redémarre le conteneur — coupure de service le temps du redémarrage.
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Version actuelle</h3></div>
+      <div class="card-body">
+        <p class="field-info" style="margin: 0;"><code>{{ entry.image }}</code></p>
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Choisir une nouvelle version</h3></div>
+      <div class="card-body">
+        {% if tags_error %}
+          <p class="field-info" style="margin: 0 0 0.75rem;">{{ tags_error }}</p>
+        {% elif not tags %}
+          <p class="field-info" style="margin: 0 0 0.75rem;">Aucune version trouvée pour cette image.</p>
+        {% else %}
+          <form method="post" action="{{ url_for('docker_update', slug=slug) }}" class="form-row">
+            <select name="target_tag">
+              {% for t in tags %}
+                <option value="{{ t.name }}">{{ t.name }}{{ ' (dernière mise à jour : ' ~ t.last_updated[:10] ~ ')' if t.last_updated else '' }}</option>
+              {% endfor %}
+            </select>
+            <button type="submit" class="btn btn-success">Mettre à jour vers cette version</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Ou récupérer la dernière version du tag actuel</h3></div>
+      <div class="card-body">
+        <p class="field-info" style="margin: 0 0 0.75rem;">Sans changer le tag référencé (<code>{{ entry.image }}</code>) — utile si ce tag est flottant (ex. <code>latest</code>).</p>
+        <form method="post" action="{{ url_for('docker_update', slug=slug) }}">
+          <button type="submit" class="btn">Récupérer la dernière version de ce tag</button>
+        </form>
+      </div>
+    </div>
+{% endblock %}

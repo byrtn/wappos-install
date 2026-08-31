@@ -1,0 +1,494 @@
+{% extends "base.html" %}
+{% set active_tab = "docker" %}
+{% block title %}Ajouter une app Docker{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">Applications Docker</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Ajouter</span>{% endblock %}
+
+{% block content %}
+    {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
+
+    <div class="card create-card">
+      <div class="card-header"><h3>1. Choisir dans le catalogue</h3></div>
+      <div class="card-body">
+        <p class="field-info" style="margin: 0 0 0.75rem;">
+          {{ catalogue_apps|length if catalogue_apps else 0 }} applications connues, avec image/port/volume déjà renseignés.
+          Tu ne trouves pas la tienne ? Utilise « Autre chose » ci-dessous.
+        </p>
+        <input type="text" id="catalogue-search" placeholder="Rechercher une app (ex. mots de passe, monitoring, wiki...)"
+               style="width: 100%; padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; margin-bottom: 0.75rem;">
+        <div id="catalogue-list" style="max-height: 420px; overflow-y: auto; overflow-x: hidden; display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 0.6rem;"></div>
+        {% if catalogue_source == "unavailable" %}
+          <p class="error" style="margin-top: 0.75rem;">Catalogue indisponible pour le moment (pas d'accès réseau ?) — utilise « Autre chose » ci-dessous.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <details class="manual-entry-toggle" style="margin-bottom: 1.25rem;">
+      <summary>Autre chose : coller une image, une commande « docker run » ou un docker-compose.yml</summary>
+      <div class="card create-card" style="margin-top: 0.75rem;">
+        <div class="card-body">
+          <p class="field-info" style="margin: 0 0 0.75rem;">
+            Colle juste le nom d'une image (ex. <code>grafana/grafana</code>) pour que Wappos essaie de détecter automatiquement
+            le port et le volume de données qu'elle déclare, ou colle une commande « docker run »/un docker-compose.yml complet.
+          </p>
+          <div class="field">
+            <textarea id="smart-input" rows="6" style="width: 100%; font-family: monospace; font-size: 0.85rem; padding: 0.6rem 0.8rem; border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-input-bg); color: var(--color-text);"
+                      placeholder="ex. vaultwarden/server:latest&#10;ou&#10;docker run -d -p 8080:80 -v /data:/config lscr.io/linuxserver/heimdall&#10;ou un docker-compose.yml complet"></textarea>
+          </div>
+          <div class="fields" style="margin-top: 0.75rem;">
+            <div class="field" style="flex: 1;">
+              <label for="smart-url">Ou une URL https:// vers un docker-compose.yml</label>
+              <input type="text" id="smart-url" placeholder="https://raw.githubusercontent.com/.../docker-compose.yml">
+            </div>
+          </div>
+          <button type="button" class="btn" id="analyze-btn" style="margin-top: 0.75rem;">Analyser</button>
+          <span id="analyze-status" class="field-info" style="margin-left: 0.75rem;"></span>
+
+          <div id="compose-picker" style="display: none; margin-top: 1rem;">
+            <p class="field-info" style="margin: 0 0 0.5rem;">
+              Ce docker-compose.yml déclare plusieurs services — choisis celui à exposer via Wappos/SSO.
+              Les autres démarreront à ses côtés comme dépendances internes (base de données, cache...), non accessibles publiquement.
+            </p>
+            <div id="compose-picker-list"></div>
+            <p id="companions-summary" class="field-info" style="margin: 0.5rem 0 0; display: none;"></p>
+          </div>
+        </div>
+      </div>
+    </details>
+
+    <form method="post" action="{{ url_for('docker_add') }}" id="docker-add-form">
+      <div class="card create-card" id="params-card">
+        <div class="card-header"><h3>2. Paramètres</h3></div>
+        <div class="card-body">
+          <p id="chosen-app-label" class="field-info" style="display: none; font-size: 1rem; font-weight: 600; color: var(--color-text); margin: 0 0 1rem;"></p>
+
+          <div class="field" style="margin-top: 0.75rem;">
+            <label>Exposition</label>
+            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap; margin-right: 1.5rem;">
+              <input type="radio" name="mode" value="path" id="mode-path" checked> Sous un chemin d'un domaine existant
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap;">
+              <input type="radio" name="mode" value="subdomain" id="mode-subdomain"> Sous-domaine dédié
+            </label>
+          </div>
+
+          <div id="mode-path-fields" class="fields" style="margin-top: 0.5rem;">
+            <div class="field">
+              <label for="domain">Domaine</label>
+              <select id="domain" name="domain">
+                {% for d in domains %}
+                  <option value="{{ d }}" {{ "selected" if d == current_domain else "" }}>{{ d }}</option>
+                {% endfor %}
+              </select>
+            </div>
+            <div class="field">
+              <label for="path">Chemin</label>
+              <input type="text" id="path" name="path" placeholder="/mon-app" value="{{ form.path if form else '' }}">
+              <span id="path-status" class="field-info"></span>
+            </div>
+          </div>
+
+          <div id="mode-subdomain-fields" class="fields" style="margin-top: 0.5rem; display: none;">
+            <div class="field">
+              <label for="new_subdomain">Sous-domaine</label>
+              <input type="text" id="new_subdomain" name="new_subdomain" placeholder="mon-app" value="{{ form.new_subdomain if form else '' }}">
+            </div>
+            <div class="field">
+              <label for="domain_parent">Domaine parent</label>
+              <select id="domain_parent" name="domain_parent">
+                {% for d in domains %}<option value="{{ d }}">{{ d }}</option>{% endfor %}
+              </select>
+            </div>
+            <span id="subdomain-status" class="field-info"></span>
+          </div>
+          <input type="hidden" id="reuse_existing_domain" name="reuse_existing_domain" value="">
+
+          <div class="field" style="margin-top: 0.75rem;">
+            <label>Visibilité</label>
+            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap; margin-right: 1.5rem;">
+              <input type="radio" name="visibility" value="admins" checked> Administrateurs uniquement
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap; margin-right: 1.5rem;">
+              <input type="radio" name="visibility" value="all_users"> Tous les comptes
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap;">
+              <input type="radio" name="visibility" value="visitors"> Visiteurs (public)
+            </label>
+          </div>
+
+          <details class="advanced-options" id="tech-params" style="margin-top: 0.75rem;">
+            <summary>Paramètres techniques (identifiant, image Docker, port, limites, variables d'environnement, fichiers de config...)</summary>
+
+            <div class="fields" style="margin-top: 0.75rem;">
+              <div class="field">
+                <label for="slug">Identifiant (slug)</label>
+                <input type="text" id="slug" name="slug" required pattern="[a-z0-9][a-z0-9-]{1,30}"
+                       title="Lettres minuscules, chiffres et tirets uniquement" value="{{ form.slug if form else '' }}">
+                <span class="field-help">Nom technique interne, utilisé dans l'URL et les fichiers de l'app. Ex. « grafana ».</span>
+              </div>
+              <div class="field">
+                <label for="image">Image Docker</label>
+                <input type="text" id="image" name="image" required value="{{ form.image if form else '' }}">
+                <span class="field-help">Le paquet Docker à installer, trouvable sur hub.docker.com ou dans la doc de l'app.</span>
+              </div>
+              <div class="field">
+                <label for="container_port">Port du conteneur</label>
+                <input type="number" id="container_port" name="container_port" required min="1" max="65535" value="{{ form.container_port if form else '' }}">
+                <span class="field-help">Le port sur lequel l'app écoute à l'intérieur du conteneur (souvent détecté automatiquement).</span>
+              </div>
+            </div>
+
+            <div class="fields" style="margin-top: 0.75rem;">
+              <div class="field">
+                <label for="data_path">Chemin des données dans le conteneur (optionnel)</label>
+                <input type="text" id="data_path" name="data_path" placeholder="/data" value="{{ form.data_path if form else '' }}">
+              </div>
+              <div class="field">
+                <label for="url_env_var">Variable d'environnement pour l'URL publique (optionnel)</label>
+                <input type="text" id="url_env_var" name="url_env_var" placeholder="ex. ROOT_URL" value="{{ form.url_env_var if form else '' }}">
+              </div>
+            </div>
+
+            <div class="fields" style="margin-top: 0.75rem;">
+              <div class="field">
+                <label for="cpu_limit">Limite CPU (optionnel)</label>
+                <input type="text" id="cpu_limit" name="cpu_limit" placeholder="ex. 0.5" value="{{ form.cpu_limit if form else '' }}">
+                <span class="field-help">Nombre de cœurs maximum que le conteneur peut utiliser (ex. 0.5 = un demi-cœur).</span>
+              </div>
+              <div class="field">
+                <label for="mem_limit">Limite mémoire (optionnel)</label>
+                <input type="text" id="mem_limit" name="mem_limit" placeholder="ex. 512m" value="{{ form.mem_limit if form else '' }}">
+                <span class="field-help">Mémoire maximum autorisée, en méga-octets (m) ou giga-octets (g) — ex. 512m ou 1g. L'unité est obligatoire.</span>
+              </div>
+            </div>
+
+            <div class="field" style="margin-top: 0.75rem;">
+              <label><input type="checkbox" id="ldap_enabled" name="ldap_enabled" {{ "checked" if form and form.get('ldap_enabled') == 'on' else "" }}> Cette app sait s'authentifier via LDAP</label>
+              <span class="field-help">Injecte automatiquement LDAP_HOST/LDAP_PORT/LDAP_BASE_DN vers l'annuaire YunoHost. Ces noms de variables ne sont pas universels — vérifie dans la documentation de l'app installée le nom exact attendu, et adapte-le toi-même si besoin.</span>
+            </div>
+
+            <div class="field" style="margin-top: 0.75rem;">
+              <label for="env_vars">Variables d'environnement (une par ligne, KEY=valeur)</label>
+              <textarea id="env_vars" name="env_vars" rows="4" style="width: 100%; font-family: monospace; font-size: 0.85rem; padding: 0.6rem 0.8rem; border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-input-bg); color: var(--color-text);">{{ form.env_vars if form else '' }}</textarea>
+            </div>
+
+            <div class="field" style="margin-top: 0.75rem;">
+              <label>Fichiers de configuration (optionnel — montés en lecture seule dans le conteneur, en plus du volume de données)</label>
+              <div id="config-files-list"></div>
+              <button type="button" class="btn" id="add-config-file-btn" style="margin-top: 0.4rem;">+ Ajouter un fichier</button>
+            </div>
+          </details>
+
+          <input type="hidden" id="companions_json" name="companions_json" value="">
+          <input type="hidden" id="main_service_key" name="main_service_key" value="">
+          <input type="hidden" id="config_files_json" name="config_files_json" value="">
+          <input type="hidden" id="catalogue_logo_url" name="catalogue_logo_url" value="">
+
+          <button type="submit" class="btn" style="margin-top: 1rem;">Installer</button>
+        </div>
+      </div>
+    </form>
+{% endblock %}
+
+{% block extra_style %}
+    .field-info { color: var(--color-text-muted); font-size: 0.8rem; }
+    .field-help { display: block; margin-top: 0.3rem; color: var(--color-text-muted); font-size: 0.78rem; }
+    .card.create-card { margin-bottom: 1.25rem; }
+    .advanced-options > summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--color-link); }
+    .manual-entry-toggle > summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--color-link);
+             padding: 0.75rem 1rem; border: 1px solid var(--color-border-strong); border-radius: 8px; background: var(--color-card-bg); }
+    .manual-entry-toggle[open] > summary { border-radius: 8px 8px 0 0; }
+{% endblock %}
+
+{% block extra_script %}
+    var catalogueApps = {{ (catalogue_apps or [])|tojson }};
+
+    function renderCatalogue(filter) {
+      var list = document.getElementById("catalogue-list");
+      list.innerHTML = "";
+      var term = (filter || "").toLowerCase();
+      var matches = catalogueApps.filter(function (a) {
+        if (!term) return true;
+        return (a.title || "").toLowerCase().indexOf(term) !== -1
+          || (a.description || "").toLowerCase().indexOf(term) !== -1
+          || (a.categories || []).join(" ").toLowerCase().indexOf(term) !== -1
+          || (a.image || "").toLowerCase().indexOf(term) !== -1;
+      });
+
+      matches.forEach(function (a) {
+        var card = document.createElement("div");
+        card.style.cssText = "border: 1px solid var(--color-border-strong); border-radius: 8px; padding: 0.6rem; display: flex; flex-direction: column; gap: 0.35rem; min-width: 0; overflow-wrap: anywhere;";
+
+        var titleRow = document.createElement("div");
+        titleRow.style.cssText = "display: flex; align-items: center; gap: 0.5rem;";
+        if (a.logo) {
+          var img = document.createElement("img");
+          img.src = a.logo;
+          img.loading = "lazy";
+          img.style.cssText = "width: 24px; height: 24px; object-fit: contain; flex-shrink: 0;";
+          img.addEventListener("error", function () { img.style.display = "none"; });
+          titleRow.appendChild(img);
+        }
+        var titleEl = document.createElement("strong");
+        titleEl.textContent = a.title;
+        titleRow.appendChild(titleEl);
+        card.appendChild(titleRow);
+
+        if (a.description) {
+          var desc = document.createElement("p");
+          desc.className = "field-info";
+          desc.style.margin = "0";
+          desc.textContent = a.description.length > 110 ? a.description.slice(0, 110) + "…" : a.description;
+          card.appendChild(desc);
+        }
+
+        var btn = document.createElement("button");
+        btn.type = "button";
+        btn.className = "btn";
+        btn.textContent = "Utiliser cette app";
+        btn.addEventListener("click", function () { useCatalogueApp(a); });
+        card.appendChild(btn);
+
+        list.appendChild(card);
+      });
+
+      if (!matches.length) {
+        var empty = document.createElement("p");
+        empty.className = "field-info";
+        empty.textContent = catalogueApps.length ? "Aucun résultat — essaie « Autre chose » ci-dessus." : "Catalogue indisponible.";
+        list.appendChild(empty);
+      }
+    }
+
+    function useCatalogueApp(a) {
+      document.getElementById("image").value = a.image || "";
+      if (a.container_port) document.getElementById("container_port").value = a.container_port;
+      if (a.data_path) document.getElementById("data_path").value = a.data_path;
+      if (a.env_vars && Object.keys(a.env_vars).length) {
+        var envLines = [];
+        for (var key in a.env_vars) envLines.push(key + "=" + a.env_vars[key]);
+        document.getElementById("env_vars").value = envLines.join("\n");
+      }
+      document.getElementById("catalogue_logo_url").value = a.logo || "";
+      var slugSource = a.title || a.image || "";
+      var slug = slugSource.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
+      document.getElementById("slug").value = slug;
+      if (slug) document.getElementById("path").value = "/" + slug;
+      var label = document.getElementById("chosen-app-label");
+      label.textContent = "Vous installez : " + (a.title || slug);
+      label.style.display = "block";
+      document.getElementById("params-card").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+
+    document.getElementById("catalogue-search").addEventListener("input", function () {
+      renderCatalogue(this.value);
+    });
+    renderCatalogue("");
+
+    document.getElementById("mode-path").addEventListener("change", toggleMode);
+    document.getElementById("mode-subdomain").addEventListener("change", toggleMode);
+    function toggleMode() {
+      var subdomain = document.getElementById("mode-subdomain").checked;
+      document.getElementById("mode-path-fields").style.display = subdomain ? "none" : "flex";
+      document.getElementById("mode-subdomain-fields").style.display = subdomain ? "flex" : "none";
+    }
+
+    var configFileRows = [];
+    function renderConfigFiles() {
+      var list = document.getElementById("config-files-list");
+      list.innerHTML = "";
+      configFileRows.forEach(function (row, i) {
+        var wrapper = document.createElement("div");
+        wrapper.style.cssText = "border: 1px solid var(--color-border-strong); border-radius: 6px; padding: 0.6rem; margin-top: 0.5rem;";
+
+        var pathInput = document.createElement("input");
+        pathInput.type = "text";
+        pathInput.placeholder = "Chemin dans le conteneur, ex. /etc/prometheus/prometheus.yml";
+        pathInput.style.cssText = "width: 100%; margin-bottom: 0.4rem;";
+        pathInput.value = row.container_path;
+        pathInput.addEventListener("input", function () { row.container_path = pathInput.value; });
+
+        var nameInput = document.createElement("input");
+        nameInput.type = "text";
+        nameInput.placeholder = "Nom de fichier, ex. prometheus.yml";
+        nameInput.style.cssText = "width: 100%; margin-bottom: 0.4rem;";
+        nameInput.value = row.filename;
+        nameInput.addEventListener("input", function () { row.filename = nameInput.value; });
+
+        var contentArea = document.createElement("textarea");
+        contentArea.rows = 6;
+        contentArea.style.cssText = "width: 100%; font-family: monospace; font-size: 0.8rem; padding: 0.5rem; border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-input-bg); color: var(--color-text);";
+        contentArea.placeholder = "Contenu du fichier";
+        contentArea.value = row.content;
+        contentArea.addEventListener("input", function () { row.content = contentArea.value; });
+
+        var removeBtn = document.createElement("button");
+        removeBtn.type = "button";
+        removeBtn.className = "btn btn-danger";
+        removeBtn.textContent = "Retirer ce fichier";
+        removeBtn.style.marginTop = "0.4rem";
+        removeBtn.addEventListener("click", function () {
+          configFileRows.splice(i, 1);
+          renderConfigFiles();
+        });
+
+        wrapper.appendChild(pathInput);
+        wrapper.appendChild(nameInput);
+        wrapper.appendChild(contentArea);
+        wrapper.appendChild(removeBtn);
+        list.appendChild(wrapper);
+      });
+    }
+    document.getElementById("add-config-file-btn").addEventListener("click", function () {
+      configFileRows.push({ container_path: "", filename: "", content: "" });
+      renderConfigFiles();
+    });
+    document.getElementById("docker-add-form").addEventListener("submit", function () {
+      document.getElementById("config_files_json").value = JSON.stringify(configFileRows);
+    });
+
+    var composeServices = [];
+    var composeTopLevelWarnings = [];
+
+    function applyServiceToForm(svc) {
+      var filled = [];
+      if (svc.image) { document.getElementById("image").value = svc.image; filled.push("image"); }
+      if (svc.container_port) { document.getElementById("container_port").value = svc.container_port; filled.push("port"); }
+      if (svc.data_path) { document.getElementById("data_path").value = svc.data_path; filled.push("chemin de données"); }
+      if (svc.env_vars) { document.getElementById("env_vars").value = svc.env_vars; filled.push("variables d'environnement"); }
+      if (svc.url_env_var) { document.getElementById("url_env_var").value = svc.url_env_var; filled.push("variable d'URL"); }
+      if (svc.suggested_slug) document.getElementById("slug").value = svc.suggested_slug.toLowerCase().replace(/[^a-z0-9-]/g, "-");
+      if (svc.suggested_mode === "subdomain") {
+        document.getElementById("mode-subdomain").checked = true;
+        toggleMode();
+      }
+      document.getElementById("tech-params").open = true;
+      document.getElementById("chosen-app-label").style.display = "none";
+      applyServiceToForm.lastFilled = filled;
+      return filled;
+    }
+
+    function renderComposePicker(selectedIdx) {
+      var list = document.getElementById("compose-picker-list");
+      list.innerHTML = "";
+      composeServices.forEach(function (s, i) {
+        var label = document.createElement("label");
+        label.style.cssText = "display: block; margin: 0.3rem 0; font-size: 0.9rem;";
+        var input = document.createElement("input");
+        input.type = "radio";
+        input.name = "compose_service_picker";
+        input.checked = i === selectedIdx;
+        input.style.marginRight = "0.4rem";
+        input.addEventListener("change", function () { selectMainService(i); });
+        label.appendChild(input);
+        label.appendChild(document.createTextNode((s.service_key || "service " + (i + 1)) + " — " + (s.image || "?")));
+        list.appendChild(label);
+      });
+      document.getElementById("compose-picker").style.display = "block";
+    }
+
+    function selectMainService(idx) {
+      var chosen = composeServices[idx];
+      var companions = composeServices.filter(function (s, i) { return i !== idx; }).map(function (s) {
+        return { service_key: s.service_key, image: s.image, data_path: s.data_path, env_vars: s.env_vars };
+      });
+      document.getElementById("companions_json").value = JSON.stringify(companions);
+      document.getElementById("main_service_key").value = chosen.service_key || "";
+
+      applyServiceToForm(chosen);
+
+      var summary = document.getElementById("companions-summary");
+      if (companions.length) {
+        summary.textContent = "Démarreront aussi comme dépendances internes (non exposés) : "
+          + companions.map(function (c) { return (c.service_key || "?") + " (" + (c.image || "?") + ")"; }).join(", ") + ".";
+        summary.style.display = "block";
+      } else {
+        summary.style.display = "none";
+      }
+
+      var status = document.getElementById("analyze-status");
+      var allWarnings = composeTopLevelWarnings.concat(chosen.warnings || []);
+      status.textContent = describeDetection(chosen, applyServiceToForm.lastFilled || [], allWarnings);
+    }
+
+    function describeDetection(svc, filled, warnings) {
+      var notes = [];
+      notes.push(filled.length ? "Détecté automatiquement : " + filled.join(", ") + "." : "Aucun champ n'a pu être détecté automatiquement, complète-les à la main.");
+      if (!svc.data_path) {
+        notes.push("Chemin des données non déclaré par l'image — si l'app doit conserver des données entre redémarrages, renseigne-le toi-même dans « Options avancées » (voir la documentation de l'app).");
+      }
+      if (warnings.length) notes.push("Avertissement(s) : " + warnings.join(" "));
+      return notes.join(" ");
+    }
+
+    document.getElementById("analyze-btn").addEventListener("click", function () {
+      var status = document.getElementById("analyze-status");
+      status.textContent = "Analyse en cours…";
+      document.getElementById("compose-picker").style.display = "none";
+      document.getElementById("companions_json").value = "";
+      document.getElementById("main_service_key").value = "";
+      var url = document.getElementById("smart-url").value.trim();
+      var body = url ? { url: url } : { text: document.getElementById("smart-input").value };
+      fetch({{ url_for('docker_parse_input')|tojson }}, {
+        method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(body),
+      })
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (!data.ok) {
+            status.textContent = "Erreur : " + data.error;
+            return;
+          }
+          if (data.multi_service) {
+            composeServices = data.services || [];
+            composeTopLevelWarnings = data.warnings || [];
+            renderComposePicker(0);
+            selectMainService(0);
+            return;
+          }
+          var filled = applyServiceToForm(data);
+          status.textContent = describeDetection(data, filled, data.warnings || []);
+        })
+        .catch(function () { status.textContent = "Erreur de communication avec le serveur."; });
+    });
+
+    var pathTimer = null;
+    document.getElementById("path").addEventListener("input", function () {
+      clearTimeout(pathTimer);
+      pathTimer = setTimeout(function () {
+        var domain = document.getElementById("domain").value;
+        var path = document.getElementById("path").value;
+        if (!path) return;
+        fetch({{ url_for('docker_check_path')|tojson }} + "?domain=" + encodeURIComponent(domain) + "&path=" + encodeURIComponent(path))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var el = document.getElementById("path-status");
+            if (data.status === "used") el.textContent = "Déjà utilisé par « " + data.app_name + " ».";
+            else if (data.status === "free") el.textContent = "Libre.";
+            else el.textContent = "";
+          });
+      }, 500);
+    });
+
+    var subTimer = null;
+    document.getElementById("new_subdomain").addEventListener("input", checkSubdomain);
+    document.getElementById("domain_parent").addEventListener("change", checkSubdomain);
+    function checkSubdomain() {
+      clearTimeout(subTimer);
+      subTimer = setTimeout(function () {
+        var sub = document.getElementById("new_subdomain").value;
+        var parent = document.getElementById("domain_parent").value;
+        if (!sub) return;
+        fetch({{ url_for('docker_check_subdomain')|tojson }} + "?new_subdomain=" + encodeURIComponent(sub) + "&domain_parent=" + encodeURIComponent(parent))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            var el = document.getElementById("subdomain-status");
+            var reuse = document.getElementById("reuse_existing_domain");
+            reuse.value = "";
+            if (data.status === "free") el.textContent = data.domain + " — libre, sera créé.";
+            else if (data.status === "exists_empty") { el.textContent = data.domain + " — existe déjà, sans app installée, sera réutilisé."; reuse.value = "on"; }
+            else if (data.status === "exists_used") el.textContent = data.domain + " — déjà utilisé, choisissez un autre nom (ex. " + data.suggestion + ").";
+            else el.textContent = "";
+          });
+      }, 500);
+    }
+{% endblock %}

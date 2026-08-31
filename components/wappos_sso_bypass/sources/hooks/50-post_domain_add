@@ -1,0 +1,38 @@
+#!/bin/bash
+set -eu
+
+domain="$1"
+
+conf_dir="/etc/nginx/conf.d/${domain}.d"
+mkdir -p "$conf_dir"
+
+cat > "$conf_dir/wappos_sso_bypass.conf" <<'NGINX_EOF'
+rewrite ^/yunohost/sso$ /wappos-portal/ redirect;
+rewrite ^/yunohost/sso/(?!applogos/|css/|assets/|customassets/|fonts/)(.*)$ /wappos-portal/$1 redirect;
+
+location ~ ^/yunohost/sso/applogos/(.*)$ {
+  access_by_lua_block {
+    return
+  }
+  alias /usr/share/yunohost/applogos/$1;
+}
+
+location ~ ^/yunohost/sso/customassets/custom\.css$ {
+  access_by_lua_block {
+    return
+  }
+  alias /usr/share/yunohost/portal/customassets/$host.custom.css;
+  etag off;
+  expires off;
+  more_set_headers "Cache-Control: no-store, no-cache, must-revalidate";
+}
+
+location ~ ^/yunohost/sso/(css|assets|fonts)/(.*)$ {
+  access_by_lua_block {
+    return
+  }
+  alias /usr/share/yunohost/portal/$1/$2;
+}
+NGINX_EOF
+
+nginx -t && systemctl reload nginx

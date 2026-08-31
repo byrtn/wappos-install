@@ -1,0 +1,5 @@
+app="wappos_api"
+install_dir="/opt/yunohost/$app"
+venv_dir="$install_dir/venv"
+port="9400"
+pkg_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"

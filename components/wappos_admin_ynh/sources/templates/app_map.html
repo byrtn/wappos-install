@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% set active_tab = "tools" %}
+{% block title %}Correspondance URL &harr; app{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Correspondance URL &harr; app</span>{% endblock %}
+
+{% block content %}
+    {% if app_map %}
+      {% for domain, paths in app_map.items() %}
+        <div class="card create-card">
+          <div class="card-header"><h3>{{ domain }}</h3></div>
+          <div class="card-body">
+            <table>
+              <tr><th>Chemin</th><th>App</th><th>Étiquette</th></tr>
+              {% for path, info in paths.items() %}
+                <tr>
+                  <td><code>{{ path }}</code></td>
+                  <td><a href="{{ url_for('app_detail', app_id=info.id) }}">{{ info.id }}</a></td>
+                  <td>{{ info.label }}</td>
+                </tr>
+              {% endfor %}
+            </table>
+          </div>
+        </div>
+      {% endfor %}
+    {% else %}
+      <div class="card create-card">
+        <div class="card-body"><p class="field-info">Aucune application installée sur un domaine web.</p></div>
+      </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_style %}
+    .card.create-card { margin-bottom: 1.25rem; }
+{% endblock %}

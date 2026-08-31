@@ -1,0 +1,39 @@
+
+packaging_format = 2
+
+id = "wappos_portal"
+name = "Wappos Portal"
+description.en = "Custom BYRTN portal showing app tiles read from YunoHost's own permissions, with reorderable tiles and new-tab links"
+description.fr = "Portal BYRTN personnalisé affichant les tuiles des apps lues depuis les permissions natives de YunoHost, avec tuiles réordonnables et ouverture en nouvel onglet"
+
+version = "0.7.23~ynh26"
+
+maintainers = ["byrtn"]
+
+[upstream]
+license = "AGPL-3.0-or-later"
+
+[integration]
+yunohost = ">= 12.1.0"
+helpers_version = "2.0"
+architectures = ["amd64", "arm64"]
+multi_instance = false
+
+ldap = "not_relevant"
+sso = false
+
+disk = "100M"
+ram.build = "100M"
+ram.runtime = "100M"
+
+[resources]
+    [resources.system_user]
+
+    [resources.install_dir]
+    dir = "/opt/yunohost/__APP__"
+
+    [resources.ports]
+    main.default = 9300
+
+    [resources.apt]
+    packages = "python3-venv, python3-pip"

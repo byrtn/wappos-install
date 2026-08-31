@@ -1,0 +1,45 @@
+{% extends "base.html" %}
+{% set active_tab = "services" %}
+{% block title %}Services Wappos (standalone){% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Services Wappos (standalone)</span>{% endblock %}
+
+{% block content %}
+    <p class="field-info" style="margin: 0 0 1.25rem;">
+      Ces services ne sont ni des apps YunoHost, ni des apps Docker Gate (conteneurs) — ce sont des services systemd
+      natifs de Wappos (pas de permission ni de tuile de portail) :
+      Wappos Admin, Wappos Portal, Wappos API et Prometheus. Une unité en échec apparaît aussi dans
+      <a href="{{ url_for('failed_units_page') }}">Unités en échec</a>.
+    </p>
+    <ul class="app-list">
+      {% for s in services %}
+        <li class="app-item">
+          <div class="app-item-main">
+            <strong>{{ s.label }}</strong>
+          </div>
+          <div class="app-item-meta">
+            {% if not s.installed %}
+              <span class="app-item-version">non installé sur ce serveur</span>
+            {% else %}
+              <span class="{{ 'text-success' if s.status in ('running', 'exited') else 'text-danger' }}">
+                {{ '✓' if s.status in ('running', 'exited') else '✕' }}
+                {{ s.status|service_status_fr }}
+              </span>
+              <span class="app-item-version">depuis {{ s.since|service_since }}</span>
+            {% endif %}
+          </div>
+        </li>
+      {% endfor %}
+    </ul>
+{% endblock %}
+
+{% block extra_style %}
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .app-list { list-style: none; margin: 0; padding: 0; }
+    .app-item { background: var(--color-card-bg); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                padding: 1rem 1.5rem; margin-bottom: 0.75rem; }
+    .app-item-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; }
+    .app-item-version { color: var(--color-text-faint); font-size: 0.78rem; }
+    .text-success { color: var(--color-text-success); }
+    .text-danger { color: var(--color-text-danger); }
+{% endblock %}

@@ -1,0 +1,131 @@
+{% extends "base.html" %}
+{% set active_tab = "apps" %}
+{% block title %}Applications système{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Applications système</span>{% endblock %}
+
+{% block content %}
+        <div class="app-list-toolbar">
+      <input type="text" id="app-search" placeholder="Rechercher une application installée...">
+      <a href="{{ url_for('app_catalog_page') }}" class="btn btn-success">Installer une application</a>
+    </div>
+    <ul class="app-list" id="app-list">
+      {% for a in apps %}
+        <li class="app-item" data-search="{{ (a.name ~ ' ' ~ a.id ~ ' ' ~ (a.description or ''))|lower }}">
+          <div class="app-item-main">
+            {% if a.logo_hash %}
+              <img src="https://{{ request.host }}/yunohost/sso/applogos/{{ a.logo_hash }}.png" alt="" class="app-item-logo">
+            {% else %}
+              <span class="app-item-logo app-item-logo-placeholder">{{ a.name[:1]|upper }}</span>
+            {% endif %}
+            <strong><a href="{{ url_for('app_detail', app_id=a.id) }}">{{ a.name }}</a></strong>
+            <span class="app-item-id">{{ a.id }}</span>
+          </div>
+          {% if a.description %}<p class="app-item-description">{{ a.description }}</p>{% endif %}
+          <div class="app-item-meta">
+            {% if a.domain_path %}
+              <a href="https://{{ a.domain_path }}" target="_blank" rel="noopener">{{ a.domain_path }}</a>
+            {% endif %}
+            <span class="app-item-version">v{{ a.version }}</span>
+          </div>
+
+          {% if a.permissions %}
+            <details class="app-permissions">
+              <summary>Permissions ({{ a.permissions|length }})</summary>
+              {% for p in a.permissions %}
+                <details class="perm-props-row">
+                  <summary>{{ p.label }} <span class="app-item-id">{{ p.id }}</span></summary>
+                  <form method="post" action="{{ url_for('update_permission_properties', permission=p.id) }}"
+                        enctype="multipart/form-data" class="perm-props-form">
+                    <div class="fields">
+                      <div class="field">
+                        <label for="label-{{ p.id }}">Libellé</label>
+                        <input type="text" id="label-{{ p.id }}" name="label" value="{{ p.label }}">
+                      </div>
+                      <div class="field">
+                        <label for="order-{{ p.id }}">Ordre d'affichage</label>
+                        <input type="number" id="order-{{ p.id }}" name="order" value="{{ p.order if p.order is not none else '' }}">
+                      </div>
+                    </div>
+                    <div class="field" style="margin-bottom: 0.75rem;">
+                      <label for="description-{{ p.id }}">Description</label>
+                      <input type="text" id="description-{{ p.id }}" name="description" value="{{ p.description or '' }}">
+                    </div>
+                    <div class="field" style="margin-bottom: 0.75rem;">
+                      <label for="logo-{{ p.id }}">Logo (PNG)</label>
+                      <input type="file" id="logo-{{ p.id }}" name="logo" accept="image/png">
+                    </div>
+                    <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin-right: 1rem; font-size: 0.85rem;">
+                      <input type="checkbox" name="show_tile" {{ "checked" if p.show_tile else "" }}> Afficher la tuile dans le portail
+                    </label>
+                    <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; font-size: 0.85rem;">
+                      <input type="checkbox" name="hide_from_public" {{ "checked" if p.hide_from_public else "" }}> Masquer de la liste publique
+                    </label>
+                    <div style="margin-top: 0.75rem;">
+                      <button type="submit" class="btn">Enregistrer</button>
+                    </div>
+                  </form>
+                </details>
+              {% endfor %}
+            </details>
+          {% endif %}
+        </li>
+      {% else %}
+        <li class="app-item">Aucune app installée.</li>
+      {% endfor %}
+    </ul>
+    {% if apps %}<p id="app-search-empty" class="field-info" style="display: none;">Aucune app ne correspond à la recherche.</p>{% endif %}
+{% endblock %}
+
+{% block extra_style %}
+    .app-list-toolbar { display: flex; align-items: center; gap: 0.75rem; margin-bottom: 1.25rem; }
+    .app-list-toolbar input[type="text"] { flex: 1; padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong);
+                                            border-radius: 6px; font-size: 0.9rem; }
+    .app-list-toolbar .btn { margin-left: auto; white-space: nowrap; }
+        @media (max-width: 480px) {
+      .app-list-toolbar { flex-wrap: wrap; }
+      .app-list-toolbar input[type="text"] { flex-basis: 100%; }
+      .app-list-toolbar .btn { margin-left: 0; flex: 1; text-align: center; }
+    }
+    .app-list { list-style: none; margin: 0; padding: 0; }
+    .app-item { background: var(--color-card-bg); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                padding: 1rem 1.5rem; margin-bottom: 0.75rem; }
+    .app-item-main { display: flex; align-items: center; gap: 0.5rem; }
+    .app-item-logo { width: 2rem; height: 2rem; border-radius: 6px; object-fit: contain; flex-shrink: 0; }
+    .app-item-logo-placeholder { display: flex; align-items: center; justify-content: center;
+             background: var(--color-card-header-bg); color: var(--color-text-muted); font-weight: 600; font-size: 0.9rem; }
+    .app-item-id { font-size: 0.78rem; color: var(--color-text-faint); }
+    .app-item-description { margin: 0.3rem 0 0.5rem; font-size: 0.85rem; color: var(--color-text-muted); }
+    .app-item-meta { display: flex; align-items: center; justify-content: space-between; font-size: 0.85rem; }
+    .app-item-version { color: var(--color-text-faint); font-size: 0.78rem; }
+    .app-permissions { margin-top: 0.75rem; border-top: 1px solid #eee; padding-top: 0.5rem; }
+    .app-permissions > summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; color: var(--color-link); }
+    .perm-props-row { border-top: 1px solid #f0f0f0; padding: 0.6rem 0 0.6rem 1rem; }
+    .app-permissions > summary + details.perm-props-row { border-top: none; }
+    .perm-props-row summary { cursor: pointer; font-size: 0.85rem; }
+    .perm-props-form { margin-top: 0.75rem; }
+    .perm-props-form .fields { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 0.75rem; }
+    .perm-props-form .field { flex: 1; min-width: 180px; }
+    .perm-props-form label { display: block; font-size: 0.8rem; color: var(--color-text-dim); margin-bottom: 0.25rem; }
+    .perm-props-form input[type="text"], .perm-props-form input[type="number"] {
+      padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; width: 100%;
+    }
+{% endblock %}
+
+{% block extra_script %}
+    var appSearchInput = document.getElementById('app-search');
+    if (appSearchInput) {
+      var appItems = document.querySelectorAll('#app-list .app-item[data-search]');
+      var appSearchEmpty = document.getElementById('app-search-empty');
+      appSearchInput.addEventListener('input', function () {
+        var term = appSearchInput.value.trim().toLowerCase();
+        var visibleCount = 0;
+        appItems.forEach(function (item) {
+          var match = !term || item.dataset.search.includes(term);
+          item.style.display = match ? '' : 'none';
+          if (match) visibleCount++;
+        });
+        if (appSearchEmpty) appSearchEmpty.style.display = visibleCount === 0 ? '' : 'none';
+      });
+    }
+{% endblock %}

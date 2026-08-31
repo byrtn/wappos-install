@@ -1,0 +1,1 @@
+Portail BYRTN personnalisé affichant les tuiles des apps lues depuis les permissions natives de YunoHost, avec tuiles réordonnables, ouverture en nouvel onglet, édition de profil et écran de connexion personnalisé — le tout délégué à l'API interne du portail YunoHost, jamais un système d'authentification maison.

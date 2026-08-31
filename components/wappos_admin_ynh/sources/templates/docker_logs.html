@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% set active_tab = "docker" %}
+{% block title %}Logs — {{ slug }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">Applications Docker</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Logs — {{ slug }}</span>{% endblock %}
+
+{% block content %}
+    {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
+
+    <div class="quick-add-row" style="gap: 0.6rem;">
+      <a href="{{ url_for('docker_logs', slug=slug, tail=tail) }}" class="btn">Actualiser</a>
+      <a href="{{ url_for('docker_logs', slug=slug, tail=tail * 5) }}" class="btn">Voir plus ({{ tail * 5 }} lignes)</a>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Ressources en direct</h3></div>
+      <div class="card-body">
+        <div id="stats-content" class="stats-grid">
+          <p class="field-info">Chargement…</p>
+        </div>
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Dernières {{ tail }} lignes</h3></div>
+      <div class="card-body">
+        {% if logs %}
+          <pre class="docker-logs-output">{{ logs }}</pre>
+        {% else %}
+          <p class="field-info">Aucun log disponible.</p>
+        {% endif %}
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .docker-logs-output { max-height: 70vh; overflow: auto; background: var(--color-hover-bg); padding: 0.75rem;
+                           border-radius: 6px; font-size: 0.8rem; white-space: pre-wrap; word-break: break-word; }
+    .stats-grid { display: flex; gap: 1.5rem; flex-wrap: wrap; }
+    .stats-item { min-width: 140px; }
+    .stats-item-label { display: block; font-size: 0.78rem; color: var(--color-text-muted); }
+    .stats-item-value { display: block; font-size: 1.15rem; font-weight: 600; }
+{% endblock %}
+
+{% block extra_script %}
+    var statsTimer = null;
+
+    function renderStats(data) {
+      var el = document.getElementById("stats-content");
+      if (!data.ok) {
+        el.innerHTML = '<p class="field-info">' + (data.error || "Statistiques indisponibles.") + '</p>';
+        return;
+      }
+      if (!data.running) {
+        el.innerHTML = '<p class="field-info">Conteneur arrêté — pas de statistiques.</p>';
+        return;
+      }
+      function formatBytes(n) {
+        if (n === null || n === undefined) return "?";
+        if (n > 1024 * 1024 * 1024) return (n / (1024 * 1024 * 1024)).toFixed(2) + " Gio";
+        if (n > 1024 * 1024) return (n / (1024 * 1024)).toFixed(1) + " Mio";
+        if (n > 1024) return (n / 1024).toFixed(1) + " Kio";
+        return n + " o";
+      }
+      var cpu = data.cpu_percent !== null && data.cpu_percent !== undefined ? data.cpu_percent.toFixed(1) + " %" : "?";
+      var mem = formatBytes(data.mem_usage) + " / " + formatBytes(data.mem_limit);
+      var net = "↓ " + formatBytes(data.rx_bytes) + " · ↑ " + formatBytes(data.tx_bytes);
+      el.innerHTML =
+        '<div class="stats-item"><span class="stats-item-label">CPU</span><span class="stats-item-value">' + cpu + '</span></div>' +
+        '<div class="stats-item"><span class="stats-item-label">Mémoire</span><span class="stats-item-value">' + mem + '</span></div>' +
+        '<div class="stats-item"><span class="stats-item-label">Réseau (cumulé)</span><span class="stats-item-value">' + net + '</span></div>';
+    }
+
+    function pollStats() {
+      fetch({{ url_for('docker_stats', slug=slug)|tojson }})
+        .then(function (r) { return r.json(); })
+        .then(renderStats)
+        .catch(function () {
+          document.getElementById("stats-content").innerHTML = '<p class="field-info">Erreur de communication avec le serveur.</p>';
+        });
+    }
+
+    pollStats();
+    statsTimer = setInterval(pollStats, 4000);
+    document.addEventListener("visibilitychange", function () {
+      if (document.hidden) {
+        clearInterval(statsTimer);
+      } else {
+        pollStats();
+        statsTimer = setInterval(pollStats, 4000);
+      }
+    });
+{% endblock %}

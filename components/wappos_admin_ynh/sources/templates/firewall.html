@@ -1,0 +1,170 @@
+{% extends "base.html" %}
+{% set active_tab = "firewall" %}
+{% block title %}Pare-feu{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Pare-feu</span>{% endblock %}
+
+{% block content %}
+        {% for protocol, ports in [("tcp", rules.tcp), ("udp", rules.udp)] %}
+      <div class="card">
+        <div class="card-header"><h3>Ports {{ protocol|upper }}</h3></div>
+        <table class="fw-table">
+          <thead>
+            <tr><th>Port</th><th>Ouvrir</th><th>UPnP</th><th>Commentaire</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for p in ports %}
+              <tr>
+                <td class="fw-col-port">{{ p.port }}</td>
+                <td class="fw-col-switch">
+                  {% if p.open %}
+                    <form method="post" action="{{ url_for('close_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form">
+                      <button type="submit" class="fw-switch fw-switch-on" aria-label="Fermer le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
+                    </form>
+                  {% else %}
+                                        <form method="post" action="{{ url_for('open_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form">
+                      <input type="hidden" name="comment" value="{{ p.comment }}">
+                      {% if p.upnp %}<input type="hidden" name="upnp" value="on">{% endif %}
+                      <button type="submit" class="fw-switch fw-switch-off" aria-label="Ouvrir le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
+                    </form>
+                  {% endif %}
+                </td>
+                <td class="fw-col-switch">
+                  {% if p.open %}
+                    {% if p.upnp %}
+                      <form method="post" action="{{ url_for('close_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form">
+                        <input type="hidden" name="upnp_only" value="on">
+                        <button type="submit" class="fw-switch fw-switch-on" aria-label="Désactiver le transfert UPnP pour le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
+                      </form>
+                    {% else %}
+                      <form method="post" action="{{ url_for('open_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form">
+                        <input type="hidden" name="comment" value="{{ p.comment }}">
+                        <input type="hidden" name="upnp" value="on">
+                        <button type="submit" class="fw-switch fw-switch-off" aria-label="Activer le transfert UPnP pour le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
+                      </form>
+                    {% endif %}
+                  {% else %}
+                    <span class="fw-switch fw-switch-off fw-switch-disabled" title="Le port doit être ouvert pour transférer via UPnP"><span class="fw-switch-thumb"></span></span>
+                  {% endif %}
+                </td>
+                <td class="fw-col-comment">{{ p.comment }}</td>
+                <td class="fw-col-edit">
+                  <button type="button" class="btn firewall-edit-btn"
+                          data-protocol="{{ protocol }}" data-port="{{ p.port }}"
+                          data-open="{{ 'true' if p.open else 'false' }}"
+                          data-upnp="{{ 'true' if p.upnp else 'false' }}"
+                          data-comment="{{ p.comment }}">
+                    Modifier
+                  </button>
+                </td>
+              </tr>
+            {% else %}
+              <tr><td colspan="5">Aucun port {{ protocol|upper }} enregistré.</td></tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% endfor %}
+
+    <div class="card create-card">
+      <div class="card-header"><h3 id="operations">Opérations</h3></div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('apply_firewall_operation') }}">
+          <div class="fields">
+            <div class="field">
+              <label for="op-action">Action</label>
+              <select id="op-action" name="action">
+                <option value="open">Ouvrir</option>
+                <option value="close">Fermer</option>
+              </select>
+            </div>
+            <div class="field">
+              <label for="op-port">Port</label>
+                            <input type="text" id="op-port" name="port" pattern="\d{1,5}(-\d{1,5})?"
+                     title="Un port (1-65535) ou une plage N-M" placeholder="ex. 8080 ou 60000-60050" required>
+            </div>
+            <div class="field">
+              <label for="op-protocol">Protocole</label>
+              <select id="op-protocol" name="protocol">
+                <option value="tcp">TCP</option>
+                <option value="udp">UDP</option>
+              </select>
+            </div>
+          </div>
+          <div class="field" style="margin-bottom: 0.75rem;">
+            <label for="op-comment">Commentaire</label>
+            <input type="text" id="op-comment" name="comment" placeholder="ex. nom de l'app">
+          </div>
+          <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; margin-bottom: 0.5rem;" id="op-upnp-label">
+            <input type="checkbox" id="op-upnp" name="upnp"> Transférer aussi ce port via UPnP
+          </label>
+                    <label style="display: none; align-items: center; gap: 0.4rem; font-size: 0.85rem; margin-bottom: 1rem;" id="op-upnp-only-label">
+            <input type="checkbox" id="op-upnp-only" name="upnp_only"> Retirer seulement le transfert UPnP (sans fermer le port)
+          </label>
+          <div>
+            <button type="submit" class="btn">Appliquer</button>
+          </div>
+        </form>
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>UPnP</h3></div>
+      <div class="card-body">
+        <p class="field-info" style="margin: 0 0 1rem;">
+          L'UPnP est {{ 'activé' if rules.upnp_enabled else 'désactivé' }} — permet à Wappos de demander à votre routeur d'ouvrir automatiquement les ports transférés ci-dessus.
+        </p>
+        <form method="post" action="{{ url_for('set_upnp', enabled='false' if rules.upnp_enabled else 'true') }}"
+              onsubmit="return confirm('Voulez-vous vraiment {{ 'désactiver' if rules.upnp_enabled else 'activer' }} l\'UPnP ?');">
+          <button type="submit" class="btn {{ 'btn-danger' if rules.upnp_enabled else '' }}">
+            {{ 'Désactiver' if rules.upnp_enabled else 'Activer' }}
+          </button>
+        </form>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+        .card { margin-bottom: 1.25rem; }
+    .field-info { color: var(--color-text-muted); font-size: 0.8rem; }
+        .fw-table th, .fw-table td { padding: 0.5rem 0.5rem; }
+    .fw-col-port { width: 3rem; }
+    .fw-col-switch { width: 2.8rem; text-align: center; }
+    .fw-col-comment { word-break: break-word; }
+    .fw-col-edit { width: 1%; white-space: nowrap; }
+    .fw-table .btn { padding: 0.3rem 0.6rem; font-size: 0.78rem; }
+        .fw-switch-form { margin: 0; display: inline-block; }
+    .fw-switch { position: relative; display: inline-block; width: 2.1rem; height: 1.1rem; border-radius: 999px;
+                 border: none; padding: 0; cursor: pointer; background: var(--color-danger); vertical-align: middle; }
+    .fw-switch:hover { background: var(--color-danger-hover); }
+    .fw-switch-on { background: var(--color-success); }
+    .fw-switch-on:hover { background: var(--color-success-hover); }
+    .fw-switch-thumb { position: absolute; top: 0.12rem; left: 0.12rem; width: 0.86rem; height: 0.86rem;
+                        border-radius: 50%; background: #fff; box-shadow: 0 1px 2px rgba(0,0,0,0.35); transition: left 0.12s; }
+    .fw-switch-on .fw-switch-thumb { left: 1.12rem; }
+    .fw-switch-disabled { cursor: default; opacity: 0.4; }
+{% endblock %}
+
+{% block extra_script %}
+    document.querySelectorAll('.firewall-edit-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var d = btn.dataset;
+        document.getElementById('op-action').value = 'open';
+        document.getElementById('op-port').value = d.port;
+        document.getElementById('op-protocol').value = d.protocol;
+        document.getElementById('op-upnp').checked = d.upnp === 'true';
+        document.getElementById('op-comment').value = d.comment;
+        wappasToggleUpnpOnly();
+        document.getElementById('operations').scrollIntoView({ behavior: 'smooth', block: 'start' });
+        document.getElementById('op-comment').focus();
+      });
+    });
+
+    function wappasToggleUpnpOnly() {
+      var isClose = document.getElementById('op-action').value === 'close';
+      document.getElementById('op-upnp-label').style.display = isClose ? 'none' : 'inline-flex';
+      document.getElementById('op-upnp-only-label').style.display = isClose ? 'inline-flex' : 'none';
+    }
+    document.getElementById('op-action').addEventListener('change', wappasToggleUpnpOnly);
+    wappasToggleUpnpOnly();
+{% endblock %}

@@ -1,0 +1,8 @@
+[Unit]
+Description=Wappos Portal socket
+
+[Socket]
+ListenStream=127.0.0.1:__PORT__
+
+[Install]
+WantedBy=sockets.target

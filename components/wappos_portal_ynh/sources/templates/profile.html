@@ -1,0 +1,246 @@
+{% extends "base.html" %}
+
+{% block title %}{{ t('title_profile') }}{% endblock %}
+
+{% block extra_style %}
+        .profile-columns { display: flex; flex-direction: column; gap: 2rem; }
+        .profile-columns > .card, .profile-columns > .profile-right-stack { max-width: none; }
+    @media (min-width: 1024px) {
+      .profile-columns { flex-direction: row; }
+      .profile-columns > .card, .profile-columns > .profile-right-stack { flex: 1 1 0; min-width: 0; }
+    }
+    .profile-right-stack { display: flex; flex-direction: column; gap: 2rem; }
+    .profile-right-stack > .browser-settings-card { flex: 1; }
+    .browser-settings-card .card-body { justify-content: center; }
+
+        .profile-topbar { margin-bottom: 1rem; }
+    .back-link { font-size: 0.9rem; }
+    .profile-title { font-size: 1.75rem; font-weight: 700; margin: 0 0 1.5rem; }
+
+    .subsection { margin-top: 1.75rem; }
+    .subsection h3 { font-size: 1rem; margin: 0 0 0.75rem; color: var(--color-text-dim); }
+        .dynamic-list { display: flex; flex-direction: column; gap: 0.5rem; margin-bottom: 0.75rem; }
+    .dynamic-list-row { display: flex; gap: 0.5rem; align-items: center; }
+    .dynamic-list-row input { flex: 1; }
+    .remove-row { flex-shrink: 0; width: 2.75rem; height: 2.75rem; border-radius: 8px;
+             border: 1px solid var(--color-border); background: none; color: var(--color-danger);
+             cursor: pointer; font-size: 1.1rem; line-height: 1; }
+    .remove-row:hover { background: var(--color-error-bg); }
+    input:disabled { background: var(--color-input-disabled-bg); color: var(--color-input-disabled-text); cursor: not-allowed; }
+
+        .field-note { display: block; margin-top: 0.4rem; font-size: 0.8rem; color: var(--color-text-muted); }
+        .inline-readonly { margin: 0; }
+
+    .password-field { position: relative; }
+    .password-field input { width: 100%; padding-right: 4.5rem; }
+    .password-field button { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+             background: none; border: none; cursor: pointer; font-size: 0.8rem; padding: 0.25rem 0.4rem;
+             color: var(--color-text-dim); text-decoration: underline; }
+
+        .browser-settings-form { display: flex; flex-direction: column; gap: 1.5rem; }
+    .browser-settings-field { display: flex; align-items: center; gap: 0.75rem; }
+    .browser-settings-field label { font-weight: 500; }
+        .browser-settings-field select { height: 2.75rem; min-width: 10rem; padding: 0 0.9rem; border-radius: 8px;
+             border: 1px solid var(--color-border); background: var(--color-card-bg); color: var(--color-text);
+             font-family: inherit; font-size: 0.95rem; }
+{% endblock %}
+
+{% block content %}
+  {% if message %}<div class="message">{{ message }}</div>{% endif %}
+  {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+  <div class="profile-topbar">
+    <a href="." class="back-link">← {{ t('back_to_portal') }}</a>
+  </div>
+  <h1 class="profile-title">{{ t('h1_edit_profile') }}</h1>
+
+  <div class="profile-columns">
+        <div class="card">
+      <div class="card-header"><h2>{{ t('h2_personal_info') }}</h2></div>
+      <div class="card-body">
+            <form method="post" id="personal-info-form">
+        <input type="hidden" name="action" value="update_info">
+        <div class="field">
+          <label for="fullname">{{ t('fullname_label') }}</label>
+          <input type="text" id="fullname" name="fullname" value="{{ info.fullname }}" required>
+        </div>
+
+                <div class="field">
+          <label for="mail">{{ t('mail_label') }}{{ ' *' if not can_edit_email else '' }}</label>
+          <input type="text" id="mail" name="mail" value="{{ info.mail }}" {{ 'disabled' if not can_edit_email else '' }}>
+        </div>
+
+                <div class="field">
+          <p class="inline-readonly"><strong>{{ t('username_field_label') }} :</strong> {{ info.username }} *</p>
+          <small class="field-note">* {{ t('readonly_field_note') }}</small>
+        </div>
+      </form>
+
+      <div class="subsection">
+        <h3>{{ t('h3_aliases') }}</h3>
+        <div class="dynamic-list" id="alias-list">
+          {% for alias in info["mail-aliases"] %}
+            <div class="dynamic-list-row">
+              <input type="text" name="mailalias" value="{{ alias }}" form="personal-info-form" {{ 'disabled' if not can_edit_email_alias else '' }}>
+              {% if can_edit_email_alias %}<button type="button" class="remove-row" aria-label="{{ t('btn_remove') }}">×</button>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        {% if can_edit_email_alias %}<button type="button" class="btn-solid" id="add-alias-btn">+ {{ t('btn_add') }}</button>{% endif %}
+      </div>
+
+      <div class="subsection">
+        <h3>{{ t('h3_forwards') }}</h3>
+        <div class="dynamic-list" id="forward-list">
+          {% for forward in info["mail-forward"] %}
+            <div class="dynamic-list-row">
+              <input type="text" name="mailforward" value="{{ forward }}" form="personal-info-form" {{ 'disabled' if not can_edit_email_forward else '' }}>
+              {% if can_edit_email_forward %}<button type="button" class="remove-row" aria-label="{{ t('btn_remove') }}">×</button>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+        {% if can_edit_email_forward %}<button type="button" class="btn-solid" id="add-forward-btn">+ {{ t('btn_add') }}</button>{% endif %}
+      </div>
+
+            <div class="card-actions">
+        <button type="submit" form="personal-info-form" class="btn-solid">{{ t('btn_save') }}</button>
+      </div>
+      </div>
+    </div>
+
+        <div class="profile-right-stack">
+      <div class="card">
+        <div class="card-header"><h2>{{ t('h2_change_password') }}</h2></div>
+        <div class="card-body">
+        <form method="post">
+          <input type="hidden" name="action" value="change_password">
+                    <div class="field">
+            <label for="current_password">{{ t('current_password_label') }}</label>
+            <div class="password-field">
+              <input type="password" id="current_password" name="current_password" required autocomplete="current-password">
+              <button type="button" class="toggle-password" data-target="current_password">{{ t('toggle_password_show') }}</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="new_password">{{ t('new_password_label') }}</label>
+            <div class="password-field">
+              <input type="password" id="new_password" name="new_password" required minlength="8">
+              <button type="button" class="toggle-password" data-target="new_password">{{ t('toggle_password_show') }}</button>
+            </div>
+          </div>
+
+          <div class="field">
+            <label for="confirm_password">{{ t('confirm_password_label') }}</label>
+            <div class="password-field">
+              <input type="password" id="confirm_password" name="confirm_password" required minlength="8">
+              <button type="button" class="toggle-password" data-target="confirm_password">{{ t('toggle_password_show') }}</button>
+            </div>
+                        <small class="field-note">{{ t('logout_everywhere_note') }}</small>
+          </div>
+
+          <button type="submit" class="btn-solid">{{ t('btn_save') }}</button>
+        </form>
+        </div>
+      </div>
+
+            <div class="card browser-settings-card">
+        <div class="card-header"><h2>{{ t('h2_browser_settings') }}</h2></div>
+        <div class="card-body">
+        <div class="browser-settings-form">
+          <div class="browser-settings-field">
+            <label for="language">{{ t('language_label') }}</label>
+            <select id="language" onchange="window.location.href = 'set_language/' + this.value;">
+              <option value="fr" {{ 'selected' if current_lang() == 'fr' }}>{{ t('language_option_fr') }}</option>
+              <option value="en" {{ 'selected' if current_lang() == 'en' }}>{{ t('language_option_en') }}</option>
+            </select>
+          </div>
+          <div class="browser-settings-field">
+            <label for="theme">{{ t('theme_label') }}</label>
+                        <select id="theme" onchange="setWapposTheme(this.value);">
+              <option value="system">{{ t('theme_option_system') }}</option>
+              <option value="light">{{ t('theme_option_light') }}</option>
+              <option value="dark">{{ t('theme_option_dark') }}</option>
+              <option value="black">{{ t('theme_option_black') }}</option>
+              <option value="legacy">{{ t('theme_option_legacy') }}</option>
+              <option value="halloween">{{ t('theme_option_halloween') }}</option>
+              <option value="cupcake">{{ t('theme_option_cupcake') }}</option>
+              <option value="nord">{{ t('theme_option_nord') }}</option>
+            </select>
+          </div>
+        </div>
+        <div class="card-actions">
+          <small class="field-note">{{ t('browser_settings_auto_apply') }}</small>
+        </div>
+        </div>
+      </div>
+    </div>
+  </div>
+{% endblock %}
+
+{% block extra_script %}
+    const I18N = {
+      toggleShow: {{ t('toggle_password_show')|tojson }},
+      toggleHide: {{ t('toggle_password_hide')|tojson }},
+      aliasPlaceholder: {{ t('alias_placeholder')|tojson }},
+      forwardPlaceholder: {{ t('forward_placeholder')|tojson }},
+      btnRemove: {{ t('btn_remove')|tojson }},
+    };
+
+    function addDynamicRow(listId, inputName, placeholder) {
+      const list = document.getElementById(listId);
+      const row = document.createElement('div');
+      row.className = 'dynamic-list-row';
+      row.innerHTML =
+        '<input type="text" name="' + inputName + '" placeholder="' + placeholder + '" form="personal-info-form">' +
+        '<button type="button" class="remove-row" aria-label="' + I18N.btnRemove + '">×</button>';
+      list.appendChild(row);
+      row.querySelector('input').focus();
+    }
+
+    const addAliasBtn = document.getElementById('add-alias-btn');
+    if (addAliasBtn) {
+      addAliasBtn.addEventListener('click', () => {
+        addDynamicRow('alias-list', 'mailalias', I18N.aliasPlaceholder);
+      });
+    }
+    const addForwardBtn = document.getElementById('add-forward-btn');
+    if (addForwardBtn) {
+      addForwardBtn.addEventListener('click', () => {
+        addDynamicRow('forward-list', 'mailforward', I18N.forwardPlaceholder);
+      });
+    }
+
+    document.querySelectorAll('.dynamic-list').forEach((list) => {
+      list.addEventListener('click', (e) => {
+        if (e.target.classList.contains('remove-row')) {
+          e.target.closest('.dynamic-list-row').remove();
+        }
+      });
+    });
+
+    document.querySelectorAll('.toggle-password').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const showing = input.type === 'password';
+        input.type = showing ? 'text' : 'password';
+        btn.textContent = showing ? I18N.toggleHide : I18N.toggleShow;
+      });
+    });
+
+    const themeSelect = document.getElementById('theme');
+    if (themeSelect) {
+      const saved = localStorage.getItem('wappos_theme');
+      themeSelect.value = saved || 'system';
+    }
+    window.setWapposTheme = function (value) {
+      if (value === 'system') {
+        localStorage.removeItem('wappos_theme');
+        const wantDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+        document.documentElement.setAttribute('data-theme', wantDark ? 'dark' : 'light');
+      } else {
+        localStorage.setItem('wappos_theme', value);
+        document.documentElement.setAttribute('data-theme', value);
+      }
+    };
+{% endblock %}

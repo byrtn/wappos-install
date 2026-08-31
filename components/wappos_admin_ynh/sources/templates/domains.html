@@ -1,0 +1,58 @@
+{% extends "base.html" %}
+{% set active_tab = "domains" %}
+{% block title %}Domaines{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Domaines</span>{% endblock %}
+
+{% block content %}
+        <div class="card create-card">
+      <div class="card-header"><h3 id="add-domain">Ajouter un domaine</h3></div>
+      <div class="card-body">
+            <form method="post" action="{{ url_for('domain_add') }}" class="form-row">
+        <input type="text" name="domain" placeholder="exemple.dev.byrtn.fr" required
+               style="padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; min-width: 260px; max-width: 100%;">
+        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+          <input type="checkbox" name="install_letsencrypt_cert" value="1">
+          Installer un certificat Let's Encrypt automatiquement
+        </label>
+        <button type="submit" class="btn">Ajouter</button>
+        <details style="width: 100%; margin-top: 0.5rem;">
+          <summary style="font-size: 0.82rem; cursor: pointer; color: var(--color-text-muted);">Options réservées aux domaines DynDNS *.nohost.me/*.noho.st/*.ynh.fr</summary>
+          <div style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
+            <input type="password" name="dyndns_recovery_password" placeholder="Mot de passe de récupération DynDNS"
+                   style="padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; min-width: 220px; max-width: 100%;">
+            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+              <input type="checkbox" name="skip_dyndns_tos" value="1">
+              J'accepte les conditions d'utilisation du service DynDNS
+            </label>
+          </div>
+        </details>
+      </form>
+      <p class="field-info" style="margin: 0.5rem 0 0;">Le domaine doit déjà pointer vers ce serveur (DNS) pour que le certificat Let's Encrypt puisse être installé.</p>
+      </div>
+    </div>
+
+    <div class="domain-grid">
+      {% for d in domains %}
+        <a href="{{ url_for('domain_detail', domain=d) }}" class="card domain-card">
+          <span class="domain-card-icon">&#127760;</span>
+          <div class="domain-card-body">
+            <strong>{{ d }}</strong>
+            <span class="field-info">https://{{ d }}</span>
+          </div>
+        </a>
+      {% else %}
+        <p class="field-info">Aucun domaine.</p>
+      {% endfor %}
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .card.create-card { margin-bottom: 1.25rem; }
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .domain-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+    .domain-card { padding: 1.1rem 1.4rem; display: flex; align-items: center; gap: 0.9rem; color: inherit; }
+    .domain-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .domain-card-icon { font-size: 1.6rem; line-height: 1; }
+    .domain-card-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+{% endblock %}

@@ -1,0 +1,220 @@
+{% extends "base.html" %}
+{% set active_tab = "groups" %}
+{% block title %}Groupes{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Groupes et autorisations</span>{% endblock %}
+
+{% block content %}
+        {% for g in primary_groups %}
+      <details class="card group-card" {{ "open" if g.permissions or g.name == 'admins' else "" }}>
+        <summary class="group-summary">
+          <span class="group-title">
+            {% if g.is_special %}
+              {{ {"admins": "Comptes administrateurs", "all_users": "Tous les comptes", "visitors": "Visiteurs"}[g.name] }}
+            {% else %}
+              Groupe '{{ g.name }}'
+            {% endif %}
+          </span>
+          {% if not g.is_special %}
+            <form method="post" action="{{ url_for('delete_group', groupname=g.name) }}"
+                  onsubmit="return confirm('Voulez-vous vraiment supprimer {{ g.name }} ?');" class="group-delete-form">
+              <button type="submit" class="btn btn-danger">Supprimer</button>
+            </form>
+          {% endif %}
+        </summary>
+
+        <div class="group-body">
+          <div class="group-row">
+            <strong class="group-row-label">Comptes</strong>
+            <div class="group-row-content">
+              {% if g.is_special %}
+                <p class="diag-item-details group-explain">
+                  {% if g.name == "admins" %}
+                    Les comptes affectés à ce groupe ont tous les droits sur le serveur (modification, création, ajout et suppression). Ils peuvent donc accéder à toutes les fonctionnalités, se connecter au serveur avec SSH et utiliser la commande sudo. N'ajoutez dans ce groupe que des comptes de personnes en qui vous avez absolument confiance !
+                  {% elif g.name == "all_users" %}
+                    Groupe contenant tous les comptes des personnes inscrites/enregistrées sur le serveur.
+                  {% else %}
+                    Permissions des visiteurs anonymes (non enregistrés).
+                    <em>Veillez à ce que certaines applications soient autorisées pour les visiteurs si vous avez l'intention de les utiliser avec des clients externes.</em>
+                  {% endif %}
+                </p>
+              {% endif %}
+              {% if g.name == "admins" or not g.is_special %}
+                <form method="post" action="{{ url_for('update_group_members', groupname=g.name) }}"
+                      onsubmit="return wappasConfirmGroupMembers(this, {{ g.name|tojson }});">
+                  <div class="tag-checklist">
+                    {% for username in user_options %}
+                      <label class="tag-checkbox">
+                        <input type="checkbox" name="members" value="{{ username }}" {{ "checked" if username in g.members else "" }}>
+                        {{ username }}
+                      </label>
+                    {% endfor %}
+                  </div>
+                  <button type="submit" class="btn">Enregistrer les comptes</button>
+                </form>
+              {% endif %}
+            </div>
+          </div>
+
+          <hr>
+
+          <div class="group-row">
+            <strong class="group-row-label">Permissions</strong>
+            <div class="group-row-content">
+              <form method="post" action="{{ url_for('update_group_permissions', groupname=g.name) }}"
+                    onsubmit="return wappasConfirmGroupPermissions(this, {{ g.name|tojson }});">
+                <div class="tag-checklist">
+                  {% for p in permission_options %}
+                                        {% set forbidden = (g.name == 'visitors' and p.protected) or (g.name in ('all_users', 'admins') and p.id in ('ssh.main', 'sftp.main')) %}
+                    <label class="tag-checkbox" {% if forbidden %}title="Non autorisé pour ce groupe côté Wappos"{% endif %}>
+                      {% if forbidden %}
+                                                <input type="hidden" name="locked" value="{{ p.id }}">
+                      {% endif %}
+                      <input type="checkbox" name="permissions" value="{{ p.id }}" {{ "checked" if p.id in g.permissions else "" }} {{ "disabled" if forbidden else "" }}>
+                      {{ p.label }}
+                    </label>
+                  {% endfor %}
+                </div>
+                <button type="submit" class="btn">Enregistrer les permissions</button>
+              </form>
+            </div>
+          </div>
+        </div>
+      </details>
+    {% endfor %}
+
+    {% if user_groups %}
+      <div class="card create-card">
+        <div class="card-header"><h3>Autorisations pour des comptes individuels</h3></div>
+        <div class="card-body">
+        <div class="field individual-account-picker">
+          <label for="individual-account-select">Ajouter un compte</label>
+          <select id="individual-account-select" onchange="showIndividualAccountPerms(this.value)">
+            <option value="">-- Sélectionner un compte --</option>
+            {% for g in user_groups %}
+              <option value="{{ g.name }}">{{ g.name }}</option>
+            {% endfor %}
+          </select>
+        </div>
+
+        <p id="individual-account-empty" class="diag-item-details">Sélectionnez un compte ci-dessus pour gérer ses permissions individuelles.</p>
+
+        {% for g in user_groups %}
+          <div class="group-row user-group-row individual-account-perms" id="individual-perms-{{ g.name }}" style="display: none;">
+            <strong class="group-row-label">{{ g.name }}</strong>
+            <div class="group-row-content">
+              <form method="post" action="{{ url_for('update_group_permissions', groupname=g.name) }}"
+                    onsubmit="return wappasConfirmGroupPermissions(this, {{ g.name|tojson }});">
+                <div class="tag-checklist">
+                  {% for p in permission_options %}
+                                        {% set forbidden = (g.name == 'visitors' and p.protected) or (g.name in ('all_users', 'admins') and p.id in ('ssh.main', 'sftp.main')) %}
+                    <label class="tag-checkbox" {% if forbidden %}title="Non autorisé pour ce groupe côté Wappos"{% endif %}>
+                      {% if forbidden %}
+                                                <input type="hidden" name="locked" value="{{ p.id }}">
+                      {% endif %}
+                      <input type="checkbox" name="permissions" value="{{ p.id }}" {{ "checked" if p.id in g.permissions else "" }} {{ "disabled" if forbidden else "" }}>
+                      {{ p.label }}
+                    </label>
+                  {% endfor %}
+                </div>
+                <button type="submit" class="btn">Enregistrer les permissions</button>
+              </form>
+            </div>
+          </div>
+        {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card create-card">
+      <div class="card-header"><h3 id="add-group">Ajouter un groupe</h3></div>
+      <div class="card-body">
+        <p class="diag-item-details" style="margin: 0 0 1.25rem;">Uniquement des minuscules, des chiffres et des tirets bas (ex. <code>equipe_support</code>).</p>
+        <form method="post" action="{{ url_for('create_group') }}">
+          <div class="fields">
+            <div class="field">
+              <label for="groupname">Nom du groupe</label>
+              <input type="text" id="groupname" name="groupname" required
+                     pattern="[a-z0-9_]+"
+                     title="Minuscules, chiffres et tirets bas uniquement (pas d'espace ni de majuscule)">
+            </div>
+          </div>
+          <button type="submit" class="btn">Ajouter un groupe</button>
+        </form>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .group-card { margin-bottom: 0.75rem; }
+    .card.create-card { margin-bottom: 1.25rem; }
+        .group-summary { list-style: none; cursor: pointer; padding: 1rem 1.5rem; display: flex;
+                      align-items: center; justify-content: space-between; gap: 1rem;
+                      background: var(--color-card-header-bg); }
+    .group-summary::-webkit-details-marker { display: none; }
+    .group-title { font-weight: 600; font-size: 0.95rem; }
+    .group-delete-form { margin: 0; }
+    .group-body { padding: 0 1.5rem 1.5rem; }
+        .group-row { padding: 0.75rem 0; }
+    .group-row-label { display: block; font-size: 0.85rem; margin-bottom: 0.6rem; }
+    .group-explain { margin: 0 0 0.75rem; }
+    .user-group-row { border-bottom: 1px solid var(--color-border); }
+    .user-group-row:last-child { border-bottom: none; }
+    .tag-checklist { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 0.75rem;
+                      max-height: 180px; overflow-y: auto; padding: 0.5rem; border: 1px solid var(--color-border);
+                      border-radius: 8px; background: var(--color-bg); }
+    .tag-checkbox { display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem;
+                     white-space: nowrap; }
+    .individual-account-picker { margin-bottom: 1rem; }
+    .individual-account-picker select { padding: 0.4rem 0.6rem; border-radius: 6px;
+                     border: 1px solid var(--color-border-strong); font-size: 0.9rem; }
+{% endblock %}
+
+{% block extra_script %}
+    var WAPPOS_CURRENT_USER = {{ user|tojson }};
+    var WAPPOS_DANGEROUS_PERMS = ['ssh.main', 'sftp.main'];
+    function wappasConfirmGroupPermissions(form, groupName) {
+      var newlyChecked = [];
+      form.querySelectorAll('input[name="permissions"]').forEach(function (cb) {
+        if (WAPPOS_DANGEROUS_PERMS.indexOf(cb.value) !== -1 && cb.checked && !cb.defaultChecked) {
+          newlyChecked.push(cb.value);
+        }
+      });
+      if (newlyChecked.length) {
+        return confirm(
+          'Voulez-vous vraiment accorder l\'accès à ' + newlyChecked.join(', ') + ' à « ' + groupName + ' » ? ' +
+          'Un tel accès augmente considérablement la surface d\'attaque si ' + groupName + ' se trouve être une personne ou un groupe malveillant.'
+        );
+      }
+      return true;
+    }
+    function wappasConfirmGroupMembers(form, groupName) {
+      if (groupName !== 'admins' || !WAPPOS_CURRENT_USER) return true;
+      var wasChecked = false, stillChecked = false;
+      form.querySelectorAll('input[name="members"]').forEach(function (cb) {
+        if (cb.value === WAPPOS_CURRENT_USER) {
+          wasChecked = cb.defaultChecked;
+          stillChecked = cb.checked;
+        }
+      });
+      if (wasChecked && !stillChecked) {
+        return confirm('Êtes-vous sûr de vouloir vous retirer du groupe « admins » ?');
+      }
+      return true;
+    }
+    function showIndividualAccountPerms(name) {
+        document.querySelectorAll('.individual-account-perms').forEach(function (el) {
+            el.style.display = 'none';
+        });
+        var empty = document.getElementById('individual-account-empty');
+        if (!name) {
+            empty.style.display = '';
+            return;
+        }
+        empty.style.display = 'none';
+        var target = document.getElementById('individual-perms-' + name);
+        if (target) {
+            target.style.display = '';
+        }
+    }
+{% endblock %}

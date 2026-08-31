@@ -1,0 +1,32 @@
+[Unit]
+Description=Wappos API
+After=network.target
+
+[Service]
+Type=simple
+User=__APP__
+Group=__APP__
+WorkingDirectory=__INSTALL_DIR__
+Environment="PATH=__INSTALL_DIR__/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# gunicorn + worker uvicorn : même modèle de déploiement que wappos_portal
+# (gunicorn géré par systemd, nginx en reverse-proxy devant), adapté à une
+# app ASGI (FastAPI) plutôt que WSGI (Flask).
+# --timeout 320 : /admin/diagnosis/run bloque le temps du diagnostic réel
+# (~26s mesuré en conditions réelles, 120s de marge côté connecteur) — et
+# surtout install_app()/remove_app()/upgrade_app() (jusqu'à 300s côté
+# connecteur, cf. `_APP_LIFECYCLE_TIMEOUT_SECONDS`) — au-delà du timeout
+# gunicorn par défaut (30s), qui tuerait le worker en pleine requête. Bug
+# réel trouvé le 09/08/2026 : une installation réelle et longue (SOGo,
+# ~4 minutes) réussissait complètement côté YunoHost mais affichait "l'action
+# a échoué" côté wappos_admin, le worker gunicorn de wappos_api étant tué à
+# 150s bien avant la fin — corrigé en relevant ce timeout au-delà des 300s
+# désormais attendus par le connecteur.
+ExecStart=__INSTALL_DIR__/venv/bin/gunicorn -k uvicorn.workers.UvicornWorker --workers 4 --timeout 320 --bind 127.0.0.1:__PORT__ --no-control-socket wappos_api.main:app
+Restart=on-failure
+RestartSec=5
+
+# Basic hardening
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

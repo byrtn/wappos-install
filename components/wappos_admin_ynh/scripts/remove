@@ -1,0 +1,30 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+source "$(dirname "$0")/_common.sh"
+source /usr/share/yunohost/helpers
+
+ynh_script_progression --message="Stopping and removing the service..." --weight=10
+
+if yunohost service status "$app" >/dev/null 2>&1; then
+    yunohost service remove "$app"
+fi
+
+systemctl stop "$app" 2>/dev/null || true
+systemctl disable "$app" 2>/dev/null || true
+
+ynh_script_progression --message="Removing the nginx configuration..." --weight=5
+for existing_domain in $(yunohost domain list --output-as json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['domains']))"); do
+    rm -f "/etc/nginx/conf.d/${existing_domain}.d/wappos_admin_crossdomain.conf"
+done
+nginx -t && systemctl reload nginx
+
+ynh_script_progression --message="Removing the systemd configuration..." --weight=5
+ynh_remove_systemd_config
+
+ynh_script_progression --message="Removing the targeted sudo rights..." --weight=1
+rm -f /etc/sudoers.d/wappos_admin_docker_ce
+rm -f /etc/sudoers.d/wappos_admin_security_monitor
+
+
+ynh_script_progression --message="Removal completed." --last

@@ -1,0 +1,8 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+set -eu
+
+mail="$2"
+
+doveadm mailbox create -u "$mail" INBOX || true

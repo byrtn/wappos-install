@@ -1,0 +1,98 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+source "$(dirname "$0")/_common.sh"
+source /usr/share/yunohost/helpers
+
+pkg_dir="$(dirname "$0")/.."
+
+ynh_script_progression --message="Stopping the service..." --weight=5
+systemctl stop "$app" 2>/dev/null || true
+
+ynh_script_progression --message="Updating the app's files..." --weight=5
+cp -ar "$pkg_dir/sources/." "$install_dir/"
+
+mkdir -p "$install_dir/.package"
+cp "$pkg_dir/manifest.toml" "$install_dir/.package/manifest.toml"
+
+ynh_script_progression --message="Updating the Python environment..." --weight=15
+"$venv_dir/bin/pip" install --upgrade pip
+"$venv_dir/bin/pip" install -r "$install_dir/requirements.txt"
+
+chown -R "$app:$app" "$install_dir"
+chmod 750 "$install_dir"
+
+if getent group docker > /dev/null 2>&1; then
+    usermod -aG docker "$app"
+fi
+
+ynh_script_progression --message="Updating the targeted sudo rights for Docker CE lifecycle..." --weight=2
+
+cp "$pkg_dir/conf/wappos_admin_docker_ce.sudoers" /etc/sudoers.d/wappos_admin_docker_ce
+sed -i "s/__APP__/$app/g" /etc/sudoers.d/wappos_admin_docker_ce
+chmod 440 /etc/sudoers.d/wappos_admin_docker_ce
+chown root:root /etc/sudoers.d/wappos_admin_docker_ce
+visudo -c -f /etc/sudoers.d/wappos_admin_docker_ce || ynh_die --message="The generated sudoers file is invalid, update aborted for safety."
+
+cp "$pkg_dir/conf/wappos_admin_security_monitor.sudoers" /etc/sudoers.d/wappos_admin_security_monitor
+sed -i "s/__APP__/$app/g" /etc/sudoers.d/wappos_admin_security_monitor
+chmod 440 /etc/sudoers.d/wappos_admin_security_monitor
+chown root:root /etc/sudoers.d/wappos_admin_security_monitor
+visudo -c -f /etc/sudoers.d/wappos_admin_security_monitor || ynh_die --message="The generated sudoers file is invalid, update aborted for safety."
+
+ynh_script_progression --message="Updating the systemd configuration..." --weight=5
+ynh_add_systemd_config
+
+ynh_script_progression --message="Restarting the service..." --weight=5
+systemctl restart "$app"
+
+ynh_script_progression --message="Registering the cross-domain reachability hook..." --weight=2
+systemd-run --collect --uid=0 \
+    yunohost tools shell -c "
+from yunohost.hook import hook_add
+hook_add('$app', '$install_dir/hooks/50-post_domain_add')
+"
+
+ynh_script_progression --message="Deploying to existing domains..." --weight=5
+for existing_domain in $(yunohost domain list --output-as json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['domains']))"); do
+    bash "$install_dir/hooks/50-post_domain_add" "$existing_domain"
+done
+
+ynh_script_progression --message="Registering the Maildir safety hook..." --weight=2
+systemd-run --collect --uid=0 \
+    yunohost tools shell -c "
+from yunohost.hook import hook_add
+hook_add('$app', '$install_dir/hooks/50-post_user_create')
+"
+
+ynh_script_progression --message="Ensuring existing users have a proper Maildir..." --weight=2
+for existing_mail in $(yunohost user list --output-as json | python3 -c "import json,sys; d=json.load(sys.stdin)['users']; print('\n'.join(u['mail'] for u in d.values()))"); do
+    doveadm mailbox create -u "$existing_mail" INBOX || true
+done
+
+ynh_script_progression --message="Installing the 'wappos' CLI alias..." --weight=1
+cat > /usr/local/bin/wappos <<'WAPPOS_CLI_ALIAS'
+#!/bin/sh
+exec /usr/bin/yunohost "$@"
+WAPPOS_CLI_ALIAS
+chmod 755 /usr/local/bin/wappos
+
+ynh_script_progression --message="Configuring the config-drift guard..." --weight=2
+
+_compute_admin_alert_mail
+ynh_add_config --template="wappos_admin_config_guard.cron" --destination="/etc/cron.d/${app}-config-guard"
+
+ynh_script_progression --message="Cleaning up orphaned nginx fragments..." --weight=1
+existing_domains="$(yunohost domain list --output-as json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['domains']))")"
+nginx_cleaned=0
+for orphan in wappos.fr hooktest.dev.byrtn.fr; do
+    if [ -d "/etc/nginx/conf.d/${orphan}.d" ] && ! echo "$existing_domains" | grep -qx "$orphan"; then
+        rm -rf "/etc/nginx/conf.d/${orphan}.d"
+        nginx_cleaned=1
+    fi
+done
+if [ "$nginx_cleaned" = "1" ]; then
+    nginx -t && systemctl reload nginx
+fi
+
+ynh_script_progression --message="Upgrade completed." --last

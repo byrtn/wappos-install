@@ -1,0 +1,11 @@
+app="prometheus"
+install_dir="/opt/prometheus"
+config_dir="/etc/prometheus"
+data_dir="/var/lib/prometheus"
+port="9090"
+pkg_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+prometheus_version="3.14.0"
+prometheus_tarball="prometheus-${prometheus_version}.linux-amd64.tar.gz"
+prometheus_sha256="f665c6da19eb7ba399c915d30c7d9793c9b417bf8a749b504bc470678631478d"
+prometheus_url="https://github.com/prometheus/prometheus/releases/download/v${prometheus_version}/${prometheus_tarball}"

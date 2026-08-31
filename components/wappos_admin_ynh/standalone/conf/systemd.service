@@ -1,0 +1,22 @@
+[Unit]
+Description=Wappos Admin
+After=network.target __APP__.socket
+Requires=__APP__.socket
+
+[Service]
+Type=simple
+User=__APP__
+Group=__APP__
+WorkingDirectory=__INSTALL_DIR__
+Environment="PATH=__INSTALL_DIR__/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+Environment="PROMETHEUS_MULTIPROC_DIR=/dev/shm/__APP___prometheus_multiproc"
+ExecStartPre=/bin/rm -rf /dev/shm/__APP___prometheus_multiproc
+ExecStartPre=/bin/mkdir -p /dev/shm/__APP___prometheus_multiproc
+ExecStart=__INSTALL_DIR__/venv/bin/gunicorn --workers 2 --timeout 320 --bind 127.0.0.1:__PORT__ --no-control-socket --config __INSTALL_DIR__/gunicorn.conf.py app:app
+Restart=on-failure
+RestartSec=5
+
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

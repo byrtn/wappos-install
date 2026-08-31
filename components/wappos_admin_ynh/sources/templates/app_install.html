@@ -1,0 +1,133 @@
+{% extends "base.html" %}
+{% import "_option_fields.html" as fields %}
+{% set active_tab = "apps" %}
+{% block title %}Installer {{ manifest.name if manifest else "" }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('apps') }}">Applications système</a><span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('app_catalog_page') }}">Catalogue</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Installer {{ manifest.name if manifest else "" }}</span>{% endblock %}
+
+{% block content %}
+    
+    {% if manifest %}
+      <h1>Installer {{ manifest.name }}</h1>
+      {% if manifest.description %}<p class="field-info">{{ manifest.description }}</p>{% endif %}
+      <p class="field-info">Version {{ manifest.version }}</p>
+
+      {% set u = manifest.upstream %}
+      {% if u.license or u.website or u.admindoc or u.userdoc or u.code %}
+        <div class="card create-card">
+          <div class="card-header"><h3>Liens</h3></div>
+          <div class="card-body">
+          <ul class="upstream-links">
+            {% if u.license %}<li>Licence : {{ u.license }}</li>{% endif %}
+            {% if u.website %}<li><a href="{{ u.website }}" target="_blank" rel="noopener">Site officiel</a></li>{% endif %}
+            {% if u.admindoc %}<li><a href="{{ u.admindoc }}" target="_blank" rel="noopener">Documentation d'administration</a></li>{% endif %}
+            {% if u.userdoc and u.userdoc != u.admindoc %}<li><a href="{{ u.userdoc }}" target="_blank" rel="noopener">Documentation utilisateur</a></li>{% endif %}
+            {% if u.code %}<li><a href="{{ u.code }}" target="_blank" rel="noopener">Dépôt officiel de code</a></li>{% endif %}
+          </ul>
+          </div>
+        </div>
+      {% endif %}
+
+      {% if antifeatures or potential_alternative_to %}
+        <div class="card create-card">
+          <div class="card-body">
+          {% if antifeatures %}
+            <div class="app-install-badges">
+              {% for af in antifeatures %}
+                <span class="badge-warning" title="{{ af.description or '' }}">{{ af.title or af.id }}</span>
+              {% endfor %}
+            </div>
+          {% endif %}
+          {% if potential_alternative_to %}
+            <p class="field-info" style="margin: {{ '0.5rem' if antifeatures else '0' }} 0 0;">Alternative à : {{ potential_alternative_to|join(', ') }}</p>
+          {% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      {% set failed_reqs = manifest.requirements.values() | selectattr("passed", "equalto", false) | list %}
+      {% set blocking_reqs = failed_reqs | rejectattr("id", "equalto", "ram") | list %}
+      {% if failed_reqs %}
+        <div class="card create-card" style="border-left: 4px solid #c0392b;">
+          <div class="card-header"><h3 style="color: #c0392b;">Prérequis non satisfaits</h3></div>
+          <div class="card-body">
+          <ul class="upstream-links">
+            {% for r in failed_reqs %}<li>{{ r.error }}</li>{% endfor %}
+          </ul>
+          {% if blocking_reqs %}
+            <p class="field-info">Ces conditions bloquent l'installation même en forçant, tout comme le WebAdmin natif.</p>
+          {% endif %}
+          </div>
+        </div>
+      {% endif %}
+
+      <div class="card create-card">
+        <div class="card-body">
+        <form method="post" action="{{ url_for('app_install_submit', app_id=manifest.id) }}" class="config-panel-form" enctype="multipart/form-data">
+          <div class="field">
+            <label for="opt-label">Libellé de l'app</label>
+            <input type="text" id="opt-label" name="label" value="{{ manifest.name }}">
+          </div>
+          {% for o in manifest.install %}{{ fields.render_option(o) }}{% endfor %}
+          <p class="field-info" id="url-avail-status"></p>
+          {% if failed_reqs and not blocking_reqs %}
+            <div class="field">
+              <label>
+                <input type="checkbox" name="force" {% if not blocking_reqs %}required{% endif %}>
+                Forcer l'installation malgré la RAM insuffisante
+              </label>
+            </div>
+          {% endif %}
+          <button type="submit" class="btn" {% if blocking_reqs %}disabled{% endif %}>Installer</button>
+        </form>
+        </div>
+      </div>
+    {% else %}
+      <div class="error">App introuvable dans le catalogue.</div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_style %}
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .card.create-card { margin-bottom: 1.25rem; }
+    .upstream-links { margin: 0; padding-left: 1.2rem; font-size: 0.9rem; }
+    .upstream-links li { margin-bottom: 0.35rem; }
+    .upstream-links a { color: var(--color-link); }
+    .config-panel-form .field { margin-bottom: 0.9rem; }
+    .config-panel-form label { display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem; }
+    .config-panel-form input[type="text"], .config-panel-form input[type="password"],
+    .config-panel-form input[type="number"], .config-panel-form select, .config-panel-form textarea {
+      padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; width: 100%; max-width: 420px;
+    }
+    .app-install-badges { display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .badge-warning { display: inline-block; font-size: 0.72rem; background: #fff4e5; color: #a67c00;
+                     border-radius: 4px; padding: 0.1rem 0.4rem; }
+{% endblock %}
+
+{% block extra_script %}
+    (function () {
+      var domainField = document.getElementById('opt-domain');
+      var pathField = document.getElementById('opt-path');
+      var status = document.getElementById('url-avail-status');
+      if (!domainField || !pathField || !status) return;
+      var timer = null;
+      function check() {
+        var domain = domainField.value.trim();
+        var path = pathField.value.trim();
+        if (!domain || !path) { status.textContent = ''; return; }
+        fetch({{ url_for('domain_url_available_check')|tojson }} + '?domain=' + encodeURIComponent(domain) + '&path=' + encodeURIComponent(path))
+          .then(function (r) { return r.json(); })
+          .then(function (data) {
+            if (data.available === true) status.textContent = 'Adresse disponible.';
+            else if (data.available === false) status.textContent = 'Adresse déjà utilisée par une autre app.';
+            else status.textContent = '';
+          });
+      }
+      [domainField, pathField].forEach(function (el) {
+        el.addEventListener('input', function () {
+          clearTimeout(timer);
+          timer = setTimeout(check, 500);
+        });
+      });
+    })();
+{% endblock %}

@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% set active_tab = "apps" %}
+{% block title %}Catalogue{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('apps') }}">Applications système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Catalogue</span>{% endblock %}
+
+{% block content %}
+    
+    <form method="get" action="{{ url_for('app_catalog_page') }}" class="inline-form" style="margin-bottom: 1rem;">
+      <input type="text" name="q" value="{{ search }}" placeholder="Rechercher une app...">
+      <select name="quality">
+        <option value="highQuality" {{ "selected" if quality == "highQuality" else "" }}>Apps de haute qualité seulement</option>
+        <option value="decentQuality" {{ "selected" if quality == "decentQuality" else "" }}>Apps de qualité correcte seulement</option>
+        <option value="working" {{ "selected" if quality == "working" else "" }}>Apps fonctionnelles seulement</option>
+        <option value="all" {{ "selected" if quality == "all" else "" }}>Toutes les apps</option>
+      </select>
+      {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
+      <button type="submit" class="btn">Rechercher</button>
+      {% if category or search %}
+        <a href="{{ url_for('app_catalog_page', quality=quality) }}" class="btn">Voir les catégories</a>
+      {% endif %}
+    </form>
+
+    {% if current_category and current_category.subtags %}
+      <div class="inline-form" style="margin-bottom: 1.25rem;">
+        <a href="{{ url_for('app_catalog_page', category=category, quality=quality) }}"
+           class="btn {{ '' if subtag != 'all' else 'btn-active' }}">Tout</a>
+        {% for s in current_category.subtags %}
+          <a href="{{ url_for('app_catalog_page', category=category, subtag=s.id, quality=quality) }}"
+             class="btn {{ 'btn-active' if subtag == s.id else '' }}">{{ s.title }}</a>
+        {% endfor %}
+        <a href="{{ url_for('app_catalog_page', category=category, subtag='others', quality=quality) }}"
+           class="btn {{ 'btn-active' if subtag == 'others' else '' }}">Autres</a>
+      </div>
+    {% endif %}
+
+    {% if show_categories %}
+      <div class="category-grid">
+        {% for c in categories %}
+          <a href="{{ url_for('app_catalog_page', category=c.id, quality=quality) }}" class="card category-card">
+            <strong>{{ c.title }}</strong>
+            <p class="field-info" style="margin: 0.3rem 0 0;">{{ c.description }}</p>
+          </a>
+        {% endfor %}
+      </div>
+    {% else %}
+      {% if current_category %}<h2>{{ current_category.title }}</h2>{% endif %}
+      {% if apps %}
+        <div class="app-card-grid">
+          {% for a in apps %}
+            <div class="card app-card">
+              <div class="app-card-header">
+                {% if a.logo_hash %}
+                  <img src="https://{{ request.host }}/yunohost/sso/applogos/{{ a.logo_hash }}.png" alt="" class="app-card-logo">
+                {% else %}
+                  <div class="app-card-logo app-card-logo-placeholder">{{ a.name[:1]|upper }}</div>
+                {% endif %}
+                <div class="app-card-title">
+                  <strong>{{ a.name }}</strong>
+                  {% if a.high_quality %}<span class="badge-star" title="Application de haute qualité">&#9733;</span>{% endif %}
+                  <span class="app-item-id">{{ a.id }}</span>
+                </div>
+              </div>
+              {% if a.description %}<p class="app-card-description">{{ a.description }}</p>{% endif %}
+                            {% if not a.working or not a.maintained %}
+                <div class="app-card-badges">
+                  {% if not a.working %}<span class="badge-warning">état : {{ a.state }}</span>{% endif %}
+                  {% if not a.maintained %}<span class="badge-warning">non maintenue</span>{% endif %}
+                </div>
+              {% endif %}
+              <div class="app-card-footer">
+                <a href="{{ url_for('app_install_form', app_id=a.id) }}" class="btn">Installer</a>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <p class="field-info">Aucune app trouvée{% if search %} pour « {{ search }} »{% endif %}.</p>
+      {% endif %}
+    {% endif %}
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Installation personnalisée</h3></div>
+      <div class="card-body">
+        <p class="field-info" style="margin: 0 0 0.75rem;">Installer depuis un dépôt git ou un chemin local, hors catalogue.</p>
+                <form method="post" action="{{ url_for('app_install_custom') }}" class="form-row">
+          <input type="text" name="url" placeholder="https://some.git.forge.tld/USER/REPOSITORY" style="min-width: 320px; max-width: 100%;">
+          <button type="submit" class="btn">Installer</button>
+        </form>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+        .card.create-card { margin-bottom: 1.25rem; }
+    .category-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(220px, 1fr)); gap: 1rem; }
+    .category-card { padding: 1.25rem 1.5rem; display: block; color: inherit; }
+    .category-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
+    .btn-active { background: var(--color-btn-bg-hover); }
+    .badge-warning { display: inline-block; font-size: 0.72rem; background: #fff4e5; color: #a67c00;
+                     border-radius: 4px; padding: 0.1rem 0.4rem; }
+    .badge-star { color: #d4a017; margin-left: 0.3rem; }
+
+    .app-card-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+    .app-card { padding: 1.25rem 1.5rem; display: flex; flex-direction: column; }
+    .app-card-header { display: flex; align-items: center; gap: 0.75rem; }
+    .app-card-logo { width: 2.75rem; height: 2.75rem; border-radius: 8px; object-fit: contain; flex-shrink: 0; }
+    .app-card-logo-placeholder { display: flex; align-items: center; justify-content: center; background: #e8f0f3;
+                                  color: var(--color-btn-bg); font-weight: 700; font-size: 1.1rem; }
+    .app-card-title { min-width: 0; }
+    .app-card-title strong { display: inline; }
+    .app-card-title .app-item-id { display: block; margin-top: 0.2rem; font-size: 0.78rem; color: var(--color-text-faint); }
+    .app-card-description { margin: 0.6rem 0 0; font-size: 0.85rem; color: var(--color-text-muted); flex-grow: 1; }
+    .app-card-badges { margin-top: 0.6rem; display: flex; gap: 0.35rem; flex-wrap: wrap; }
+    .app-card-footer { margin-top: 0.9rem; padding-top: 0.75rem; border-top: 1px solid #f0f0f0;
+                        display: flex; align-items: center; justify-content: flex-end; }
+{% endblock %}

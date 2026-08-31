@@ -1,0 +1,1 @@
+Internal API service for the Wappos product line — a single stable, versioned HTTP contract in front of the YunoHost engine, consumed by every Wappos frontend (portal, admin, future products) instead of each one reinventing its own YunoHost integration.

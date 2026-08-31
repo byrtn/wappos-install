@@ -1,0 +1,308 @@
+{% extends "base.html" %}
+{% set active_tab = "users" %}
+{% block title %}Modifier — {{ detail.username }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('index') }}">Utilisateurs</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Modifier {{ detail.username }}</span>{% endblock %}
+
+{% block content %}
+        <div class="card create-card">
+      <div class="card-header"><h2>Modifier {{ detail.username }}</h2></div>
+      <div class="card-body">
+      <form method="post" action="{{ url_for('update_user_detail', username=detail.username) }}" id="user-edit-form">
+                <div class="fields">
+          <div class="field">
+            <label for="fullname">Nom complet</label>
+            <input type="text" id="fullname" name="fullname" value="{{ detail.fullname }}" required>
+          </div>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label for="mail-local">Adresse email principale</label>
+            <span class="address-item">
+              <input type="text" id="mail-local" value="{{ detail.mail.split('@', 1)[0] }}" required>
+              <span>@</span>
+              <select id="mail-domain">
+                {% for d in domains %}<option value="{{ d }}" {{ "selected" if detail.mail.split('@', 1)[1] == d else "" }}>{{ d }}</option>{% endfor %}
+              </select>
+            </span>
+            <input type="hidden" id="mail" name="mail" value="{{ detail.mail }}">
+          </div>
+          <div class="field">
+            <label for="mail_confirm-local">Confirmer l'adresse email</label>
+            <span class="address-item">
+              <input type="text" id="mail_confirm-local" value="{{ detail.mail.split('@', 1)[0] }}" required>
+              <span>@</span>
+              <select id="mail_confirm-domain">
+                {% for d in domains %}<option value="{{ d }}" {{ "selected" if detail.mail.split('@', 1)[1] == d else "" }}>{{ d }}</option>{% endfor %}
+              </select>
+            </span>
+            <input type="hidden" id="mail_confirm" name="mail_confirm" value="{{ detail.mail }}">
+            <span id="mail-mismatch" class="field-error" style="display: none;">Les adresses ne correspondent pas.</span>
+          </div>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label for="mailbox_quota">Quota de messagerie</label>
+            <input type="number" id="mailbox_quota" name="mailbox_quota" min="0" step="1"
+                   value="{{ detail.mailbox_quota_numeric }}">
+          </div>
+        </div>
+        <p class="field-info">Quota de messagerie : définissez une taille limite de stockage pour vos courriels, en mégaoctets (Mo). Mettre 0 pour la désactiver (illimité). Utilisation actuelle : {{ detail.mailbox_quota_use }}.</p>
+
+        <div class="field" style="margin-bottom: 1rem;">
+          <label>Alias d'email</label>
+          <p class="field-info" style="margin: 0 0 0.5rem;">Des adresses supplémentaires qui reçoivent le courrier de ce compte, en plus de l'adresse principale.</p>
+          <div id="mail-aliases-list">
+            {% for alias in detail.mail_aliases %}
+              <div class="list-field-row">
+                <span class="address-item">
+                  <input type="text" class="address-local">
+                  <span>@</span>
+                  <select class="address-domain">
+                    {% for d in domains %}<option value="{{ d }}" {{ "selected" if alias.split('@', 1)[1] == d else "" }}>{{ d }}</option>{% endfor %}
+                  </select>
+                </span>
+                <input type="hidden" name="mail_aliases" value="{{ alias }}" class="address-hidden" data-local="{{ alias.split('@', 1)[0] }}">
+                <button type="button" class="list-field-remove" onclick="this.parentElement.remove()">&times;</button>
+              </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="btn" onclick="addAddressField('mail-aliases-list', 'mail_aliases')">Ajouter un alias</button>
+        </div>
+
+        <div class="field" style="margin-bottom: 1rem;">
+          <label>Transferts d'email</label>
+          <p class="field-info" style="margin: 0 0 0.5rem;">Les emails reçus sur ce compte sont automatiquement copiés vers ces adresses externes, en plus d'arriver dans la boîte du compte.</p>
+          <div id="mail-forward-list">
+            {% for forward in detail.mail_forward %}
+              <div class="list-field-row">
+                <input type="email" name="mail_forward" value="{{ forward }}">
+                <button type="button" class="list-field-remove" onclick="this.parentElement.remove()">&times;</button>
+              </div>
+            {% endfor %}
+          </div>
+          <button type="button" class="btn" onclick="addListField('mail-forward-list', 'mail_forward')">Ajouter un transfert</button>
+        </div>
+
+                <div class="password-section">
+          <h3 class="password-section-title">Nouveau mot de passe</h3>
+          <div class="fields">
+            <div class="field">
+              <label for="change_password">Nouveau mot de passe (laisser vide pour ne pas changer)</label>
+              <span class="pw-field" style="display: flex;">
+                <input type="password" id="change_password" name="change_password" minlength="8" style="flex: 1;">
+                <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
+              </span>
+            </div>
+            <div class="field">
+              <label for="change_password_confirm">Confirmer le nouveau mot de passe</label>
+              <span class="pw-field" style="display: flex;">
+                <input type="password" id="change_password_confirm" name="change_password_confirm" style="flex: 1;">
+                <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
+              </span>
+              <span id="password-mismatch" class="field-error" style="display: none;">Les mots de passe ne correspondent pas.</span>
+            </div>
+          </div>
+        </div>
+
+        <button type="submit" class="btn" id="user-edit-submit">Enregistrer</button>
+      </form>
+      </div>
+    </div>
+
+        <div class="card create-card">
+      <div class="card-header"><h3>Clés SSH</h3></div>
+      <div class="card-body">
+      <p class="field-info">Permettent à ce compte de se connecter au serveur en SSH sans mot de passe, en s'identifiant avec sa clé publique.</p>
+      {% if ssh_keys %}
+        <table>
+          <thead>
+            <tr><th>Commentaire</th><th>Clé</th><th></th></tr>
+          </thead>
+          <tbody>
+            {% for k in ssh_keys %}
+              <tr>
+                <td>{{ k.name or "—" }}</td>
+                <td style="font-family: monospace; font-size: 0.78rem; word-break: break-all;">{{ k.key }}</td>
+                <td>
+                  <form method="post" action="{{ url_for('remove_ssh_key', username=detail.username) }}"
+                        onsubmit="return confirm('Supprimer cette clé SSH ?');">
+                    <input type="hidden" name="key" value="{{ k.key }}">
+                    <button type="submit" class="btn btn-danger">Supprimer</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      {% else %}
+        <p class="field-info">Aucune clé SSH enregistrée.</p>
+      {% endif %}
+
+      <form method="post" action="{{ url_for('add_ssh_key', username=detail.username) }}" style="margin-top: 1rem;">
+        <div class="fields">
+          <div class="field">
+            <label for="ssh-key-value">Nouvelle clé publique</label>
+            <input type="text" id="ssh-key-value" name="key" placeholder="ssh-ed25519 AAAA... commentaire" required
+                   pattern="(ssh-ed25519|ssh-rsa|ecdsa-sha2-\S+|sk-ssh-ed25519@openssh\.com) [A-Za-z0-9+/]+=*( .*)?"
+                   title="Une seule clé SSH publique (type + base64), sans saut de ligne">
+          </div>
+          <div class="field">
+            <label for="ssh-key-comment">Commentaire (optionnel)</label>
+            <input type="text" id="ssh-key-comment" name="comment" placeholder="ex. laptop">
+          </div>
+        </div>
+        <button type="submit" class="btn">Ajouter la clé</button>
+      </form>
+      </div>
+    </div>
+
+        <div class="card create-card danger-zone">
+      <div class="card-header"><h3>Zone dangereuse</h3></div>
+      <div class="card-body">
+      <form method="post" action="{{ url_for('delete_user', username=detail.username) }}" id="delete-user-form">
+        <label class="delete-user-purge">
+          <input type="checkbox" name="purge" value="1"> Purger aussi les données du compte
+        </label>
+        <p class="field-info" style="margin: 0.25rem 0 1rem;">Sans cette case, seul le compte est supprimé du serveur — les fichiers (/home/{{ detail.username }}) et les emails (/var/mail/{{ detail.username }}) restent sur le disque. Avec la case cochée, ils sont effacés définitivement en même temps que le compte.</p>
+        <button type="submit" class="btn btn-danger">Supprimer ce compte</button>
+      </form>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .card.create-card { margin-bottom: 1.25rem; }
+    .list-field-row { display: flex; gap: 0.4rem; margin-bottom: 0.4rem; align-items: center; }
+    .list-field-row input { flex: 1; padding: 0.4rem 0.6rem; border: 1px solid var(--color-border-strong); border-radius: 6px; }
+    .list-field-remove { border: none; background: none; color: var(--color-danger); cursor: pointer; font-size: 1.1rem;
+                          line-height: 1; padding: 0 0.3rem; }
+    .list-field-remove:hover { color: var(--color-danger-hover); }
+    .field-error { color: var(--color-danger); font-size: 0.78rem; display: block; margin-top: 0.25rem; }
+    .field-info { color: var(--color-text-muted); font-size: 0.8rem; margin: 0 0 1rem; }
+    .address-item { display: inline-flex; align-items: center; gap: 0.3rem; }
+    .address-item input.address-local { width: 10rem; }
+        .address-item select.address-domain { width: auto; max-width: 12rem; flex: 0 0 auto; }
+    .list-field-row .address-item { flex: 1; }
+        .password-section { margin: 2rem 0 1.5rem; padding: 1.25rem 1.5rem; border: 1px solid var(--color-border);
+                         border-radius: 8px; background: var(--color-bg); }
+    .password-section-title { font-size: 0.95rem; margin: 0 0 1rem; }
+    .danger-zone { border: 1px solid var(--color-danger); }
+    .danger-zone .card-header h3 { color: var(--color-danger); }
+    .delete-user-purge { font-size: 0.85rem; color: var(--color-text-dim); display: flex; align-items: center; gap: 0.4rem; }
+{% endblock %}
+
+{% block extra_script %}
+    var wappasCheckUserEditMatch = function () {};
+
+    function wireAddressField(localEl, domainEl, hiddenEl) {
+      function sync() {
+        hiddenEl.value = localEl.value + '@' + domainEl.value;
+        wappasCheckUserEditMatch();
+      }
+      localEl.addEventListener('input', sync);
+      domainEl.addEventListener('change', sync);
+      sync();
+    }
+
+    function addAddressField(containerId, fieldName) {
+      var container = document.getElementById(containerId);
+      var domainOptions = document.getElementById('mail-domain').innerHTML;
+      var row = document.createElement('div');
+      row.className = 'list-field-row';
+      row.innerHTML =
+        '<span class="address-item">' +
+          '<input type="text" class="address-local">' +
+          '<span>@</span>' +
+          '<select class="address-domain">' + domainOptions + '</select>' +
+        '</span>' +
+        '<input type="hidden" name="' + fieldName + '" class="address-hidden">' +
+        '<button type="button" class="list-field-remove" onclick="this.parentElement.remove()">&times;</button>';
+      container.appendChild(row);
+      wireAddressField(
+        row.querySelector('.address-local'),
+        row.querySelector('.address-domain'),
+        row.querySelector('.address-hidden')
+      );
+      row.querySelector('.address-local').focus();
+    }
+
+    function addListField(containerId, fieldName) {
+      var container = document.getElementById(containerId);
+      var row = document.createElement('div');
+      row.className = 'list-field-row';
+      row.innerHTML = '<input type="email" name="' + fieldName + '">' +
+        '<button type="button" class="list-field-remove" onclick="this.parentElement.remove()">&times;</button>';
+      container.appendChild(row);
+      row.querySelector('input').focus();
+    }
+
+    document.querySelectorAll('#mail-aliases-list .address-hidden').forEach(function (hidden) {
+      var row = hidden.closest('.list-field-row');
+      var localEl = row.querySelector('.address-local');
+      localEl.value = hidden.dataset.local || '';
+      wireAddressField(localEl, row.querySelector('.address-domain'), hidden);
+    });
+
+    (function () {
+      var mail = document.getElementById('mail');
+      var mailConfirm = document.getElementById('mail_confirm');
+      var mailMismatch = document.getElementById('mail-mismatch');
+      var password = document.getElementById('change_password');
+      var passwordConfirm = document.getElementById('change_password_confirm');
+      var passwordMismatch = document.getElementById('password-mismatch');
+      var submitBtn = document.getElementById('user-edit-submit');
+
+      function checkMatch() {
+        var mailMatches = mail.value === mailConfirm.value;
+        mailMismatch.style.display = mailMatches ? 'none' : 'inline';
+
+        var passwordMatches = password.value === passwordConfirm.value;
+        var passwordLongEnough = password.value.length === 0 || password.value.length >= 8;
+        passwordMismatch.style.display = passwordMatches ? 'none' : 'inline';
+
+        submitBtn.disabled = !mailMatches || !passwordMatches || !passwordLongEnough;
+      }
+      wappasCheckUserEditMatch = checkMatch;
+
+      wireAddressField(document.getElementById('mail-local'), document.getElementById('mail-domain'), mail);
+      wireAddressField(document.getElementById('mail_confirm-local'), document.getElementById('mail_confirm-domain'), mailConfirm);
+
+      [mail, mailConfirm, password, passwordConfirm].forEach(function (el) {
+        el.addEventListener('input', checkMatch);
+      });
+      checkMatch();
+    })();
+
+    (function () {
+      var form = document.getElementById('user-edit-form');
+      var originalMail = {{ detail.mail|tojson }};
+      form.addEventListener('submit', function (ev) {
+        var newMail = document.getElementById('mail').value;
+        if (newMail === originalMail) return;
+        var aliasInputs = document.querySelectorAll('#mail-aliases-list input[name="mail_aliases"]');
+        var keepsOldAsAlias = Array.prototype.some.call(aliasInputs, function (el) {
+          return el.value === originalMail;
+        });
+        if (!keepsOldAsAlias) {
+          var ok = confirm(
+            'L\'ancienne adresse (' + originalMail + ') ne sera pas conservée en alias — ' +
+            'elle sera définitivement perdue. Continuer ?'
+          );
+          if (!ok) ev.preventDefault();
+        }
+      });
+    })();
+
+    (function () {
+      var form = document.getElementById('delete-user-form');
+      var username = {{ detail.username|tojson }};
+      form.addEventListener('submit', function (ev) {
+        var purge = form.querySelector('input[name="purge"]').checked;
+        var msg = purge
+          ? 'Supprimer définitivement ' + username + ' ET purger ses données (/home, /var/mail) ? Cette action est irréversible.'
+          : 'Supprimer définitivement ' + username + ' ?';
+        if (!confirm(msg)) ev.preventDefault();
+      });
+    })();
+{% endblock %}

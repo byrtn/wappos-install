@@ -1,0 +1,205 @@
+{% extends "base.html" %}
+{% set active_tab = "diagnosis" %}
+{% block title %}Diagnostic{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Diagnostic</span>{% endblock %}
+
+{% block content %}
+        <div class="alert alert-info">
+      {% if reports %}
+        La fonctionnalité de diagnostic va tenter de trouver certains problèmes communs sur différents aspects de votre serveur pour être sûr que tout fonctionne normalement. Le diagnostic sera également effectué deux fois par jour et enverra un courriel au compte administrateur si des erreurs sont détectées. À noter que certains tests ne seront pas montrés si vous n'utilisez pas certaines fonctions spécifiques (par exemple l'e-mail) ou s'ils échouent à cause d'une configuration trop complexe. Dans ce cas, et si vous savez ce que vous avez modifié, vous pouvez ignorer les problèmes et les avertissements correspondantes.
+      {% else %}
+        La fonctionnalité de diagnostic va tenter de trouver certains problèmes communs sur différents aspects de votre serveur pour être sûr que tout fonctionne normalement. Merci de ne pas paniquer si vous voyez une multitude d'erreurs après avoir configuré votre serveur : la fonctionnalité est précisément prévue pour les identifier et vous aider à les résoudre. Le diagnostic sera également effectué deux fois par jour et enverra un courriel au compte administrateur si des erreurs sont détectées.
+      {% endif %}
+            <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}" style="margin-top: 0.75rem;">
+        <button type="submit" class="btn">{{ 'Lancer un diagnostic complet' if reports else 'Démarrer le diagnostic initial' }}</button>
+      </form>
+      {% if reports %}<p class="field-info" style="margin: 0.4rem 0 0;">Les catégories dont le cache est encore valide ne seront pas revérifiées — utilisez « Relancer le diagnostic » sur une catégorie précise pour forcer une vérification immédiate.</p>{% endif %}
+      {% if never_run_categories %}
+                <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}" style="margin-top: 0.75rem;">
+          <select name="category" style="padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid var(--color-border-strong); background: var(--color-input-bg); color: var(--color-text);">
+            {% for c in never_run_categories %}
+              <option value="{{ c }}">{{ c }}</option>
+            {% endfor %}
+          </select>
+          <button type="submit" class="btn">Lancer cette catégorie (jamais exécutée)</button>
+        </form>
+      {% endif %}
+    </div>
+
+    <div id="diag-progress-overlay" class="diag-progress-overlay" style="display: none;">
+      <div class="card diag-progress-card">
+        <div class="diag-progress-title">Exécuter le diagnostic</div>
+        <p>Le serveur traite l'action... (jusqu'à 2 minutes)</p>
+        <div class="diag-spinner"></div>
+      </div>
+    </div>
+
+    {% for r in reports %}
+            <details class="card diag-card" {{ 'open' if r.error_count or r.warning_count }}>
+        <summary class="diag-header">
+          {% if r.error_count == 0 and r.warning_count == 0 %}
+            <span class="diag-badge diag-badge-success">Tout est OK !</span>
+          {% else %}
+            {% if r.error_count %}<span class="diag-badge diag-badge-error">{{ r.error_count }} problème{{ 's' if r.error_count > 1 }}</span>{% endif %}
+            {% if r.warning_count %}<span class="diag-badge diag-badge-warning">{{ r.warning_count }} avertissement{{ 's' if r.warning_count > 1 }}</span>{% endif %}
+          {% endif %}
+          {% if r.ignored_count %}<span class="diag-badge diag-badge-ignored">{{ r.ignored_count }} ignoré{{ 's' if r.ignored_count > 1 }}</span>{% endif %}
+          <strong>{{ r.description }}</strong>
+        </summary>
+        <div class="diag-card-body">
+          <div class="diag-card-toolbar">
+            <span class="diag-last-run">Dernière exécution : {{ r.last_execution|relative_fr }}</span>
+            <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}">
+              <input type="hidden" name="category" value="{{ r.id }}">
+              <button type="submit" class="btn diag-rerun-btn">Relancer le diagnostic</button>
+            </form>
+          </div>
+          <ul class="diag-items">
+            {% for item in r['items'] %}
+                            <li class="diag-item diag-item-{{ item.status|lower }}{{ ' diag-item-ignored' if item.ignored else '' }}">
+                <div class="diag-item-row">
+                                    <p class="diag-item-summary">{{ item.summary|safe }}</p>
+                  <div class="diag-item-buttons">
+                    {% if item.status in ('WARNING', 'ERROR') %}
+                      <form method="post" class="diag-ignore-form"
+                            action="{{ url_for('unignore_diagnosis_item', category=r.id) if item.ignored else url_for('ignore_diagnosis_item', category=r.id) }}">
+                        <input type="hidden" name="meta" value='{{ item.meta|tojson }}'>
+                        <button type="submit" class="diag-btn {{ 'diag-btn-plain' if item.ignored else 'diag-btn-warning' }}">{{ 'Ne plus ignorer' if item.ignored else 'Ignorer' }}</button>
+                      </form>
+                    {% endif %}
+                    {% if item.details %}
+                      <button type="button" class="diag-btn diag-btn-outline diag-details-toggle" data-target="diag-details-{{ r.id }}-{{ loop.index }}" aria-expanded="false">Détails</button>
+                    {% endif %}
+                  </div>
+                </div>
+                {% if item.details %}
+                  <div class="diag-item-details" id="diag-details-{{ r.id }}-{{ loop.index }}" hidden>
+                    <ul>
+                      {% for d in item.details %}<li>{{ d|safe }}</li>{% endfor %}
+                    </ul>
+                  </div>
+                {% endif %}
+              </li>
+            {% endfor %}
+          </ul>
+        </div>
+      </details>
+    {% endfor %}
+{% endblock %}
+
+{% block extra_style %}
+    .diag-card { padding: 0; margin-bottom: 1rem; overflow: visible; }
+    .diag-header { display: flex; align-items: center; gap: 0.6rem; padding: 1rem 1.5rem; cursor: pointer;
+                   list-style: none; }
+    .diag-header::-webkit-details-marker { display: none; }
+    .diag-header::before { content: '▸'; color: var(--color-text-faint); font-size: 0.8rem; }
+    details[open] > .diag-header::before { content: '▾'; }
+    .diag-card-body { padding: 0 1.5rem 1.25rem; }
+    .diag-card-toolbar { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.75rem; }
+        .diag-badge { font-size: 0.75em; font-weight: 500; padding: 0.35em 0.65em; border-radius: 0.375rem;
+                  white-space: nowrap; }
+    .diag-badge-success { background: var(--color-message-bg); color: var(--color-message-text); }
+    .diag-badge-warning { background: var(--color-warning-bg); color: var(--color-warning-text); }
+    .diag-badge-error { background: var(--color-error-bg); color: var(--color-error-text); }
+    .diag-badge-ignored { background: var(--color-hover-bg); color: var(--color-text-dim); }
+    .diag-items { list-style: none; margin: 0; padding: 0; border: 1px solid var(--color-border); border-radius: 8px; overflow: hidden; }
+    .diag-item { padding: 0.6rem 1rem; border-bottom: 1px solid var(--color-border); border-left: 4px solid var(--color-border-strong); font-size: 0.9rem; }
+    .diag-item:last-child { border-bottom: none; }
+    .diag-item-success { border-left-color: var(--color-success); }
+    .diag-item-warning { border-left-color: var(--color-text-warning); background: var(--color-warning-bg); }
+    .diag-item-error { border-left-color: var(--color-danger); background: var(--color-error-bg); }
+    .diag-item-info { border-left-color: var(--color-text-info); }
+    .diag-item-ignored { opacity: 0.5; background: var(--color-bg); }
+    .diag-item-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
+    .diag-item-summary { margin: 0; color: var(--color-text); }
+        .diag-item-buttons { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; margin-left: auto; flex-shrink: 0; }
+    @media (min-width: 1025px) {
+      .diag-item-buttons { flex-direction: row; align-items: center; }
+    }
+    .diag-ignore-form { margin: 0; }
+        .diag-btn { border: none; cursor: pointer; padding: 0.3rem 0.8rem; border-radius: 6px; font-size: 0.78rem;
+                font-weight: 600; width: 9rem; text-align: center; white-space: nowrap; }
+        .diag-btn-warning { background: #d9a017; color: #1a1200; }
+    .diag-btn-warning:hover { background: #c28f14; }
+    .diag-btn-plain { background: var(--color-text-dim); color: #fff; }
+    .diag-btn-plain:hover { background: var(--color-text-muted); }
+    .diag-btn-outline { border: 1px solid var(--color-border-strong); background: var(--color-card-bg); color: var(--color-text); }
+    .diag-btn-outline:hover { background: var(--color-card-header-bg); }
+    .diag-btn-outline[aria-expanded="true"] { background: var(--color-hover-bg); }
+    .diag-item-details { margin-top: 0.6rem; font-size: 0.85rem; color: var(--color-text-dim); }
+        .diag-item-warning .diag-item-summary, .diag-item-warning .diag-item-details,
+    .diag-item-error .diag-item-summary, .diag-item-error .diag-item-details { color: var(--color-text); }
+    .diag-item-details ul { margin: 0.4rem 0 0; padding-left: 1.25rem; }
+    .diag-rerun-btn { font-size: 0.78rem; padding: 0.25rem 0.7rem; }
+    .diag-last-run { font-size: 0.78rem; color: var(--color-text-faint); }
+    .diag-progress-overlay { position: fixed; inset: 0; background: rgba(0, 0, 0, 0.45); z-index: 1000;
+                              display: flex; align-items: center; justify-content: center; }
+    .diag-progress-card { padding: 2rem 2.5rem; text-align: center; min-width: 280px; }
+    .diag-progress-title { font-weight: 600; font-size: 1.05rem; margin-bottom: 0.75rem; }
+    .diag-progress-card p { margin: 0.4rem 0; color: var(--color-text-dim); font-size: 0.95rem; }
+    .diag-spinner { width: 2.2rem; height: 2.2rem; margin: 1rem auto; border-radius: 50%;
+                    border: 3px solid var(--color-border-strong); border-top-color: var(--color-btn-bg);
+                    animation: diag-spin 0.8s linear infinite; }
+    @keyframes diag-spin { to { transform: rotate(360deg); } }
+    .alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
+    .alert-info { background: var(--color-info-bg); color: var(--color-info-text); border: 1px solid var(--color-border-strong); }
+{% endblock %}
+
+{% block extra_script %}
+    document.querySelectorAll('.diag-details-toggle').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        var target = document.getElementById(btn.dataset.target);
+        if (!target) return;
+        var expanded = btn.getAttribute('aria-expanded') === 'true';
+        btn.setAttribute('aria-expanded', String(!expanded));
+        target.hidden = expanded;
+      });
+    });
+
+    document.querySelectorAll('.diag-run-form').forEach(function (form) {
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+
+        var overlay = document.getElementById('diag-progress-overlay');
+        overlay.style.display = 'flex';
+
+        document.querySelectorAll('.diag-run-form button').forEach(function (btn) {
+          btn.disabled = true;
+        });
+
+        try {
+          var resp = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+          window.location.href = resp.url;
+        } catch (err) {
+          overlay.style.display = 'none';
+          document.querySelectorAll('.diag-run-form button').forEach(function (btn) {
+            btn.disabled = false;
+          });
+          alert("Impossible de contacter l'API Wappos — réessayez.");
+        }
+      });
+    });
+
+    document.querySelectorAll('.diag-ignore-form').forEach(function (form) {
+      form.addEventListener('submit', async function (e) {
+        e.preventDefault();
+        sessionStorage.setItem('diag-scroll-y', String(window.scrollY));
+        try {
+          var resp = await fetch(form.action, { method: 'POST', body: new FormData(form) });
+          window.location.href = resp.url;
+        } catch (err) {
+          sessionStorage.removeItem('diag-scroll-y');
+          alert("Impossible de contacter l'API Wappos — réessayez.");
+        }
+      });
+    });
+
+    (function () {
+      var savedY = sessionStorage.getItem('diag-scroll-y');
+      if (savedY !== null) {
+        sessionStorage.removeItem('diag-scroll-y');
+        window.scrollTo(0, parseInt(savedY, 10));
+      }
+    })();
+{% endblock %}

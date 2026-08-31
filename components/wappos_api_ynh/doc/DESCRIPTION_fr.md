@@ -1,0 +1,1 @@
+Service API interne de la gamme de produits Wappos — un seul contrat HTTP stable et versionné devant le moteur YunoHost, consommé par tous les frontends Wappos (portail, admin, futurs produits) plutôt que chacun ne réinvente sa propre intégration à YunoHost.

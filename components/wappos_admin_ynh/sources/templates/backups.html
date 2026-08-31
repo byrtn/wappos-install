@@ -1,0 +1,127 @@
+{% extends "base.html" %}
+{% set active_tab = "backups" %}
+{% block title %}Sauvegardes{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Sauvegardes</span>{% endblock %}
+
+{% block content %}
+    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Sauvegarde automatique et nettoyage</h3></div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('save_backup_schedule') }}">
+          <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; margin-bottom: 0.75rem;">
+            <input type="checkbox" name="enabled" value="1" {{ 'checked' if schedule.enabled }}>
+            Activer la sauvegarde automatique quotidienne
+          </label>
+          <div class="form-row" style="margin-bottom: 0.75rem;">
+            <label style="font-size: 0.85rem; color: var(--color-text-dim);">Fréquence :
+              <select name="frequency" style="padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);">
+                <option value="daily" {{ 'selected' if schedule.frequency == 'daily' }}>Quotidienne</option>
+                <option value="weekly" {{ 'selected' if schedule.frequency == 'weekly' }}>Hebdomadaire</option>
+              </select>
+            </label>
+            <label style="font-size: 0.85rem; color: var(--color-text-dim);">Périmètre :
+              <select name="scope" style="padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);">
+                <option value="full" {{ 'selected' if schedule.scope == 'full' }}>Système complet</option>
+                <option value="apps" {{ 'selected' if schedule.scope == 'apps' }}>Apps sélectionnées</option>
+              </select>
+            </label>
+          </div>
+          {% if installed_apps %}
+            <div class="field" style="margin-bottom: 0.75rem;">
+              <label style="display: block; font-size: 0.8rem; color: var(--color-text-dim); margin-bottom: 0.25rem;">Apps concernées si périmètre "Apps sélectionnées"</label>
+              {% for a in installed_apps %}
+                <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; margin-right: 0.75rem;">
+                  <input type="checkbox" name="apps" value="{{ a.id }}" {{ 'checked' if a.id in schedule.apps }}> {{ a.label or a.id }}
+                </label>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <hr style="border: none; border-top: 1px solid var(--color-border); margin: 0.75rem 0;">
+          <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; margin-bottom: 0.75rem;">
+            <input type="checkbox" name="retention_enabled" value="1" {{ 'checked' if schedule.retention_enabled }}>
+            Activer le nettoyage automatique des anciennes sauvegardes
+          </label>
+          <div class="form-row" style="margin-bottom: 0.75rem;">
+            <label style="font-size: 0.85rem; color: var(--color-text-dim);">Politique :
+              <select name="retention_mode" style="padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);">
+                <option value="count" {{ 'selected' if schedule.retention_mode == 'count' }}>Garder les N dernières</option>
+                <option value="days" {{ 'selected' if schedule.retention_mode == 'days' }}>Garder X jours</option>
+              </select>
+            </label>
+            <input type="number" name="retention_keep_count" min="1" value="{{ schedule.retention_keep_count }}"
+                   style="width: 80px; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);"> dernières
+            <input type="number" name="retention_keep_days" min="1" value="{{ schedule.retention_keep_days }}"
+                   style="width: 80px; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);"> jours
+          </div>
+          <button type="submit" class="btn">Enregistrer les réglages</button>
+        </form>
+        <form method="get" action="{{ url_for('preview_backup_retention') }}" style="margin-top: 0.5rem;">
+          <button type="submit" class="btn btn-warning">Aperçu du nettoyage (sans rien supprimer)</button>
+        </form>
+        <p class="field-info" style="margin: 0.5rem 0 0;">La sauvegarde s'exécute chaque nuit à 2h si activée. Le nettoyage s'applique après chaque sauvegarde planifiée si activé.</p>
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Créer une sauvegarde manuelle</h3></div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('create_backup') }}">
+          <div class="form-row">
+            <input type="text" name="name" placeholder="nom (optionnel, auto-généré sinon)" pattern="[A-Za-z0-9_-]*"
+                   title="Lettres, chiffres, - et _ uniquement"
+                   style="padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; min-width: 220px; max-width: 100%;">
+            <input type="text" name="description" placeholder="description (optionnel)"
+                   style="padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; min-width: 220px; max-width: 100%;">
+          </div>
+                    {% if installed_apps %}
+            <div class="field" style="margin-top: 0.5rem;">
+              <label style="display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem;">Apps à inclure (aucune cochée = tout)</label>
+              {% for a in installed_apps %}
+                <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; margin-right: 0.75rem;">
+                  <input type="checkbox" name="apps" value="{{ a.id }}"> {{ a.label or a.id }}
+                </label>
+              {% endfor %}
+            </div>
+          {% endif %}
+          <button type="submit" class="btn" style="margin-top: 0.75rem;">Créer la sauvegarde</button>
+        </form>
+        <p class="field-info" style="margin: 0.5rem 0 0;">Sans app cochée, la sauvegarde inclut tout le système et toutes les apps — peut prendre plusieurs minutes.</p>
+      </div>
+    </div>
+
+        <div class="link-list">
+      {% for name, info, status in archives %}
+        <a class="link-list-item" href="{{ url_for('backup_detail', name=name) }}">
+          <span class="link-list-text">
+            <span class="link-list-main">{{ (info.created_at|backup_date_fr) if info is mapping else name }}</span>
+            <span class="link-list-sub">
+              {{ name }}{% if info is mapping and info.size %} ({{ info.size }}){% endif %}
+              — <span class="backup-status backup-status-{{ status.kind }}">{{ status.label }}</span>
+            </span>
+          </span>
+          <span class="chevron">&rsaquo;</span>
+        </a>
+      {% else %}
+        <p class="field-info" style="margin: 0; padding: 1rem 1.5rem;">Aucune sauvegarde locale.</p>
+      {% endfor %}
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .card.create-card { margin-bottom: 1.25rem; }
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
+    .alert-danger { background: #fbe9e7; color: #7a1f00; border: 1px solid #f3b7a6; }
+    .alert-success { background: #e8f5e9; color: #1a4d24; border: 1px solid #a8d5b0; }
+    .btn-warning { background: #b8860b; }
+    .btn-warning:hover { background: #966d09; }
+    .backup-status { font-weight: 600; }
+    .backup-status-ok { color: #1a7a3d; }
+    .backup-status-warning { color: #b8860b; }
+    .backup-status-critical { color: #a33; }
+    .backup-status-unknown { color: var(--color-text-faint); }
+{% endblock %}

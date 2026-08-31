@@ -1,0 +1,13 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+source "$(dirname "$0")/_common.sh"
+source /usr/share/yunohost/helpers
+
+ynh_script_progression --message="Backing up the app's files..."
+ynh_backup --src_path="$install_dir"
+
+ynh_script_progression --message="Backing up the systemd configuration..."
+ynh_backup --src_path="/etc/systemd/system/$app.service"
+
+ynh_script_progression --message="Backup completed." --last

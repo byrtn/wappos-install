@@ -1,0 +1,20 @@
+{% if tiles %}
+  <div class="tiles theme-{{ tile_theme or 'simple' }}" id="tiles">
+    {% for tile in tiles %}
+      <a class="tile" {% if allow_reorder %}draggable="true"{% endif %} data-id="{{ tile.id }}" data-label="{{ tile.label|lower }}"
+         href="https://{{ tile.url }}" target="_blank" rel="noopener">
+        {% if tile.logo %}
+          <img src="{{ tile.logo }}" alt="">
+        {% else %}
+          <span class="logo-fallback">{{ tile.label[0]|upper }}</span>
+        {% endif %}
+        <span class="tile-labels">
+          <span class="tile-label">{{ tile.label }}</span>
+          {% if tile_theme == 'descriptive' and tile.description %}<span class="tile-description">{{ tile.description }}</span>{% endif %}
+        </span>
+      </a>
+    {% else %}
+      <p>{{ t('no_app_available') }}</p>
+    {% endfor %}
+  </div>
+{% endif %}

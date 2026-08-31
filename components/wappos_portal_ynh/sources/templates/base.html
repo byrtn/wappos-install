@@ -1,0 +1,336 @@
+<!doctype html>
+<html lang="{{ current_lang() }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="google" content="notranslate">
+    <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="preload" href="{{ url_for('static', filename='fonts/Montserrat-Variable.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <title>{% block title %}WAPPOS PORTAL{% endblock %}</title>
+  <script>
+    (function () {
+      var saved = localStorage.getItem('wappos_theme');
+      var theme = saved && saved !== 'system'
+        ? saved
+        : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+      document.documentElement.setAttribute('data-theme', theme);
+    })();
+  </script>
+  <style>
+        @font-face {
+      font-family: 'Montserrat';
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url('{{ url_for('static', filename='fonts/Montserrat-Variable.woff2') }}') format('woff2');
+    }
+    * { box-sizing: border-box; }
+        input, select, textarea { color: var(--color-text); }
+    html, body { height: 100%; }
+
+        :root, html[data-theme="light"] {
+      color-scheme: light;
+      --color-bg: #fafafa;
+      --color-card-bg: #fff;
+      --color-card-header-bg: #f0f0f0;
+      --color-text: #222;
+      --color-text-muted: #666;
+      --color-text-dim: #555;
+      --color-border: #ddd;
+      --color-border-soft: #e0e0e0;
+            --color-btn-bg: #016f93;
+      --color-btn-bg-hover: #015a78;
+      --color-btn-text: #fff;
+      --color-link: #016f93;
+      --color-danger: #a33;
+      --color-message-bg: #e6f4ea;
+      --color-message-text: #1e4620;
+      --color-error-bg: #fbe9e7;
+      --color-error-text: #7a1f00;
+      --color-tile-fallback-bg: #ddd;
+      --color-input-disabled-bg: #f0f0f0;
+      --color-input-disabled-text: #888;
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --color-bg: #14171a;
+      --color-card-bg: #1e2226;
+      --color-card-header-bg: #262b30;
+      --color-text: #cfcfcf;
+      --color-text-muted: #b3b3b3;
+      --color-text-dim: #bcbcbc;
+      --color-border: #3a3f45;
+      --color-border-soft: #2c3036;
+      --color-btn-bg: #016f93;
+      --color-btn-bg-hover: #0489b8;
+      --color-btn-text: #fff;
+      --color-link: #2a9dc4;
+      --color-danger: #e07a7a;
+      --color-message-bg: #1c3324;
+      --color-message-text: #a8e6bc;
+      --color-error-bg: #3a1f18;
+      --color-error-text: #f5b7a8;
+      --color-tile-fallback-bg: #2c3036;
+      --color-input-disabled-bg: #23262b;
+      --color-input-disabled-text: #888;
+    }
+        html[data-theme="black"] {
+      color-scheme: dark;
+      --color-bg: #000; --color-card-bg: #111214; --color-card-header-bg: #1a1c1f;
+      --color-text: #f2f2f2; --color-text-muted: #999; --color-text-dim: #bbb;
+      --color-border: #2a2c2f; --color-border-soft: #1f2123;
+      --color-btn-bg: #016f93; --color-btn-bg-hover: #0489b8; --color-btn-text: #fff; --color-link: #016f93;
+      --color-danger: #ff6b6b; --color-message-bg: #0f2a18; --color-message-text: #8fdba0;
+      --color-error-bg: #2a0f0f; --color-error-text: #ff9a9a;
+      --color-tile-fallback-bg: #1a1c1f; --color-input-disabled-bg: #151617; --color-input-disabled-text: #6b6b6b;
+    }
+    html[data-theme="legacy"] {
+      color-scheme: light;
+      --color-bg: #eef1f4; --color-card-bg: #fff; --color-card-header-bg: #e2e7ec;
+      --color-text: #2c3440; --color-text-muted: #6b7684; --color-text-dim: #4d5563;
+      --color-border: #d3dae1; --color-border-soft: #e2e7ec;
+      --color-btn-bg: #016f93; --color-btn-bg-hover: #015a78; --color-btn-text: #fff; --color-link: #016f93;
+      --color-danger: #a33; --color-message-bg: #e6f4ea; --color-message-text: #1e4620;
+      --color-error-bg: #fbe9e7; --color-error-text: #7a1f00;
+      --color-tile-fallback-bg: #e2e7ec; --color-input-disabled-bg: #eef1f4; --color-input-disabled-text: #8a94a0;
+    }
+    html[data-theme="halloween"] {
+      color-scheme: dark;
+      --color-bg: #181818; --color-card-bg: #212121; --color-card-header-bg: #2b2b2b;
+      --color-text: #f2f2f2; --color-text-muted: #b0a99f; --color-text-dim: #c8b8a0;
+      --color-border: #3d3d3d; --color-border-soft: #303030;
+      --color-btn-bg: #ff7f0e; --color-btn-bg-hover: #d9690a; --color-btn-text: #fff; --color-link: #016f93;
+      --color-danger: #ff5050; --color-message-bg: #22331f; --color-message-text: #a3d977;
+      --color-error-bg: #331a10; --color-error-text: #ffab6b;
+      --color-tile-fallback-bg: #303030; --color-input-disabled-bg: #262626; --color-input-disabled-text: #7a7a7a;
+    }
+    html[data-theme="cupcake"] {
+      color-scheme: light;
+      --color-bg: #faf7f5; --color-card-bg: #fff; --color-card-header-bg: #fae7e0;
+      --color-text: #3c2f2f; --color-text-muted: #8a7370; --color-text-dim: #6b5654;
+      --color-border: #f0d9d0; --color-border-soft: #f6e5df;
+      --color-btn-bg: #d1637d; --color-btn-bg-hover: #b84c66; --color-btn-text: #fff; --color-link: #016f93;
+      --color-danger: #d95c5c; --color-message-bg: #e3f5e5; --color-message-text: #2f6b34;
+      --color-error-bg: #fdeaea; --color-error-text: #a3372f;
+      --color-tile-fallback-bg: #f6e5df; --color-input-disabled-bg: #f3ecea; --color-input-disabled-text: #a3928f;
+    }
+    html[data-theme="nord"] {
+      color-scheme: dark;
+      --color-bg: #2e3440; --color-card-bg: #3b4252; --color-card-header-bg: #434c5e;
+      --color-text: #eceff4; --color-text-muted: #b8c0d0; --color-text-dim: #c8cfdd;
+      --color-border: #4c566a; --color-border-soft: #434c5e;
+      --color-btn-bg: #5e9fb3; --color-btn-bg-hover: #4a8598; --color-btn-text: #fff; --color-link: #016f93;
+      --color-danger: #bf616a; --color-message-bg: #3a4a3f; --color-message-text: #a3be8c;
+      --color-error-bg: #4a2e33; --color-error-text: #e7a8ae;
+      --color-tile-fallback-bg: #434c5e; --color-input-disabled-bg: #3b4252; --color-input-disabled-text: #7c8496;
+    }
+        .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px;
+               overflow: hidden; clip: rect(0,0,0,0); white-space: nowrap; border: 0; }
+        a { text-decoration: none; font-weight: 500; color: var(--color-link); }
+    a:hover { text-decoration: none; }
+    body { font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+           margin: 0; padding: 1.5rem; background: var(--color-bg); color: var(--color-text);
+           display: flex; flex-direction: column;
+                      letter-spacing: -0.015em; }
+        .page { display: flex; flex-direction: column; flex: 1; }
+
+        header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 2rem;
+             gap: 1.5rem; flex-wrap: wrap; }
+    .header-left { display: flex; align-items: center; gap: 1.5rem; flex-wrap: wrap; }
+    .header-right { display: flex; align-items: center; gap: 1.5rem; }
+    h1 { margin: 0; font-size: 1rem; font-weight: 300; color: var(--color-text-muted); }
+    header a.brand { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; text-decoration: none; color: inherit; }
+        .brand-subtitle { display: flex; align-items: center; gap: 0.5rem; font-weight: 300;
+                       font-size: 0.68rem; color: var(--color-text-muted); letter-spacing: 0.15em;
+                       text-transform: uppercase; white-space: nowrap; }
+    .brand-subtitle-rule { flex: 0 0 16px; height: 1px; background: var(--color-border-soft); }
+        .brand-logo { height: 40px; width: auto; max-width: 178px; }
+        .brand-fallback-text { font-size: 1.5rem; font-weight: 700; letter-spacing: 0.08em; color: var(--color-text); }
+
+        .user-info-name { display: flex; align-items: center; gap: 0.4rem; font-weight: bold; }
+    .user-info-meta { font-size: 0.8rem; color: var(--color-text-muted); }
+
+        .edit-icon { display: inline-flex; align-items: center; justify-content: center; gap: 0.3rem;
+                  text-decoration: none; color: inherit; font-size: 0.9rem;
+                  padding: 0.95rem; margin: -0.95rem; border-radius: 8px;
+                  -webkit-tap-highlight-color: transparent; }
+    .edit-icon:focus-visible { background: var(--color-card-header-bg); }
+    .edit-icon .edit-icon-text { max-width: 0; overflow: hidden; white-space: nowrap;
+                  opacity: 0; transition: max-width 0.15s, opacity 0.15s; }
+    .edit-icon:focus-visible .edit-icon-text { max-width: 12rem; opacity: 1; }
+    @media (hover: hover) and (pointer: fine) {
+      .edit-icon:hover { background: var(--color-card-header-bg); }
+      .edit-icon:hover .edit-icon-text { max-width: 12rem; opacity: 1; }
+    }
+
+        .logout-button { display: inline-flex; align-items: center; justify-content: center; gap: 0.4rem;
+                      min-width: 9rem; padding: 0.5rem 1rem; border-radius: 8px; border: none;
+                      background: var(--color-btn-bg); color: var(--color-btn-text); cursor: pointer; font-size: 0.9rem;
+                      white-space: nowrap; }
+    .logout-button:hover { background: var(--color-btn-bg-hover); }
+    .logout-button svg { width: 1.25em; height: 1.25em; }
+
+        .intro { margin-bottom: 1.5rem; line-height: 1.5; }
+
+        .search-bar { display: flex; margin-bottom: 1.25rem; }
+    .search-bar input { flex: 1; min-width: 0; padding: 0.6rem 0.9rem;
+            border-radius: 999px 0 0 999px; border: 1px solid var(--color-border); border-right: none;
+            background: var(--color-card-bg); color: var(--color-text);
+            font-size: 0.95rem; height: 2.6rem; }
+    .search-bar input:focus { outline: none; border-color: #999; }
+        .search-bar button { display: flex; align-items: center; justify-content: center;
+            padding: 0 1rem; border-radius: 0 999px 999px 0; border: none;
+            background: var(--color-btn-bg); color: var(--color-btn-text); cursor: pointer; font-size: 1rem; height: 2.6rem; }
+    .search-bar button:hover { background: var(--color-btn-bg-hover); }
+    .web-search { margin-bottom: 2rem; }
+
+        .tiles { display: flex; flex-wrap: wrap; gap: 1.25rem; margin-bottom: 2rem;
+            -webkit-user-select: none; user-select: none; }
+    .tile.hidden { display: none; }
+    .tile { display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
+            width: 170px; padding: 1.25rem 0.5rem; border-radius: 12px; background: var(--color-card-bg);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-decoration: none; color: inherit;
+            cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
+    .tile:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
+    .tile.dragging { box-shadow: 0 0 0 3px var(--color-link, #016f93), 0 16px 32px rgba(0,0,0,0.4);
+            z-index: 999; }
+    .tile img { width: 96px; height: 96px; border-radius: 12px; object-fit: cover; }
+    .tile .logo-fallback { width: 96px; height: 96px; border-radius: 12px; background: var(--color-tile-fallback-bg);
+            display: flex; align-items: center; justify-content: center; font-weight: bold; font-size: 1.5rem; }
+    .tile-label { font-size: 1.05rem; text-align: center; }
+
+        .tiles.theme-descriptive { flex-direction: column; }
+    .tiles.theme-descriptive .tile { flex-direction: row; align-items: center; width: 100%;
+            gap: 1rem; padding: 1rem 1.25rem; }
+    .tiles.theme-descriptive .tile img,
+    .tiles.theme-descriptive .tile .logo-fallback { width: 64px; height: 64px; flex-shrink: 0; }
+    .tiles.theme-descriptive .tile-labels { display: flex; flex-direction: column; gap: 0.2rem; text-align: left; }
+    .tiles.theme-descriptive .tile-label { text-align: left; }
+    .tile-description { font-size: 0.82rem; color: var(--color-text-muted); font-weight: normal; }
+
+    .tiles.theme-periodic { gap: 0.6rem; }
+    .tiles.theme-periodic .tile { width: 100px; padding: 0.6rem 0.3rem; }
+    .tiles.theme-periodic .tile img,
+    .tiles.theme-periodic .tile .logo-fallback { width: 56px; height: 56px; }
+    .tiles.theme-periodic .tile-label { font-size: 0.85rem; }
+
+        .public-tiles { width: 100%; max-width: 700px; margin: 0 auto 2rem; }
+
+        .card { background: var(--color-card-bg); border-radius: 16px; overflow: hidden;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); display: flex; flex-direction: column; }
+    .card-header { background: var(--color-card-header-bg); padding: 1rem 2rem; }
+        .card-header h2, .card-header h3 { margin: 0; font-size: 1.12rem; font-weight: 700; }
+    .card-body { padding: 2rem; flex: 1; display: flex; flex-direction: column; }
+    .card-body .field { margin-bottom: 1.75rem; }
+        .card-body .card-actions { margin-top: 1.75rem; }
+    .card-body label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem; font-weight: 500;
+            color: var(--color-text-dim); }
+        .card-body input[type="text"], .card-body input[type="password"], .card-body select,
+    .btn-solid {
+        height: 2.75rem; border-radius: 8px; font-family: inherit; font-size: 0.95rem;
+    }
+    .card-body input[type="text"], .card-body input[type="password"], .card-body select {
+            width: 100%; padding: 0 0.9rem;
+            border: 1px solid var(--color-border); background: var(--color-card-bg); color: var(--color-text); }
+        .btn-solid { border: none; background: var(--color-btn-bg);
+            color: var(--color-btn-text); cursor: pointer; padding: 0 1.5rem; min-width: 9rem;
+            display: inline-flex; align-items: center; justify-content: center; }
+    .btn-solid:hover { background: var(--color-btn-bg-hover); }
+    .message { padding: 0.75rem 1rem; border-radius: 8px; background: var(--color-message-bg); color: var(--color-message-text);
+               margin-bottom: 1.25rem; font-size: 0.9rem; }
+    .error { padding: 0.75rem 1rem; border-radius: 8px; background: var(--color-error-bg); color: var(--color-error-text);
+             margin-bottom: 1.25rem; font-size: 0.9rem; }
+
+        .doc-content { max-width: 1200px; margin: 0 auto; }
+    .doc-content > h1 { font-size: 1.75rem; font-weight: 700; color: var(--color-text); margin: 0 0 1.5rem; }
+    .doc-content h2 { font-size: 1.3rem; font-weight: 700; margin: 2rem 0 0.75rem; }
+    .doc-content h2:first-of-type { margin-top: 0; }
+    .doc-content h3 { font-size: 1.05rem; font-weight: 700; margin: 1.5rem 0 0.5rem; color: var(--color-text-dim); }
+        .doc-content p, .doc-content li {
+        line-height: 1.6; text-align: justify;
+        hyphens: none; word-break: normal; overflow-wrap: normal;
+    }
+    .doc-content p { margin: 0 0 1rem; }
+    .doc-content ul, .doc-content ol { margin: 0 0 1rem; padding-left: 1.5rem; line-height: 1.6; }
+    .doc-content li { margin-bottom: 0.5rem; }
+
+        @media (max-width: 480px) {
+      body { padding: 1rem; }
+      .tile { width: calc(50% - 0.625rem); }
+      .tiles { gap: 0.75rem; }
+            .header-right { width: 100%; justify-content: flex-end; }
+    }
+
+        .page-content { flex: 1; display: flex; flex-direction: column; margin-bottom: 2rem; }
+    footer { margin-top: auto; padding: 2rem 0 1.5rem; border-top: 1px solid var(--color-border-soft);
+             font-size: 0.85rem; color: var(--color-text-muted); text-align: center; }
+
+        .footer-links { display: flex; flex-wrap: wrap; justify-content: center; gap: 1.5rem;
+                    margin-bottom: 1rem; text-align: center; }
+    .footer-links a:hover { opacity: 0.75; }
+
+                .page { width: 100%; max-width: 1200px; margin: 0 auto; }
+
+    
+    {% block extra_style %}{% endblock %}
+  </style>
+</head>
+<body>
+ <div class="page">
+  {% if not hide_chrome %}
+  <header>
+    <div class="header-left">
+      <a class="brand" href=".">
+        {% if branding.logo_url %}<img src="{{ branding.logo_url }}" alt="" class="brand-logo">{% else %}<span class="brand-fallback-text">WAPPOS</span>{% endif %}
+        <span class="brand-subtitle"><span class="brand-subtitle-rule"></span>Portal<span class="brand-subtitle-rule"></span></span>
+      </a>
+      {% if user %}
+      <div class="user-info">
+        <div class="user-info-name">
+          <span>{{ user }}</span>
+                    <a href="profile" class="edit-icon">
+            <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="M20.71 7.04c.39-.39.39-1.04 0-1.41l-2.34-2.34c-.37-.39-1.02-.39-1.41 0l-1.84 1.83l3.75 3.75M3 17.25V21h3.75L17.81 9.93l-3.75-3.75L3 17.25Z"/></svg>
+            <span class="edit-icon-text">{{ t('edit_profile') }}</span>
+          </a>
+        </div>
+        {% if header %}
+        <div class="user-info-meta">{{ header.role }}</div>
+        <div class="user-info-meta">{{ header.mail }}</div>
+        {% endif %}
+      </div>
+      {% endif %}
+    </div>
+        <div class="header-right">
+      {% if user %}
+            <form method="post" action="{{ url_for('logout') }}" style="margin: 0;">
+        <button type="submit" class="logout-button">
+          <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24"><path fill="currentColor" d="m17 8l-1.4 1.4l1.6 1.6H9v2h8.2l-1.6 1.6L17 16l4-4l-4-4M5 5h7V3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h7v-2H5V5Z"/></svg>
+          <span>{{ t('logout') }}</span>
+        </button>
+      </form>
+      {% endif %}
+    </div>
+  </header>
+  {% endif %}
+
+  <div class="page-content">{% block content %}{% endblock %}</div>
+
+  {% if not hide_chrome %}
+  <footer>
+    {% if user %}
+    <nav class="footer-links">
+      <a href="documentation">{{ t('nav_documentation') }}</a>
+      <a href="support">{{ t('nav_support') }}</a>
+      <a href="/wappos-admin/" target="_blank" rel="noopener">{{ t('nav_administration') }}</a>
+    </nav>
+    {% endif %}
+    <span class="wappos-brand-mark">WAPPOS</span> v{{ app_version }} — © {{ year }} <a href="https://byrtn.fr" target="_blank" rel="noopener">BYRTN</a>
+  </footer>
+  {% endif %}
+ </div>
+
+  <script>
+    {% block extra_script %}{% endblock %}
+  </script>
+</body>
+</html>

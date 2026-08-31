@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Page introuvable{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Page introuvable</span>{% endblock %}
+
+{% block content %}
+    <div class="card not-found-card">
+      <h2>Page introuvable</h2>
+      <p>Cette page n'existe pas ou plus.</p>
+      <a href="{{ url_for('home') }}" class="btn">Retour à l'accueil</a>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .not-found-card { padding: 2rem 1.5rem; text-align: center; }
+    .not-found-card h2 { margin: 0 0 0.5rem; }
+    .not-found-card p { color: var(--color-text-dim); margin: 0 0 1.25rem; }
+{% endblock %}

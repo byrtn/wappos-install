@@ -1,0 +1,1 @@
+17 6 * * * __APP__ __INSTALL_DIR__/venv/bin/python3 __INSTALL_DIR__/healthcheck.py __APP__ __PORT__ __ADMIN_ALERT_MAIL__

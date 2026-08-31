@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+{% block title %}Connexion{% endblock %}
+
+{% block content %}
+  <div class="login-center">
+    <div class="login-page">
+      <img id="login-logo" src="" alt="" class="login-logo" hidden>
+      <div id="login-fallback-text" class="wappos-brand-mark" style="text-align: center; font-size: 1.5rem; letter-spacing: 0.06em; margin-bottom: 0.75rem;">WAPPOS</div>
+      <div class="login-subtitle"><span class="login-subtitle-rule"></span>A D M I N<span class="login-subtitle-rule"></span></div>
+
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+            <form id="login-form" method="post" action="{{ url_for('login') }}" class="login-form-grid">
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 19.2c-2.5 0-4.71-1.28-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.232 7.232 0 0 1-6 3.2M12 5a3 3 0 0 1 3 3a3 3 0 0 1-3 3a3 3 0 0 1-3-3a3 3 0 0 1 3-3m0-3A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10c0-5.53-4.5-10-10-10Z"/></svg>
+        <div class="login-field-input">
+          <label for="username" class="sr-only">Identifiant</label>
+          <input type="text" id="username" name="username" placeholder="Nom du compte"
+                 autocomplete="username" autocapitalize="off" spellcheck="false" required autofocus>
+        </div>
+
+        <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 17a2 2 0 0 0 2-2a2 2 0 0 0-2-2a2 2 0 0 0-2 2a2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2h1m-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3Z"/></svg>
+        <div class="login-field-input password">
+          <label for="password" class="sr-only">Mot de passe</label>
+          <input type="password" id="password" name="password" placeholder="Mot de passe"
+                 autocomplete="current-password" required>
+          <button type="button" class="toggle-password" data-target="password">Afficher</button>
+        </div>
+
+        <button type="submit" class="login-submit">Connexion</button>
+      </form>
+    </div>
+
+    <div class="login-footer"><span class="wappos-brand-mark">WAPPOS ADMIN</span> v{{ app_version }} — © {{ year }} <a href="https://byrtn.fr" target="_blank" rel="noopener">BYRTN</a></div>
+  </div>
+{% endblock %}
+
+{% block extra_style %}
+        body { background: #14171a; color: #e8e8e8; }
+    .login-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; }
+    .login-page { width: 100%; max-width: 300px; }
+    .login-logo { display: block; width: 50%; margin: 0 auto 0.75rem; }
+    .login-subtitle { display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+            font-weight: 300; letter-spacing: 0.15em; font-size: 0.8rem;
+            color: #a8a8a8; margin: 0 0 2.5rem; }
+    .login-subtitle-rule { flex: 0 0 28px; height: 1px; background: #3a3f45; }
+
+    .login-form-grid { display: grid; grid-template-columns: 1.5rem 1fr; column-gap: 0.6rem; row-gap: 1rem; align-items: center; }
+    .login-form-grid svg { color: #b0b0b0; }
+    .login-field-input { position: relative; }
+    .login-field-input input { width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px;
+            border: 1px solid #3a3f45; background: #1e2226; color: #e8e8e8;
+            font-size: 0.95rem; }
+    .login-field-input input:focus { outline: none; border-color: #666; }
+    .login-field-input.password input { padding-right: 4.5rem; }
+    .toggle-password { position: absolute; right: 0.5rem; top: 50%; transform: translateY(-50%);
+             background: none; border: none; cursor: pointer; font-size: 0.8rem; padding: 0.25rem 0.4rem;
+             color: #a8a8a8; text-decoration: underline; }
+
+    .login-submit { grid-column: 2; padding: 0.65rem 1.25rem; border-radius: 8px; border: none;
+            background: #016f93; color: #fff; cursor: pointer; font-size: 0.95rem; }
+    .login-submit:hover { background: #0489b8; }
+
+    .login-footer { margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: #a8a8a8; }
+    .login-footer a { color: #0489b8; }
+
+    .error { background: #3a1f18; color: #f5b7a8; }
+{% endblock %}
+
+{% block extra_script %}
+    fetch('/yunohost/portalapi/public')
+      .then((r) => r.ok ? r.json() : null)
+      .then((data) => {
+        if (data && data.portal_logo) {
+          const img = document.getElementById('login-logo');
+          img.src = '/yunohost/sso/customassets/' + data.portal_logo;
+          img.hidden = false;
+          document.getElementById('login-fallback-text').hidden = true;
+        }
+      })
+      .catch(() => {});
+
+    document.querySelectorAll('.toggle-password').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const showing = input.type === 'password';
+        input.type = showing ? 'text' : 'password';
+        btn.textContent = showing ? 'Masquer' : 'Afficher';
+      });
+    });
+{% endblock %}

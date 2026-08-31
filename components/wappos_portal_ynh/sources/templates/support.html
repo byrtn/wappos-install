@@ -1,0 +1,90 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — WAPPOS PORTAL{% endblock %}
+
+{% block extra_style %}
+            .contact-admin-line { display: flex; align-items: center; gap: 1rem; flex-wrap: wrap; margin-bottom: 1.5rem; }
+    .contact-admin-line p { margin: 0; }
+
+        .contact-form { display: flex; flex-direction: column; gap: 1.25rem; max-width: 700px; margin-top: 1rem; }
+    .contact-form-row { display: flex; flex-direction: column; gap: 1.25rem; }
+    @media (min-width: 640px) {
+      .contact-form-row { flex-direction: row; }
+      .contact-form-row .field { flex: 1; }
+    }
+    .contact-form .field { margin: 0; }
+    .contact-form input[type="text"], .contact-form input[type="email"], .contact-form textarea {
+        width: 100%; padding: 0.6rem 0.9rem; border-radius: 8px; font-family: inherit; font-size: 0.95rem;
+        border: 1px solid var(--color-border); background: var(--color-card-bg); color: var(--color-text);
+    }
+    .contact-form textarea { min-height: 8rem; resize: vertical; }
+    .contact-form .rgpd-field { display: flex; align-items: flex-start; gap: 0.6rem; font-size: 0.85rem;
+             color: var(--color-text-dim); line-height: 1.4; }
+    .contact-form .rgpd-field input { margin-top: 0.2rem; }
+
+        .section-divider { border: none; border-top: 1px solid var(--color-border-soft);
+             width: 100%; margin: 2rem 0; }
+
+        .contact-form label { display: block; margin-bottom: 0.4rem; font-size: 0.9rem;
+             font-weight: 500; color: var(--color-text-dim); padding-left: 0.9rem; }
+{% endblock %}
+
+{% block content %}
+  <div class="doc-content">
+    <h1>{{ page_title }}</h1>
+
+    {% if message %}<div class="message">{{ message }}</div>{% endif %}
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+
+        <div>{{ faq_html|safe }}</div>
+
+    <hr class="section-divider">
+    <h2>{{ t('h2_contact_admin') }}</h2>
+    <div class="contact-admin-line">
+      <p>{{ t('contact_admin_intro') }}</p>
+            <button type="button" class="btn-solid byrtn-mail-btn" data-u="adminynh" data-d="{{ domain }}">
+        {{ t('btn_reveal_admin_email') }}
+      </button>
+    </div>
+
+    <hr class="section-divider">
+    <h2>{{ t('h2_contact_editor') }}</h2>
+    <p>{{ t('contact_editor_intro') }}</p>
+    <form method="post" action="{{ url_for('support_contact') }}" class="contact-form">
+      <div class="contact-form-row">
+        <div class="field">
+          <label for="contact_name">{{ t('contact_form_name_label') }}</label>
+          <input type="text" id="contact_name" name="name" placeholder="{{ t('contact_form_name_placeholder') }}" required>
+        </div>
+        <div class="field">
+          <label for="contact_email">{{ t('contact_form_email_label') }}</label>
+          <input type="email" id="contact_email" name="email" placeholder="{{ t('contact_form_email_placeholder') }}" required>
+        </div>
+      </div>
+      <div class="field">
+        <label for="contact_message">{{ t('contact_form_message_label') }}</label>
+        <textarea id="contact_message" name="message" placeholder="{{ t('contact_form_message_placeholder') }}" required></textarea>
+      </div>
+      <label class="rgpd-field">
+        <input type="checkbox" name="rgpd" required>
+        <span>{{ t('contact_form_rgpd_label') }}</span>
+      </label>
+      <div>
+        <button type="submit" class="btn-solid">{{ t('btn_send') }}</button>
+      </div>
+    </form>
+  </div>
+{% endblock %}
+
+{% block extra_script %}
+    document.querySelectorAll('.byrtn-mail-btn').forEach(function (el) {
+      el.addEventListener('click', function (e) {
+        e.preventDefault();
+        var u = el.getAttribute('data-u');
+        var d = el.getAttribute('data-d');
+        if (u && d) {
+          window.location.href = 'mailto:' + u + '@' + d;
+        }
+      });
+    });
+{% endblock %}

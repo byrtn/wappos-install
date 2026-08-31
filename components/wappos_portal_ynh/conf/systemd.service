@@ -1,0 +1,25 @@
+[Unit]
+Description=Wappos Portal
+After=network.target
+
+[Service]
+Type=simple
+User=__APP__
+Group=__APP__
+WorkingDirectory=__INSTALL_DIR__
+Environment="PATH=__INSTALL_DIR__/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+# --no-control-socket : on n'utilise jamais la gestion runtime via
+# `gunicornc` — sans ce flag, gunicorn tente de créer un socket sous
+# $HOME/.gunicorn/ (le $HOME système de l'app, /var/www/__APP__ par
+# convention YunoHost, qui n'existe pas puisque install_dir est ailleurs),
+# d'où un "Control server error: Permission denied" cosmétique à chaque
+# démarrage (sans impact fonctionnel, mais autant l'éviter proprement).
+ExecStart=__INSTALL_DIR__/venv/bin/gunicorn --workers 2 --bind 127.0.0.1:__PORT__ --no-control-socket app:app
+Restart=on-failure
+RestartSec=5
+
+# Basic hardening
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

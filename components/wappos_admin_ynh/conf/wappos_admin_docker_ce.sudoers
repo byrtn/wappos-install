@@ -1,0 +1,7 @@
+__APP__ ALL=(root) NOPASSWD: /usr/bin/systemctl stop docker docker.socket containerd
+__APP__ ALL=(root) NOPASSWD: /usr/bin/apt-get purge -y docker-ce docker-ce-cli docker-ce-rootless-extras docker-buildx-plugin docker-compose-plugin containerd.io
+__APP__ ALL=(root) NOPASSWD: /usr/bin/apt-get autoremove -y
+__APP__ ALL=(root) NOPASSWD: /usr/bin/rm -rf /var/lib/docker /var/lib/containerd /etc/docker
+__APP__ ALL=(root) NOPASSWD: /usr/bin/rm -f /etc/apt/sources.list.d/docker.list /etc/apt/keyrings/docker.gpg
+__APP__ ALL=(root) NOPASSWD: /usr/sbin/groupdel docker
+__APP__ ALL=(root) NOPASSWD: /usr/bin/rm -f /usr/share/yunohost/applogos/redirect__*.png

@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% set active_tab = "performance" %}
+{% block title %}Performance{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Performance</span>{% endblock %}
+
+{% block content %}
+    {% if not available %}
+      <div class="error">Prometheus n'est pas accessible pour l'instant — vérifie que le service tourne et que l'identifiant de lecture (<code>{{ "wappos_admin_ro" }}</code>) est bien configuré côté Prometheus.</div>
+    {% else %}
+      <p class="field-info" style="margin: 0 0 1.25rem;">
+        Les 4 indicateurs qui comptent réellement pour surveiller une app, mesurés sur les 5 dernières minutes (graphiques : 6 dernières heures).
+      </p>
+      <div class="perf-grid">
+        {% for a in apps %}
+          <div class="card perf-card">
+            <div class="card-header"><h3>{{ a.name }}</h3></div>
+            <div class="card-body">
+              <div class="perf-row">
+                <div class="perf-metric">
+                  <div class="perf-metric-label">Requêtes / seconde</div>
+                  <div class="perf-metric-value">{{ a.req_rate }}</div>
+                  <div class="perf-sparkline">{{ a.req_sparkline|safe }}</div>
+                </div>
+                <div class="perf-metric">
+                  <div class="perf-metric-label">Taux d'erreur</div>
+                  <div class="perf-metric-value perf-metric-{{ 'critical' if a.error_rate > 1 else 'ok' }}">{{ a.error_rate }}%</div>
+                </div>
+              </div>
+              <div class="perf-row">
+                <div class="perf-metric">
+                  <div class="perf-metric-label">Temps de réponse (p95)</div>
+                  <div class="perf-metric-value">{{ a.p95_ms if a.p95_ms is not none else '?' }}{{ ' ms' if a.p95_ms is not none }}</div>
+                </div>
+                <div class="perf-metric">
+                  <div class="perf-metric-label">Mémoire</div>
+                  <div class="perf-metric-value">{{ a.mem_mb if a.mem_mb is not none else '?' }}{{ ' Mo' if a.mem_mb is not none }}</div>
+                  <div class="perf-sparkline">{{ a.mem_sparkline|safe }}</div>
+                </div>
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_style %}
+    .perf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+    .perf-card { padding: 0; }
+    .perf-row { display: flex; gap: 1.5rem; padding: 0.75rem 0; border-bottom: 1px solid var(--color-border); }
+    .perf-row:last-child { border-bottom: none; }
+    .perf-metric { flex: 1; min-width: 0; }
+    .perf-metric-label { font-size: 0.78rem; color: var(--color-text-faint); margin-bottom: 0.2rem; }
+    .perf-metric-value { font-size: 1.4rem; font-weight: 700; line-height: 1.2; }
+    .perf-metric-ok { color: #1a7a3d; }
+    .perf-metric-critical { color: #a33; }
+    .perf-sparkline { color: var(--color-link); margin-top: 0.3rem; }
+    .perf-sparkline svg { display: block; width: 100%; height: auto; }
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends "base.html" %}
+{% set active_tab = "logs" %}
+{% block title %}{{ detail.description }} — Journaux{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('logs') }}">Journaux</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ detail.description }}</span>{% endblock %}
+
+{% block content %}
+    
+    <div class="card">
+      <h2 style="margin: 0; padding: 1.25rem 1.5rem 0;">{{ detail.description }}</h2>
+      {% if detail.path %}
+        <div class="log-info-row">
+          <strong class="log-info-label">Chemin</strong>
+          <span class="log-info-path">{{ detail.path }}</span>
+        </div>
+      {% endif %}
+      {% if detail.started_at %}
+        <div class="log-info-row">
+          <strong class="log-info-label">Début</strong>
+          <span>{{ detail.started_at }}</span>
+        </div>
+      {% endif %}
+      {% if detail.ended_at %}
+        <div class="log-info-row">
+          <strong class="log-info-label">Fin</strong>
+          <span>{{ detail.ended_at }}</span>
+        </div>
+      {% endif %}
+      {% if detail.suboperations %}
+        <div class="log-info-row">
+          <strong class="log-info-label">Sous-opérations</strong>
+          <div>
+            {% for sub in detail.suboperations %}
+              <div>
+                {% if sub.success is sameas false %}<span class="text-danger">✕</span>{% endif %}
+                <a href="{{ url_for('log_detail', name=sub.name) }}">{{ sub.description }}</a>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      {% endif %}
+    </div>
+
+    {% if detail.error %}
+      <div class="alert alert-danger">
+        L'opération a échoué ! Vous pouvez essayer de demander de l'aide à la communauté Wappos.
+      </div>
+    {% endif %}
+
+    <div class="card">
+      <h2 style="margin: 0; padding: 1.25rem 1.5rem;">Journal</h2>
+      {% if detail.more_logs_available %}
+        <a href="{{ url_for('log_detail', name=detail.name, n=number * 10) }}" class="btn log-more-btn">Afficher plus de lignes</a>
+      {% endif %}
+      <pre class="log-content"><code>{% for line in detail.logs %}{{ line|colorize_log_line }}
+{% endfor %}</code></pre>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .card { margin-bottom: 1.25rem; }
+    .log-info-row { display: flex; gap: 1rem; padding: 0.6rem 1.5rem; border-top: 1px solid #f0f0f0;
+                     font-size: 0.88rem; align-items: flex-start; }
+    .log-info-label { flex: 0 0 160px; }
+    .log-info-path { font-family: monospace; font-size: 0.8rem; word-break: break-all; }
+    .alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
+    .alert-danger { background: #fbe9e7; color: #7a1f00; border: 1px solid #f3b7a6; }
+    .log-more-btn { display: block; width: 100%; text-align: center; border-radius: 0; }
+    .log-content { margin: 0; padding: 1.25rem 1.5rem; font-size: 0.78rem; background: #1e1e1e;
+                    color: #ddd; overflow-x: auto; max-height: 600px; user-select: none; }
+    .log-line-error { color: #ff8080; }
+    .log-line-warning { color: #ffd452; }
+    .log-line-success { color: #70ea8d; }
+    .log-line-info { color: #8ec9e0; }
+    .text-danger { color: var(--color-text-danger); }
+{% endblock %}

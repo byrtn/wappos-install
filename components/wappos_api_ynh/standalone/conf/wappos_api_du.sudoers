@@ -1,0 +1,13 @@
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /var/www
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /home
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /var/lib/docker
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /var/log
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /opt/yunohost
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /var/mail
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /var/lib/mysql
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /var/backups
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /root
+__APP__ ALL=(root) NOPASSWD: /usr/bin/cat /opt/yunohost/wappos_api/.package/manifest.toml
+__APP__ ALL=(root) NOPASSWD: /usr/bin/cat /opt/yunohost/wappos_admin/.package/manifest.toml
+__APP__ ALL=(root) NOPASSWD: /usr/bin/cat /opt/yunohost/wappos_portal/.package/manifest.toml
+__APP__ ALL=(root) NOPASSWD: /usr/sbin/smartctl -a -j /dev/sda

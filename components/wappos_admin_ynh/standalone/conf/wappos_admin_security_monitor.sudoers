@@ -1,0 +1,3 @@
+__APP__ ALL=(root) NOPASSWD: /usr/bin/cp -a -f /var/log/chkrootkit/log.today /var/log/chkrootkit/log.expected
+__APP__ ALL=(root) NOPASSWD: /usr/bin/tail -n 300 /var/log/rkhunter.log
+__APP__ ALL=(root) NOPASSWD: /usr/bin/rkhunter --propupd

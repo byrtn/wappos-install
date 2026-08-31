@@ -1,0 +1,13 @@
+#!/bin/bash
+
+source "$(dirname "$0")/_common.sh"
+source /usr/share/yunohost/helpers
+
+# L'app ne code aucune URL en dur — tout appel sortant se fait vers
+# 127.0.0.1 (config.py), rien de plus à faire côté application ici.
+ynh_script_progression --message="Updating the nginx configuration..." --weight=5
+ynh_change_url_nginx_config
+
+nginx -t && systemctl reload nginx
+
+ynh_script_progression --message="Change of URL completed." --last

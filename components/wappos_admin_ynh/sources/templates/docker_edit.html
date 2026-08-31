@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% set active_tab = "docker" %}
+{% block title %}Modifier {{ slug }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">Applications Docker</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Modifier — {{ slug }}</span>{% endblock %}
+
+{% block content %}
+    {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
+    {% if message %}<div class="message" style="margin-bottom: 1.25rem;">{{ message }}</div>{% endif %}
+
+    <div class="message" style="background: var(--color-warning-bg); color: var(--color-warning-text); margin-bottom: 1.25rem;">
+      Toute modification des paramètres ci-dessous redémarre le conteneur — coupure de service le temps du redémarrage.
+    </div>
+
+    {% if supports_change_url %}
+      <div class="card create-card">
+        <div class="card-header"><h3>Changer l'URL</h3></div>
+        <div class="card-body">
+          <p class="field-info" style="margin: 0 0 0.75rem;">Domaine et chemin actuels : <code>{{ entry.domain }}{{ entry.path }}</code></p>
+          <form method="post" action="{{ url_for('docker_change_url', slug=slug) }}" class="form-row">
+            <select name="domain">
+              {% for d in domains %}<option value="{{ d }}" {{ "selected" if d == entry.domain else "" }}>{{ d }}</option>{% endfor %}
+            </select>
+            <input type="text" name="path" placeholder="/chemin" value="{{ entry.path }}">
+            <button type="submit" class="btn">Changer</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
+
+    <form method="post" action="{{ url_for('docker_edit', slug=slug) }}">
+      <div class="card create-card">
+        <div class="card-header"><h3>Paramètres de {{ slug }}</h3></div>
+        <div class="card-body">
+          <div class="fields">
+            <div class="field">
+              <label for="image">Image Docker</label>
+              <input type="text" id="image" name="image" required value="{{ entry.image }}">
+            </div>
+            <div class="field">
+              <label for="container_port">Port du conteneur</label>
+              <input type="number" id="container_port" name="container_port" required min="1" max="65535" value="{{ entry.container_port }}">
+            </div>
+          </div>
+
+          <div class="field" style="margin-top: 0.75rem;">
+            <label for="data_path">Chemin des données dans le conteneur (optionnel)</label>
+            <input type="text" id="data_path" name="data_path" placeholder="/data" value="{{ entry.data_path or '' }}">
+            <span class="field-help">Vider ce champ supprime le volume de données existant.</span>
+          </div>
+
+          <div class="field" style="margin-top: 0.75rem;">
+            <label for="env_vars">Variables d'environnement (une par ligne, KEY=valeur)</label>
+            <textarea id="env_vars" name="env_vars" rows="4" style="width: 100%; font-family: monospace; font-size: 0.85rem; padding: 0.6rem 0.8rem; border: 1px solid var(--color-border-strong); border-radius: 6px; background: var(--color-input-bg); color: var(--color-text);">{{ env_vars_text }}</textarea>
+          </div>
+
+          <div class="fields" style="margin-top: 0.75rem;">
+            <div class="field">
+              <label for="cpu_limit">Limite CPU (optionnel)</label>
+              <input type="text" id="cpu_limit" name="cpu_limit" placeholder="ex. 0.5" value="{{ entry.cpu_limit or '' }}">
+            </div>
+            <div class="field">
+              <label for="mem_limit">Limite mémoire (optionnel)</label>
+              <input type="text" id="mem_limit" name="mem_limit" placeholder="ex. 512m" value="{{ entry.mem_limit or '' }}">
+              <span class="field-help">Mémoire maximum autorisée, en méga-octets (m) ou giga-octets (g) — ex. 512m ou 1g. L'unité est obligatoire.</span>
+            </div>
+          </div>
+
+          <div class="field" style="margin-top: 0.75rem;">
+            <label><input type="checkbox" id="ldap_enabled" name="ldap_enabled" {{ "checked" if entry.ldap_enabled else "" }}> Cette app sait s'authentifier via LDAP</label>
+            <span class="field-help">Injecte automatiquement LDAP_HOST/LDAP_PORT/LDAP_BASE_DN vers l'annuaire YunoHost. Ces noms de variables ne sont pas universels — vérifie dans la documentation de l'app installée le nom exact attendu, et adapte-le toi-même si besoin.</span>
+          </div>
+
+          <button type="submit" class="btn" style="margin-top: 1rem;">Enregistrer et redémarrer</button>
+        </div>
+      </div>
+    </form>
+
+    {% if app_permissions %}
+      <div class="card create-card">
+        <div class="card-header"><h3>Accès</h3></div>
+        <div class="card-body">
+        {% for pid, p in app_permissions.items() %}
+          <form method="post" action="{{ url_for('update_permission_groups', permission=pid) }}" style="margin-bottom: 0.9rem;">
+            <label style="display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.35rem;">{{ p.label }}{% if pid != entry.yunohost_app_id ~ '.main' %} ({{ pid }}){% endif %}</label>
+            <div class="tag-checklist">
+            {% for g in groups %}
+              {% set forbidden = g.name == 'visitors' and p.protected %}
+              <label class="tag-checkbox" {% if forbidden %}title="Non autorisé pour ce groupe côté Wappos"{% endif %}>
+                {% if forbidden %}<input type="hidden" name="locked" value="{{ g.name }}">{% endif %}
+                <input type="checkbox" name="groups" value="{{ g.name }}" {{ "checked" if g.name in p.allowed else "" }} {{ "disabled" if forbidden else "" }}>
+                {{ g.name }}
+              </label>
+            {% endfor %}
+            </div>
+            <button type="submit" class="btn" style="margin-top: 0.4rem;">Mettre à jour</button>
+          </form>
+        {% endfor %}
+        </div>
+      </div>
+
+      <div class="card create-card">
+        <div class="card-header"><h3>Tuile portail et logo</h3></div>
+        <div class="card-body">
+        {% for pid, p in app_permissions.items() %}
+          <form method="post" action="{{ url_for('update_permission_properties', permission=pid) }}"
+                enctype="multipart/form-data" style="margin-bottom: 0.9rem;">
+            <label style="display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.35rem;">{{ p.label }}{% if pid != entry.yunohost_app_id ~ '.main' %} ({{ pid }}){% endif %}</label>
+            <div class="fields">
+              <div class="field">
+                <label for="label-{{ pid }}">Libellé</label>
+                <input type="text" id="label-{{ pid }}" name="label" value="{{ p.label }}">
+              </div>
+              <div class="field">
+                <label for="order-{{ pid }}">Ordre d'affichage</label>
+                <input type="number" id="order-{{ pid }}" name="order" value="{{ p.order if p.order is not none else '' }}">
+              </div>
+            </div>
+            <div class="field" style="margin-top: 0.5rem;">
+              <label for="description-{{ pid }}">Description</label>
+              <input type="text" id="description-{{ pid }}" name="description" value="{{ p.description or '' }}">
+            </div>
+            <div class="field" style="margin-top: 0.5rem;">
+              <label for="logo-{{ pid }}">Logo (PNG)</label>
+              <input type="file" id="logo-{{ pid }}" name="logo" accept="image/png">
+            </div>
+            <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin: 0.6rem 1rem 0 0; font-size: 0.85rem;">
+              <input type="checkbox" name="show_tile" {{ "checked" if p.show_tile else "" }}> Afficher la tuile dans le portail
+            </label>
+            <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin-top: 0.6rem; font-size: 0.85rem;">
+              <input type="checkbox" name="hide_from_public" {{ "checked" if p.hide_from_public else "" }}> Masquer de la liste publique
+            </label>
+            <div style="margin-top: 0.75rem;">
+              <button type="submit" class="btn">Enregistrer</button>
+            </div>
+          </form>
+        {% endfor %}
+        </div>
+      </div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_style %}
+    .field-help { display: block; margin-top: 0.3rem; color: var(--color-text-muted); font-size: 0.78rem; }
+    .card.create-card { margin-bottom: 1.25rem; }
+    .tag-checklist { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 0.5rem;
+                      max-height: 180px; overflow-y: auto; padding: 0.5rem; border: 1px solid var(--color-border);
+                      border-radius: 8px; background: var(--color-bg); }
+    .tag-checkbox { display: flex; align-items: center; gap: 0.35rem; font-size: 0.82rem;
+                     white-space: nowrap; }
+{% endblock %}

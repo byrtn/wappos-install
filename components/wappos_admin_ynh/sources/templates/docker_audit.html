@@ -1,0 +1,151 @@
+{% extends "base.html" %}
+{% set active_tab = "docker" %}
+{% block title %}Audit & nettoyage Docker{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">Applications Docker</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Audit &amp; nettoyage</span>{% endblock %}
+
+{% block content %}
+        {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
+    {% if message %}<div class="message" style="margin-bottom: 1.25rem;">{{ message }}</div>{% endif %}
+    {% for w in warnings %}
+      <div class="error" style="margin-bottom: 0.75rem;">{{ w }}</div>
+    {% endfor %}
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Conteneurs orphelins ({{ orphan_containers|length }})</h3></div>
+      <div class="card-body">
+        {% if orphan_containers %}
+          <div class="link-list">
+            {% for c in orphan_containers %}
+              <div class="link-list-item" style="cursor: default;">
+                <span class="link-list-text">
+                  <span class="link-list-main"><strong>{{ c.name }}</strong></span>
+                  <span class="link-list-sub">{{ c.status }} — {{ c.image|join(', ') if c.image else 'image inconnue' }}</span>
+                </span>
+                <form method="post" action="{{ url_for('docker_audit_remove_container', name=c.name) }}" style="margin: 0;"
+                      onsubmit="return confirm('Supprimer le conteneur {{ c.name }} ?');">
+                  <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="field-info">Aucun conteneur orphelin.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Volumes orphelins ({{ orphan_volumes|length }})</h3></div>
+      <div class="card-body">
+        {% if orphan_volumes %}
+          <p class="field-info" style="margin-top: 0;">Peuvent contenir de vraies données — suppression une par une uniquement, jamais en masse.</p>
+          <div class="link-list">
+            {% for v in orphan_volumes %}
+              <div class="link-list-item" style="cursor: default;">
+                <span class="link-list-text"><span class="link-list-main"><strong>{{ v.name }}</strong></span></span>
+                <form method="post" action="{{ url_for('docker_audit_remove_volume', name=v.name) }}" style="margin: 0;"
+                      onsubmit="return confirm('Supprimer définitivement le volume {{ v.name }} et toutes ses données ?');">
+                  <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="field-info">Aucun volume orphelin.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Réseaux orphelins ({{ orphan_networks|length }})</h3></div>
+      <div class="card-body">
+        {% if orphan_networks %}
+          <div class="link-list">
+            {% for n in orphan_networks %}
+              <div class="link-list-item" style="cursor: default;">
+                <span class="link-list-text"><span class="link-list-main"><strong>{{ n.name }}</strong></span></span>
+                <form method="post" action="{{ url_for('docker_audit_remove_network', name=n.name) }}" style="margin: 0;"
+                      onsubmit="return confirm('Supprimer le réseau {{ n.name }} ?');">
+                  <button type="submit" class="btn btn-danger">Supprimer</button>
+                </form>
+              </div>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="field-info">Aucun réseau orphelin.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Images inutilisées ({{ dangling_images|length }})</h3></div>
+      <div class="card-body">
+        {% if dangling_images %}
+          <p class="field-info" style="margin-top: 0;">
+            {{ dangling_images|length }} image(s), {{ dangling_images|sum(attribute='size_mb')|round(1) }} Mo au total.
+          </p>
+          <form method="post" action="{{ url_for('docker_audit_prune_images') }}"
+                onsubmit="return confirm('Nettoyer les {{ dangling_images|length }} image(s) inutilisée(s) ?');">
+            <button type="submit" class="btn btn-danger">Nettoyer les images inutilisées</button>
+          </form>
+        {% else %}
+          <p class="field-info">Aucune image inutilisée.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Domaines sans app installée ({{ empty_domains|length }})</h3></div>
+      <div class="card-body">
+        <p class="field-info" style="margin-top: 0;">Signalés uniquement — jamais supprimés automatiquement (un domaine peut être utile sans app installée).</p>
+        {% if empty_domains %}
+          <ul style="margin: 0.5rem 0 0; padding-left: 1.25rem;">
+            {% for d in empty_domains %}<li>{{ d }}</li>{% endfor %}
+          </ul>
+        {% else %}
+          <p class="field-info">Aucun domaine vide.</p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3 style="color: var(--color-danger);">Docker CE — Zone dangereuse</h3></div>
+      <div class="card-body">
+        {% if ce_status.installed %}
+          <p class="field-info" style="margin-top: 0;">
+            Installé — {{ ce_status.tracked_containers|length }} conteneur(s) suivi(s) par wappos_admin,
+            {{ ce_status.foreign_containers|length }} conteneur(s) étranger(s).
+          </p>
+          {% if ce_status.tracked_containers or ce_status.foreign_containers %}
+            <div class="error" style="margin-bottom: 0.75rem;">
+              <strong>⚠️ Attention — des conteneurs existent sur ce serveur :</strong>
+              <ul style="margin: 0.5rem 0 0; padding-left: 1.25rem;">
+                {% for name in ce_status.tracked_containers %}
+                  <li>{{ name }} (suivi par wappos_admin)</li>
+                {% endfor %}
+                {% for name in ce_status.foreign_containers %}
+                  <li>{{ name }} (étranger, non géré par wappos_admin)</li>
+                {% endfor %}
+              </ul>
+            </div>
+          {% endif %}
+          <div class="error" style="margin-bottom: 0.75rem;">
+            Désinstaller Docker CE arrête et détruit TOUS les conteneurs, y compris ceux suivis par wappos_admin
+            (ex. Portainer) — pas seulement les conteneurs étrangers.
+          </div>
+          <form method="post" action="{{ url_for('docker_audit_uninstall_docker_ce') }}"
+                onsubmit="return confirm('Désinstaller Docker CE et détruire tous les conteneurs, volumes et réseaux non externes ?');">
+            <button type="submit" class="btn btn-danger">Désinstaller Docker CE</button>
+          </form>
+        {% else %}
+          <p class="field-info">Docker CE n'est pas installé sur ce serveur.</p>
+        {% endif %}
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .card.create-card { margin-bottom: 1.25rem; }
+{% endblock %}

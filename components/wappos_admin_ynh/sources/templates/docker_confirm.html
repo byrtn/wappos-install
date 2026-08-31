@@ -1,0 +1,62 @@
+{% extends "base.html" %}
+{% set active_tab = "docker" %}
+{% block title %}Confirmer l'installation{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">Applications Docker</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Confirmer</span>{% endblock %}
+
+{% block content %}
+    <div class="card create-card">
+      <div class="card-header"><h3>Vérifie avant d'installer</h3></div>
+      <div class="card-body">
+        <ul class="confirm-list">
+          <li><strong>Identifiant :</strong> {{ preview.slug }}</li>
+          <li><strong>Image :</strong> {{ preview.image }}</li>
+          <li><strong>Port du conteneur :</strong> {{ preview.container_port }}</li>
+          <li><strong>Adresse publique :</strong> <a href="{{ preview.target_url }}" target="_blank" rel="noopener">{{ preview.target_url }}</a></li>
+          <li><strong>Visible par :</strong> {{ preview.visibility_fr }}</li>
+          <li>
+            <strong>Données persistantes :</strong>
+            {% if preview.has_volume %}
+              Oui — un volume Docker sera créé pour {{ preview.data_path }}.
+            {% else %}
+              Non — aucun volume de données déclaré, l'app perdra ses données si le conteneur est recréé.
+            {% endif %}
+          </li>
+          {% if preview.env_vars_count %}
+            <li><strong>Variables d'environnement :</strong> {{ preview.env_vars_count }} définie(s)</li>
+          {% endif %}
+          {% if preview.companions %}
+            <li><strong>Dépendances internes (non exposées) :</strong> {{ preview.companions|map(attribute='service_key')|join(', ') }}</li>
+          {% endif %}
+          {% if preview.config_files %}
+            <li><strong>Fichiers de configuration montés :</strong> {{ preview.config_files|map(attribute='filename')|join(', ') }}</li>
+          {% endif %}
+          {% if preview.cpu_limit or preview.mem_limit %}
+            <li><strong>Limites de ressources :</strong>
+              {% if preview.cpu_limit %}{{ preview.cpu_limit }} CPU{% endif %}{% if preview.cpu_limit and preview.mem_limit %}, {% endif %}{% if preview.mem_limit %}{{ preview.mem_limit }} de mémoire{% endif %}
+            </li>
+          {% endif %}
+          {% if preview.has_catalogue_logo %}
+            <li><strong>Logo :</strong> celui du catalogue sera appliqué s'il est accessible, sinon une lettre de repli sera utilisée.</li>
+          {% endif %}
+          {% if preview.ldap_enabled %}
+            <li><strong>Câblage LDAP :</strong> variables injectées — {% for k, v in preview.ldap_env_preview.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
+          {% endif %}
+        </ul>
+
+        <form method="post" action="{{ url_for('docker_add') }}">
+          {% for k, v in form_fields %}
+            {% if k != 'confirmed' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}
+          {% endfor %}
+          <input type="hidden" name="confirmed" value="1">
+          <button type="button" class="btn" onclick="history.back()" style="margin-right: 0.5rem;">Modifier</button>
+          <button type="submit" class="btn btn-success">Confirmer l'installation</button>
+        </form>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .confirm-list { list-style: none; margin: 0 0 1.25rem; padding: 0; }
+    .confirm-list li { padding: 0.5rem 0; border-bottom: 1px solid var(--color-border-soft); }
+{% endblock %}

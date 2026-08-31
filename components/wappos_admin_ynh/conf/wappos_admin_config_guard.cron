@@ -1,0 +1,1 @@
+0 21 * * * root __INSTALL_DIR__/venv/bin/python3 __INSTALL_DIR__/config_guard.py __ADMIN_ALERT_MAIL__ >> /var/log/wappos_admin-config-guard.log 2>&1

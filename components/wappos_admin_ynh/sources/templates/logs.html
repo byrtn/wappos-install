@@ -1,0 +1,99 @@
+{% extends "base.html" %}
+{% set active_tab = "logs" %}
+{% block title %}Journaux{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Journaux</span>{% endblock %}
+
+{% block content %}
+    {% if error %}
+      <div class="alert alert-danger">{{ error }}</div>
+    {% endif %}
+
+    <div class="message" style="background: #fff4e5; color: #7a4b00;">
+      Regroupe par jour les opérations réellement journalisées par Wappos (apps, sauvegardes, services, diagnostic, domaines, utilisateurs, réglages, système). Les mises à jour d'apps ne sont pas journalisées nativement et n'apparaissent donc pas ici.
+    </div>
+
+    <div class="field" style="margin-bottom: 0.75rem;">
+      <input type="search" id="log-search" placeholder="Rechercher dans les journaux..."
+             style="padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; min-width: 280px; max-width: 100%;">
+    </div>
+
+    <div id="log-days">
+      {% for day in days %}
+        <div class="timeline-day" data-day>
+          <h3 class="timeline-day-label">{{ day.label }}</h3>
+          <div class="timeline-list">
+            {% for e in day.entries %}
+              <a class="timeline-entry" href="{{ url_for('log_detail', name=e.name) }}"
+                 data-search="{{ (e.description ~ ' ' ~ e.category ~ ' ' ~ e.name)|lower }}">
+                <span class="timeline-dot timeline-dot-{{ e.kind }}"></span>
+                <span class="timeline-time">{{ e.time_label }}</span>
+                <span class="timeline-category">{{ e.category }}</span>
+                <span class="timeline-description">{{ e.description }}</span>
+                <span class="timeline-status {{ 'text-success' if e.success == True else ('text-danger' if e.success == False else 'text-warning') }}">
+                  {{ '✓' if e.success == True else ('✕' if e.success == False else '?') }}
+                </span>
+              </a>
+            {% endfor %}
+          </div>
+        </div>
+      {% else %}
+        <div class="card" style="padding: 1.25rem 1.5rem;">Aucune opération enregistrée.</div>
+      {% endfor %}
+      <p class="field-info" id="log-search-empty" style="display: none; padding: 1rem 1.5rem;">Aucun résultat.</p>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
+    .alert-danger { background: #fbe9e7; color: #7a1f00; border: 1px solid #f3b7a6; }
+    .timeline-day { margin-bottom: 1.5rem; }
+    .timeline-day-label { font-size: 0.9rem; color: var(--color-text-dim); margin: 0 0 0.5rem; }
+    .timeline-list { border-left: 2px solid var(--color-border-strong); margin-left: 0.5rem; }
+    .timeline-entry { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0 0.55rem 1rem;
+                       margin-left: -0.5rem; text-decoration: none; color: inherit; font-size: 0.85rem; }
+    .timeline-dot { width: 0.6rem; height: 0.6rem; border-radius: 50%; flex-shrink: 0; margin-left: -1.3rem;
+                     border: 2px solid var(--color-bg, #fff); }
+    .timeline-dot-app { background: #3a7bd5; }
+    .timeline-dot-backup { background: #1a7a3d; }
+    .timeline-dot-diagnosis { background: #b8860b; }
+    .timeline-dot-service { background: #7a4dbf; }
+    .timeline-dot-domain { background: #d5763a; }
+    .timeline-dot-user { background: #3ab0a7; }
+    .timeline-dot-settings { background: #888; }
+    .timeline-dot-system { background: #a33; }
+    .timeline-dot-other { background: #bbb; }
+    .timeline-time { font-family: monospace; font-size: 0.78rem; color: var(--color-text-faint); flex-shrink: 0; }
+    .timeline-category { font-size: 0.75rem; color: var(--color-text-dim); background: var(--color-hover-bg);
+                          padding: 0.1rem 0.4rem; border-radius: 4px; flex-shrink: 0; }
+    .timeline-description { flex: 1; }
+    .timeline-status { flex-shrink: 0; font-weight: 700; }
+    .text-success { color: var(--color-text-success); }
+    .text-danger { color: var(--color-text-danger); }
+    .text-warning { color: var(--color-text-warning); }
+{% endblock %}
+
+{% block extra_script %}
+    (function () {
+      var input = document.getElementById('log-search');
+      var days = document.querySelectorAll('#log-days [data-day]');
+      var empty = document.getElementById('log-search-empty');
+      if (!input) return;
+      input.addEventListener('input', function () {
+        var q = input.value.trim().toLowerCase();
+        var visibleTotal = 0;
+        days.forEach(function (day) {
+          var entries = day.querySelectorAll('.timeline-entry');
+          var visibleInDay = 0;
+          entries.forEach(function (entry) {
+            var match = !q || entry.dataset.search.indexOf(q) !== -1;
+            entry.style.display = match ? '' : 'none';
+            if (match) visibleInDay += 1;
+          });
+          day.style.display = visibleInDay === 0 ? 'none' : '';
+          visibleTotal += visibleInDay;
+        });
+        empty.style.display = visibleTotal === 0 ? '' : 'none';
+      });
+    })();
+{% endblock %}

@@ -1,0 +1,39 @@
+
+packaging_format = 2
+
+id = "wappos_api"
+name = "Wappos API"
+description.en = "Internal API service — single stable HTTP contract in front of the YunoHost engine, consumed by all Wappos frontends (portal, admin, future products)"
+description.fr = "Service API interne — un seul contrat HTTP stable devant le moteur YunoHost, consommé par tous les frontends Wappos (portail, admin, futurs produits)"
+
+version = "0.2.24~ynh16"
+
+maintainers = ["byrtn"]
+
+[upstream]
+license = "AGPL-3.0-or-later"
+
+[integration]
+yunohost = ">= 12.1.0"
+helpers_version = "2.0"
+architectures = ["amd64", "arm64"]
+multi_instance = false
+
+ldap = "not_relevant"
+sso = false
+
+disk = "150M"
+ram.build = "150M"
+ram.runtime = "150M"
+
+[resources]
+    [resources.system_user]
+
+    [resources.install_dir]
+    dir = "/opt/yunohost/__APP__"
+
+    [resources.ports]
+    main.default = 9400
+
+    [resources.apt]
+    packages = "python3-venv, python3-pip"

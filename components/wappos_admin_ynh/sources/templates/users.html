@@ -1,0 +1,136 @@
+{% extends "base.html" %}
+{% set active_tab = "users" %}
+{% block title %}Utilisateurs{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Utilisateurs</span>{% endblock %}
+
+{% block content %}
+        <div class="link-list">
+      {% for u in users %}
+        <a class="link-list-item" href="{{ url_for('edit_user', username=u.username) }}">
+          <span class="link-list-text">
+            <span class="link-list-main"><strong>{{ u.username }}</strong> <span class="user-list-fullname">{{ u.fullname }}</span></span>
+            <span class="link-list-sub">{{ u.mail }}</span>
+          </span>
+          <span class="chevron">&rsaquo;</span>
+        </a>
+      {% else %}
+        <p class="field-info" style="margin: 0; padding: 1rem 1.5rem;">Aucun utilisateur.</p>
+      {% endfor %}
+    </div>
+
+        <div class="card create-card">
+      <div class="card-header"><h3 id="add-account">Ajouter un compte</h3></div>
+      <div class="card-body">
+      <p class="field-info" style="margin: 0 0 1.25rem;">Les comptes sont créés avec une adresse email au format username@domain.tld. Des alias d'email et des transferts d'emails supplémentaires peuvent être ajoutés ultérieurement par un administrateur ou l'utilisateur du compte lui même.</p>
+      <form method="post" action="{{ url_for('create_user') }}">
+        <div class="fields">
+          <div class="field">
+            <label for="username">Nom du compte</label>
+                        <input type="text" id="username" name="username" required pattern="[a-z0-9_.]+"
+                   title="Lettres minuscules, chiffres, _ et . uniquement">
+          </div>
+          <div class="field">
+            <label for="domain">Domaine</label>
+            <select id="domain" name="domain" required>
+              {% for d in domains %}
+                <option value="{{ d }}">{{ d }}</option>
+              {% endfor %}
+            </select>
+          </div>
+          <div class="field">
+            <label for="fullname">Nom complet</label>
+            <input type="text" id="fullname" name="fullname" required>
+          </div>
+        </div>
+        <div class="fields">
+          <div class="field">
+            <label for="new_password">Mot de passe</label>
+            <span class="pw-field" style="display: flex;">
+              <input type="password" id="new_password" name="new_password" required minlength="8" style="flex: 1;">
+              <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
+            </span>
+                        <span class="field-info" style="margin: 0.25rem 0 0;">8 caractères minimum. Robustesse exacte requise selon le réglage du serveur.</span>
+          </div>
+          <div class="field">
+            <label for="new_password_confirm">Confirmer le mot de passe</label>
+            <span class="pw-field" style="display: flex;">
+              <input type="password" id="new_password_confirm" name="new_password_confirm" required minlength="8" style="flex: 1;">
+              <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
+            </span>
+            <span id="new-password-mismatch" class="field-error" style="display: none;">Les mots de passe ne correspondent pas.</span>
+          </div>
+        </div>
+        <button type="submit" class="btn" id="create-user-submit">Ajouter un compte</button>
+      </form>
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Export / import CSV</h3></div>
+      <div class="card-body">
+      <div class="fields" style="align-items: flex-end;">
+        <div class="field" style="flex: 0;">
+          <a class="btn" href="{{ url_for('export_users') }}">Exporter en CSV</a>
+        </div>
+      </div>
+      <form method="post" action="{{ url_for('import_users') }}" enctype="multipart/form-data" style="margin-top: 1rem;"
+            onsubmit="return wappasConfirmImportUsers(this);">
+        <div class="fields">
+          <div class="field">
+            <label for="csvfile">Fichier CSV</label>
+            <input type="file" id="csvfile" name="csvfile" accept=".csv" required>
+          </div>
+        </div>
+        <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin-right: 1rem; margin-bottom: 0.5rem; font-size: 0.85rem;">
+          <input type="checkbox" name="update"> Mettre à jour les comptes existants présents dans le fichier
+        </label>
+        <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; font-size: 0.85rem;">
+          <input type="checkbox" name="delete"> Supprimer les comptes absents du fichier
+        </label>
+        <div style="margin-top: 1rem;">
+          <button type="submit" class="btn">Importer</button>
+        </div>
+      </form>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+        .card.create-card { margin-bottom: 1.25rem; }
+    .field-error { color: var(--color-danger); font-size: 0.78rem; display: block; margin-top: 0.25rem; }
+    .user-list-fullname { color: var(--color-text-faint); font-weight: 400; }
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+{% endblock %}
+
+{% block extra_script %}
+    function wappasConfirmImportUsers(form) {
+      var del = form.querySelector('input[name="delete"]');
+      if (del && del.checked) {
+        return confirm(
+          'Tous les comptes absents de ce fichier CSV vont être supprimés définitivement. ' +
+          'Cette action est irréversible. Continuer ?'
+        );
+      }
+      return true;
+    }
+
+    (function () {
+      var password = document.getElementById('new_password');
+      var confirmField = document.getElementById('new_password_confirm');
+      var mismatch = document.getElementById('new-password-mismatch');
+      var submitBtn = document.getElementById('create-user-submit');
+      if (!password) { return; }
+
+      function checkMatch() {
+        var matches = password.value === confirmField.value;
+        var longEnough = password.value.length >= 8;
+        mismatch.style.display = matches ? 'none' : 'inline';
+        submitBtn.disabled = !matches || !longEnough;
+      }
+
+      password.addEventListener('input', checkMatch);
+      confirmField.addEventListener('input', checkMatch);
+      checkMatch();
+    })();
+{% endblock %}

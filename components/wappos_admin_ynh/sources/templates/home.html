@@ -1,0 +1,169 @@
+{% extends "base.html" %}
+{% set active_tab = "home" %}
+{% block title %}Accueil{% endblock %}
+
+{% block content %}
+        <div class="quick-add-row">
+      <details class="quick-add">
+        <summary class="btn btn-success">+ Ajout rapide</summary>
+        <div class="quick-add-menu">
+          <a href="{{ url_for('index') }}#add-account">+ Ajouter un compte</a>
+          <a href="{{ url_for('domains_page') }}#add-domain">+ Ajouter un domaine</a>
+          <a href="{{ url_for('groups') }}#add-group">+ Ajouter un groupe</a>
+          <a href="{{ url_for('app_catalog_page') }}">+ Installer une app</a>
+        </div>
+      </details>
+    </div>
+
+    <div class="nav-list">
+      <a class="nav-list-item" href="{{ url_for('index') }}"><span>Utilisateurs</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('groups') }}"><span>Groupes et autorisations</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('domains_page') }}"><span>Domaines</span><span class="chevron">&rsaquo;</span></a>
+      <details class="nav-list-group">
+        <summary class="nav-list-item nav-list-group-summary"><span>Applications</span><span class="chevron">&rsaquo;</span></summary>
+        <div class="nav-list-sub">
+          <a class="nav-list-sub-item" href="{{ url_for('apps') }}"><span>Applications système</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('docker_apps') }}"><span>Applications Docker</span><span class="chevron">&rsaquo;</span></a>
+        </div>
+      </details>
+      <a class="nav-list-item" href="{{ url_for('diagnosis') }}"><span>Diagnostic</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('backups_page') }}"><span>Sauvegardes</span><span class="chevron">&rsaquo;</span></a>
+      <details class="nav-list-group">
+        <summary class="nav-list-item nav-list-group-summary"><span>Système</span><span class="chevron">&rsaquo;</span></summary>
+        <div class="nav-list-sub">
+          <a class="nav-list-sub-item" href="{{ url_for('services') }}"><span>Services</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('performance_page') }}"><span>Performance</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('system_page') }}"><span>Mises à jour</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('storage') }}"><span>Stockage</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('logs') }}"><span>Journaux</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('firewall') }}"><span>Pare-feu</span><span class="chevron">&rsaquo;</span></a>
+        </div>
+      </details>
+      <details class="nav-list-group">
+        <summary class="nav-list-item nav-list-group-summary"><span>Avancé</span><span class="chevron">&rsaquo;</span></summary>
+        <div class="nav-list-sub">
+          <a class="nav-list-sub-item" href="{{ url_for('settings_page') }}"><span>Réglages</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('standalone_services_page') }}"><span>Services Wappos</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('app_map_page') }}"><span>Correspondance URL &harr; app</span><span class="chevron">&rsaquo;</span></a>
+        </div>
+      </details>
+    </div>
+
+    <a class="card storage-summary" href="{{ url_for('storage') }}">
+      <div class="dashboard-tile-label">Stockage</div>
+      {% if dashboard.mounts %}
+        <div class="storage-summary-list">
+          {% for m in dashboard.mounts %}
+            <div class="storage-summary-row">
+              <div class="storage-summary-row-header">
+                <span class="storage-summary-label">{{ m.label }}</span>
+                <span class="storage-summary-figures">{{ m.used_human }} / {{ m.total_human }} ({{ m.used_percent }}%)</span>
+              </div>
+              <div class="storage-summary-bar">
+                <div class="storage-summary-bar-fill storage-summary-bar-{{ 'critical' if m.used_percent >= 90 else ('warning' if m.used_percent >= 75 else 'ok') }}"
+                     style="width: {{ m.used_percent }}%;"></div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      {% else %}
+        <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
+        <div class="dashboard-tile-sub">Indisponible</div>
+      {% endif %}
+    </a>
+
+    <div class="dashboard-grid">
+      <a class="card dashboard-tile" href="{{ url_for('services') }}">
+        <div class="dashboard-tile-label">Services système</div>
+        {% if dashboard.services_down is not none %}
+          <div class="dashboard-tile-value dashboard-tile-{{ 'critical' if dashboard.services_down > 0 else 'ok' }}">
+            {{ dashboard.services_down }}
+          </div>
+          <div class="dashboard-tile-sub">en arrêt sur {{ dashboard.services_total }}</div>
+        {% else %}
+          <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
+          <div class="dashboard-tile-sub">Indisponible</div>
+        {% endif %}
+      </a>
+      <a class="card dashboard-tile" href="{{ url_for('diagnosis') }}">
+        <div class="dashboard-tile-label">Diagnostic</div>
+        {% if dashboard.diag_errors is not none %}
+          <div class="dashboard-tile-value dashboard-tile-{{ 'critical' if dashboard.diag_errors > 0 else ('warning' if dashboard.diag_warnings > 0 else 'ok') }}">
+            {{ dashboard.diag_errors }}
+          </div>
+          <div class="dashboard-tile-sub">erreur{{ 's' if dashboard.diag_errors != 1 }}, {{ dashboard.diag_warnings }} avertissement{{ 's' if dashboard.diag_warnings != 1 }}</div>
+        {% else %}
+          <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
+          <div class="dashboard-tile-sub">Indisponible</div>
+        {% endif %}
+      </a>
+      <a class="card dashboard-tile" href="{{ url_for('failed_units_page') }}">
+        <div class="dashboard-tile-label">Unités en échec</div>
+        {% if dashboard.failed_units is not none %}
+          <div class="dashboard-tile-value dashboard-tile-{{ 'critical' if dashboard.failed_units else 'ok' }}">
+            {{ dashboard.failed_units|length }}
+          </div>
+          <div class="dashboard-tile-sub">
+            {% if dashboard.failed_units %}en échec : {{ dashboard.failed_units|join(', ') }}{% else %}en échec{% endif %}
+          </div>
+        {% else %}
+          <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
+          <div class="dashboard-tile-sub">Indisponible</div>
+        {% endif %}
+      </a>
+      <a class="card dashboard-tile" href="{{ url_for('backups_page') }}">
+        <div class="dashboard-tile-label">Dernière sauvegarde</div>
+        {% if dashboard.last_backup %}
+          <div class="dashboard-tile-value dashboard-tile-ok">{{ dashboard.last_backup|backup_date_fr }}</div>
+        {% else %}
+          <div class="dashboard-tile-value dashboard-tile-unknown">Aucune</div>
+        {% endif %}
+      </a>
+      <a class="card dashboard-tile" href="{{ url_for('system_page') }}">
+        <div class="dashboard-tile-label">Mises à jour</div>
+        {% if dashboard.app_updates is not none %}
+          {% set total_updates = dashboard.app_updates + dashboard.system_update_categories %}
+          <div class="dashboard-tile-value dashboard-tile-{{ 'warning' if total_updates > 0 else 'ok' }}">{{ total_updates }}</div>
+          <div class="dashboard-tile-sub">{{ dashboard.app_updates }} app{{ 's' if dashboard.app_updates != 1 }}, {{ dashboard.system_update_categories }} catégorie{{ 's' if dashboard.system_update_categories != 1 }} système</div>
+        {% else %}
+          <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
+          <div class="dashboard-tile-sub">Indisponible</div>
+        {% endif %}
+      </a>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .nav-list-group-summary { cursor: pointer; list-style: none; }
+    .nav-list-group-summary::-webkit-details-marker { display: none; }
+    .nav-list-group[open] > .nav-list-group-summary .chevron { transform: rotate(90deg); display: inline-block; }
+    .nav-list-sub { border-bottom: 1px solid var(--color-border); }
+    .nav-list-sub-item { display: flex; align-items: center; justify-content: space-between; gap: 1rem;
+                      padding: 0.85rem 1.5rem 0.85rem 2.5rem; color: var(--color-text-dim); text-decoration: none;
+                      font-size: 0.9rem; border-bottom: 1px solid var(--color-border); background: var(--color-nav-hover-bg); }
+    .nav-list-sub-item:last-child { border-bottom: none; }
+    .nav-list-sub-item:hover { color: var(--color-text); }
+
+    .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;
+                       margin-bottom: 1rem; }
+    .dashboard-tile { display: block; padding: 0.9rem 1rem; text-decoration: none; color: inherit; }
+    .dashboard-tile-label { font-size: 0.78rem; color: var(--color-text-faint); margin-bottom: 0.3rem; }
+    .dashboard-tile-value { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }
+    .dashboard-tile-sub { font-size: 0.75rem; color: var(--color-text-dim); margin-top: 0.2rem; }
+    .dashboard-tile-ok { color: #1a7a3d; }
+    .dashboard-tile-warning { color: #b8860b; }
+    .dashboard-tile-critical { color: #a33; }
+    .dashboard-tile-unknown { color: var(--color-text-faint); }
+
+    .storage-summary { display: block; padding: 0.9rem 1rem; text-decoration: none; color: inherit; margin-bottom: 0.75rem; }
+    .storage-summary-list { display: flex; flex-direction: column; gap: 0.7rem; margin-top: 0.5rem; }
+    .storage-summary-row { display: flex; flex-direction: column; gap: 0.3rem; }
+    .storage-summary-row-header { display: flex; align-items: baseline; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+    .storage-summary-label { font-size: 0.82rem; color: var(--color-text-dim); }
+    .storage-summary-bar { height: 8px; border-radius: 4px; background: var(--color-border-strong); overflow: hidden; }
+    .storage-summary-bar-fill { height: 100%; border-radius: 4px; }
+    .storage-summary-bar-ok { background: #1a7a3d; }
+    .storage-summary-bar-warning { background: #b8860b; }
+    .storage-summary-bar-critical { background: #a33; }
+    .storage-summary-figures { font-size: 0.75rem; color: var(--color-text-faint); white-space: nowrap; }
+{% endblock %}

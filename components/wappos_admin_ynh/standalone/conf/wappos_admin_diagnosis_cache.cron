@@ -1,0 +1,1 @@
+35 7,19 * * * root rm -f /dev/shm/wappos_api_cache/get_diagnosis.cache

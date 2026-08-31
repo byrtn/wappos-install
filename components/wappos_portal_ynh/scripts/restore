@@ -1,0 +1,50 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+source "$(dirname "$0")/_common.sh"
+source /usr/share/yunohost/helpers
+
+ynh_script_progression --message="Restoring the app's files..." --weight=10
+ynh_restore
+
+ynh_script_progression --message="Rebuilding the Python environment..." --weight=15
+python3 -m venv "$venv_dir"
+"$venv_dir/bin/pip" install --upgrade pip
+"$venv_dir/bin/pip" install -r "$install_dir/requirements.txt"
+
+chown -R "$app:$app" "$install_dir"
+chmod 750 "$install_dir"
+
+ynh_script_progression --message="Restoring the targeted sudo rights..." --weight=5
+cp "$install_dir/.package/wappos_portal.sudoers" /etc/sudoers.d/$app
+sed -i "s/__APP__/$app/g" /etc/sudoers.d/$app
+chmod 440 /etc/sudoers.d/$app
+chown root:root /etc/sudoers.d/$app
+visudo -c -f /etc/sudoers.d/$app || ynh_die --message="The generated sudoers file is invalid, restore aborted for safety."
+
+ynh_script_progression --message="Restoring the health check cron..." --weight=5
+_compute_admin_alert_mail
+ynh_add_config --template="wappos_portal.cron" --destination="/etc/cron.d/$app"
+
+ynh_script_progression --message="Re-registering the service..." --weight=5
+yunohost service add "$app" --description="Wappos Portal"
+systemctl enable "$app"
+systemctl start "$app"
+
+ynh_script_progression --message="Registering the cross-domain reachability hook..." --weight=2
+
+url_path="${app//_/-}"
+sed -i "s/__PORT__/$port/g; s/__APP__/$app/g; s/__URL_PATH__/$url_path/g" "$install_dir/hooks/50-post_domain_add"
+
+systemd-run --collect --uid=0 \
+    yunohost tools shell -c "
+from yunohost.hook import hook_add
+hook_add('$app', '$install_dir/hooks/50-post_domain_add')
+"
+
+ynh_script_progression --message="Deploying to existing domains..." --weight=5
+for existing_domain in $(yunohost domain list --output-as json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['domains']))"); do
+    bash "$install_dir/hooks/50-post_domain_add" "$existing_domain"
+done
+
+ynh_script_progression --message="Restore completed." --last

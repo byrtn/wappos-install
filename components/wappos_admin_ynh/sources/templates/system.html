@@ -1,0 +1,315 @@
+{% extends "base.html" %}
+{% set active_tab = "system" %}
+{% block title %}Système{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Système et mises à jour</span>{% endblock %}
+
+{% block content %}
+                {% if api_restart %}
+      <div class="alert alert-warning" id="api-restart-banner">
+        L'API Wappos redémarre suite à la mise à jour — rafraîchissement automatique dans <span id="api-restart-countdown">15</span>s.
+      </div>
+    {% endif %}
+
+    {% if health and health.reboot_required %}
+      <div class="alert alert-danger" id="reboot-required-banner">
+        Le serveur a installé une mise à jour (noyau ou composant système critique) qui nécessite un redémarrage pour être pleinement active. Le noyau actuellement chargé est <strong>{{ health.kernel }}</strong>, potentiellement différent de celui installé sur disque.
+      </div>
+    {% endif %}
+
+    {% if health %}
+      <div class="card create-card">
+        <div class="card-header"><h3>État du système</h3></div>
+        <div class="card-body">
+          <ul class="health-facts">
+            <li><span>Hôte</span><strong>{{ health.hostname }}</strong></li>
+            <li><span>Système</span><strong>{{ health.os_name }}</strong></li>
+            <li><span>Noyau</span><strong>{{ health.kernel }}</strong></li>
+            <li><span>En ligne depuis</span><strong>{{ health.uptime_human }}</strong></li>
+            <li><span>Charge (1/5/15 min)</span><strong>{{ health.load_1min }} / {{ health.load_5min }} / {{ health.load_15min }} <span class="field-info">({{ health.cpu_count }} cœur{{ "s" if health.cpu_count > 1 else "" }})</span></strong></li>
+          </ul>
+
+          <div class="health-bar-row">
+            <div class="health-bar-label">
+              <span>Mémoire</span>
+              <span>{{ health.ram_used_human }} utilisés sur {{ health.ram_total_human }} ({{ health.ram_used_percent }}%)</span>
+            </div>
+            <div class="mount-bar">
+              <div class="mount-bar-fill mount-bar-{{ 'critical' if health.ram_used_percent >= 90 else ('warning' if health.ram_used_percent >= 75 else 'ok') }}"
+                   style="width: {{ health.ram_used_percent }}%;"></div>
+            </div>
+          </div>
+
+          {% if health.swap_total_bytes > 0 %}
+            <div class="health-bar-row">
+              <div class="health-bar-label">
+                <span>Swap</span>
+                <span>{{ health.swap_used_human }} utilisés sur {{ health.swap_total_human }} ({{ health.swap_used_percent }}%)</span>
+              </div>
+              <div class="mount-bar">
+                <div class="mount-bar-fill mount-bar-{{ 'critical' if health.swap_used_percent >= 50 else ('warning' if health.swap_used_percent >= 20 else 'ok') }}"
+                     style="width: {{ health.swap_used_percent }}%;"></div>
+              </div>
+            </div>
+          {% else %}
+            <p class="field-info" style="margin-top: 0.75rem;">Aucun swap configuré.</p>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Versions</h3></div>
+      <div class="card-body">
+            {% if wappos_apps %}
+        <ul class="updates-list">
+          {% for a in wappos_apps %}
+            <li><strong>{{ a.name or a.id }}</strong> en <code>{{ a.version }}</code></li>
+          {% endfor %}
+        </ul>
+      {% else %}
+        <p class="field-info">Aucune information de version disponible.</p>
+      {% endif %}
+      </div>
+    </div>
+
+        {% set system_categories = updates.get('system', {}) %}
+    {% set app_updates = updates.get('apps', []) %}
+    <div class="card create-card">
+      <div class="card-header"><h3>Mises à jour disponibles</h3></div>
+      <div class="card-body">
+      <ul class="updates-list">
+        <li><strong>Apps</strong> : <code>{{ app_updates_confirmed | length }}</code> confirmée(s){% if app_updates_unknown %}, <code>{{ app_updates_unknown | length }}</code> à vérifier (version cible inconnue — voir liste ci-dessous){% endif %}</li>
+        <li><strong>Système</strong> : <code>{{ system_categories.values() | map('length') | sum }}</code> disponible(s)</li>
+      </ul>
+            <form method="post" action="{{ url_for('refresh_system_updates') }}" style="margin-top: 0.75rem;">
+        <button type="submit" class="btn">Rafraîchir la liste</button>
+      </form>
+
+            {% set apt_age = updates.get('last_apt_update') %}
+      {% set catalog_age = updates.get('last_apps_catalog_update') %}
+      {% set updates_fresh = (apt_age is none or apt_age < 43200) and (catalog_age is none or catalog_age < 43200) %}
+      {% if apt_age is not none or catalog_age is not none %}
+        <p class="field-info" style="margin: 0.5rem 0 0;">
+          {% if apt_age is not none %}Paquets système vérifiés {{ (apt_age / 3600) | round(1) }} h{% endif %}
+          {% if apt_age is not none and catalog_age is not none %} — {% endif %}
+          {% if catalog_age is not none %}catalogue d'apps vérifié {{ (catalog_age / 3600) | round(1) }} h{% endif %}
+          {% if not updates_fresh %}
+            <span class="text-warning">— trop ancien, rafraîchissez la liste pour voir le détail des mises à jour.</span>
+          {% endif %}
+        </p>
+      {% endif %}
+
+      {% if updates_fresh %}
+            {% if updates.get('important_yunohost_upgrade') %}
+        <div class="alert alert-warning" style="margin-top: 0.75rem;">
+          Mise à jour majeure de Wappos détectée — peut redémarrer l'API en cours de route (voir note ci-dessous) et modifier significativement le comportement du serveur. Lisez les notes de version avant de continuer.
+        </div>
+      {% endif %}
+      {% if updates.get('pending_migrations') %}
+        <div class="alert alert-warning" style="margin-top: 0.75rem;">
+          {{ updates.pending_migrations | length }} migration(s) système en attente — elles s'exécuteront automatiquement lors de la mise à jour du système.
+        </div>
+      {% endif %}
+
+      {% if app_updates %}
+        <h4 class="updates-subheading">Applications</h4>
+                <ul class="updates-list">
+          {% for a in app_updates %}
+            <li>
+              <a href="{{ url_for('app_detail', app_id=a.id) }}"><strong>{{ a.name or a.id }}</strong></a>
+              {% if a.upgrade and a.upgrade.status == 'fail_requirements' %}
+                <span class="text-warning">(prérequis non satisfaits — nécessite « forcer » sur sa fiche)</span>
+              {% endif %}
+              {% if a.upgrade and a.upgrade.current_version and a.upgrade.new_version %}
+                de <code>{{ a.upgrade.current_version }}</code> à <code>{{ a.upgrade.new_version }}</code>
+              {% elif a.upgrade and a.upgrade.current_version %}
+                                actuellement en <code>{{ a.upgrade.current_version }}</code> — <em>à vérifier, version cible inconnue</em>
+              {% endif %}
+            </li>
+          {% endfor %}
+        </ul>
+        {% if app_updates | selectattr('upgrade.status', 'equalto', 'fail_requirements') | list %}
+          <p class="field-info">Le bouton « Lancer la mise à jour » (Apps) ci-dessous n'inclut PAS les apps aux prérequis non satisfaits — mettez-les à jour individuellement depuis leur fiche (« forcer »).</p>
+        {% endif %}
+      {% endif %}
+
+      {% if system_categories %}
+        <h4 class="updates-subheading">Système ({{ system_categories | length }} catégorie(s))</h4>
+        {% for category, packages in system_categories.items() %}
+          <details class="updates-category">
+            <summary>{{ category }} ({{ packages | length }} paquet{{ "s" if packages | length > 1 else "" }})</summary>
+            <ul class="updates-list">
+              {% for p in packages %}
+                <li><strong>{{ p.name }}</strong> de <code>{{ p.current_version }}</code> à <code>{{ p.new_version }}</code></li>
+              {% endfor %}
+            </ul>
+          </details>
+        {% endfor %}
+      {% endif %}
+
+      <form method="post" action="{{ url_for('run_system_upgrade') }}" style="margin-top: 1rem;"
+            onsubmit="return confirm('Lancer la mise à jour ? Cette action peut interrompre temporairement des services.') &amp;&amp; (document.getElementById('confirm-upgrade-word').value === 'CONFIRMER' || (alert('Pour lancer la mise à jour, tape exactement CONFIRMER dans le champ prévu.'), false));">
+        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; white-space: nowrap;">
+          <input type="radio" name="target" value="apps" checked> Applications
+        </label>
+        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; margin-left: 1rem; white-space: nowrap;">
+          <input type="radio" name="target" value="system"> Système (paquets)
+        </label>
+        <div class="confirm-row">
+          <p class="confirm-row-text">
+            Tapez « CONFIRMER » pour lancer la mise à jour
+            <input type="text" id="confirm-upgrade-word" autocomplete="off"
+                   style="padding: 0.4rem 0.6rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.85rem;">
+          </p>
+          <button type="submit" class="btn btn-danger">Lancer la mise à jour</button>
+        </div>
+      </form>
+      {% endif %}
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Régénérer la configuration</h3></div>
+      <div class="card-body">
+      <p class="field-info">Régénère les fichiers de configuration système gérés par Wappos (nginx, ssh, etc.).</p>
+      <form method="post" action="{{ url_for('run_regen_conf') }}" class="form-row">
+        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+          <input type="checkbox" name="dry_run" value="1" checked> Aperçu seulement (ne rien appliquer)
+        </label>
+        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+          <input type="checkbox" name="force" value="1"> Forcer (écraser les modifications manuelles)
+        </label>
+        <button type="submit" class="btn">Exécuter</button>
+      </form>
+
+      {% if regen_result %}
+        <div style="margin-top: 1rem;">
+          {% for category, cat_result in regen_result.items() %}
+            {% set files = (cat_result.get('applied') or {}) | dictsort + (cat_result.get('pending') or {}) | dictsort %}
+            {% if files %}
+              <h4 class="updates-subheading">{{ category }}</h4>
+              {% for path, info in files %}
+                <details class="updates-category">
+                  <summary>{{ path }} — {{ info.get('status', '?') }}</summary>
+                  {% if info.get('diff') %}
+                    <pre class="service-log-content"><code>{{ info.diff }}</code></pre>
+                  {% else %}
+                    <p class="field-info">Aucune différence.</p>
+                  {% endif %}
+                </details>
+              {% endfor %}
+            {% endif %}
+          {% endfor %}
+        </div>
+      {% endif %}
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Mot de passe root</h3></div>
+      <div class="card-body">
+      <form method="post" action="{{ url_for('change_root_password') }}">
+        <div class="fields">
+          <div class="field">
+            <label for="new_password">Nouveau mot de passe root</label>
+                        <input type="password" id="new_password" name="new_password" required minlength="8">
+          </div>
+          <div class="field">
+            <label for="new_password_confirm">Confirmer</label>
+            <input type="password" id="new_password_confirm" name="new_password_confirm" required minlength="8">
+          </div>
+        </div>
+        <p class="field-info" style="margin: 0 0 0.5rem;">8 caractères minimum. Robustesse exacte requise selon le réglage du serveur (profil "admin").</p>
+        <button type="submit" class="btn">Changer le mot de passe root</button>
+      </form>
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3 style="color: var(--color-danger);">Zone dangereuse</h3></div>
+      <div class="card-body">
+
+      <form method="post" action="{{ url_for('reboot_system') }}" style="margin-bottom: 1.5rem;"
+            onsubmit="return confirm('Redémarrer le serveur maintenant ? Tous les services seront interrompus quelques instants.');">
+        <div class="confirm-row">
+          <p class="confirm-row-text">
+            Tapez « REDEMARRER » pour confirmer le redémarrage du serveur
+            <input type="text" name="confirm_word" autocomplete="off"
+                   style="padding: 0.4rem 0.6rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.85rem;">
+          </p>
+          <button type="submit" class="btn btn-danger">Redémarrer</button>
+        </div>
+      </form>
+
+      <form method="post" action="{{ url_for('shutdown_system') }}"
+            onsubmit="return confirm('Éteindre le serveur maintenant ? Il faudra un accès physique/console pour le rallumer.');">
+        <div class="confirm-row">
+          <p class="confirm-row-text">
+            Tapez « ETEINDRE » pour confirmer l'arrêt du serveur
+            <input type="text" name="confirm_word" autocomplete="off"
+                   style="padding: 0.4rem 0.6rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.85rem;">
+          </p>
+          <button type="submit" class="btn btn-danger">Éteindre</button>
+        </div>
+      </form>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .card.create-card { margin-bottom: 1.25rem; }
+    .health-facts { list-style: none; margin: 0 0 1rem; padding: 0; font-size: 0.85rem; }
+    .health-facts li { display: flex; justify-content: space-between; gap: 1rem; padding: 0.25rem 0;
+                        border-bottom: 1px solid var(--color-border); }
+    .health-facts li:last-child { border-bottom: none; }
+    .health-facts li span:first-child { color: var(--color-text-muted); }
+    .health-bar-row { margin-top: 0.9rem; }
+    .health-bar-label { display: flex; justify-content: space-between; font-size: 0.82rem;
+                         color: var(--color-text-dim); margin-bottom: 0.3rem; }
+    .mount-bar { height: 8px; border-radius: 4px; background: var(--color-border-strong); overflow: hidden; }
+    .mount-bar-fill { height: 100%; border-radius: 4px; }
+    .mount-bar-ok { background: #1a7a3d; }
+    .mount-bar-warning { background: #b8860b; }
+    .mount-bar-critical { background: #a33; }
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .text-warning { color: var(--color-text-warning); }
+    .alert-warning { background: #fff4e5; border: 1px solid #f0d590; color: #7a5c00; border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.85rem; }
+    .alert-danger { background: #fbe9e7; border: 1px solid #f3b7a6; color: #7a1f00; border-radius: 8px; padding: 0.6rem 0.9rem; font-size: 0.85rem; margin-bottom: 1rem; }
+        table th { text-align: left; padding-right: 1rem; color: var(--color-text-muted); font-weight: 500; background: none; }
+    table td code { font-size: 0.85rem; background: var(--color-hover-bg); padding: 0.05rem 0.3rem; border-radius: 4px; }
+    .version-repo { color: var(--color-text-faint); font-size: 0.8rem; margin-left: 0.4rem; }
+    .updates-subheading { font-size: 0.85rem; color: var(--color-text-dim); margin: 1rem 0 0.4rem; }
+    .updates-category { margin-bottom: 0.4rem; border: 1px solid var(--color-border); border-radius: 8px; padding: 0.5rem 0.75rem; }
+    .updates-category summary { cursor: pointer; font-size: 0.85rem; font-weight: 600; }
+    .updates-list { margin: 0.5rem 0 0.25rem; padding-left: 1.25rem; font-size: 0.82rem; }
+    .updates-list li { margin-bottom: 0.25rem; }
+    .updates-list code { font-size: 0.78rem; background: var(--color-hover-bg); padding: 0.05rem 0.3rem; border-radius: 4px; }
+    .service-log-content { margin: 0; padding: 0.75rem 1rem; font-size: 0.78rem; background: #1e1e1e;
+                            color: #ddd; overflow-x: auto; max-height: 400px; }
+        .confirm-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
+                   gap: 0.75rem; margin-top: 0.75rem; }
+    .confirm-row-text { margin: 0; color: var(--color-text-muted); font-size: 0.85rem; }
+    @media (max-width: 640px) {
+      .confirm-row { flex-direction: column; align-items: stretch; }
+      .confirm-row .btn { width: 100%; }
+      .confirm-row-text input { width: 100%; margin-top: 0.4rem; box-sizing: border-box; }
+    }
+{% endblock %}
+
+{% block extra_script %}
+    {% if api_restart %}
+      (function () {
+        var seconds = 15;
+        var el = document.getElementById('api-restart-countdown');
+        var timer = setInterval(function () {
+          seconds -= 1;
+          if (el) el.textContent = seconds;
+          if (seconds <= 0) {
+            clearInterval(timer);
+            window.location.href = {{ url_for('system_page')|tojson }};
+          }
+        }, 1000);
+      })();
+    {% endif %}
+{% endblock %}

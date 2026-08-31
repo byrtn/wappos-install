@@ -1,0 +1,23 @@
+[Unit]
+Description=Prometheus (métriques Wappos)
+After=network.target
+
+[Service]
+Type=simple
+User=__APP__
+Group=__APP__
+ExecStart=__INSTALL_DIR__/prometheus \
+    --config.file=__CONFIG_DIR__/prometheus.yml \
+    --storage.tsdb.path=__DATA_DIR__ \
+    --storage.tsdb.retention.time=30d \
+    --web.listen-address=0.0.0.0:__PORT__ \
+    --web.config.file=__CONFIG_DIR__/web.yml
+Restart=on-failure
+RestartSec=5
+
+PrivateTmp=true
+ProtectSystem=strict
+ReadWritePaths=__DATA_DIR__
+
+[Install]
+WantedBy=multi-user.target

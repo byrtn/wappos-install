@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+
+{% block title %}{{ page_title }} — WAPPOS PORTAL{% endblock %}
+
+{% block content %}
+  <div class="doc-content">
+    <h1>{{ page_title }}</h1>
+        <div>{{ page_body|safe }}</div>
+  </div>
+{% endblock %}

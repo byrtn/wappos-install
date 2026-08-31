@@ -1,0 +1,26 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+source "$(dirname "$0")/_common.sh"
+source /usr/share/yunohost/helpers
+
+ynh_script_progression --message="Restoring the app's files..." --weight=10
+ynh_restore
+
+ynh_script_progression --message="Rebuilding the Python environment..." --weight=15
+python3 -m venv "$venv_dir"
+"$venv_dir/bin/pip" install --upgrade pip
+"$venv_dir/bin/pip" install -r "$install_dir/requirements.txt"
+
+chown -R "$app:$app" "$install_dir"
+chmod 750 "$install_dir"
+
+ynh_script_progression --message="Re-registering the service..." --weight=5
+yunohost service add "$app" --description="Wappos Admin"
+systemctl enable "$app"
+systemctl start "$app"
+
+ynh_script_progression --message="Reloading nginx..." --weight=2
+nginx -t && systemctl reload nginx
+
+ynh_script_progression --message="Restore completed." --last

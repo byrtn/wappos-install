@@ -1,0 +1,104 @@
+{% macro render_option(o) %}
+  {% set t = o.type %}
+    {% set val = o.value if ('value' in o and o.value is not none) else o.default %}
+    {% set ro = 'disabled' if o.readonly else '' %}
+  <div class="field option-field" {% if o.visible is defined and o.visible is not sameas true %}data-visible-expr="{{ o.visible }}"{% endif %} data-option-id="{{ o.id }}">
+    {% if t in ('display_text', 'markdown') %}
+      <p class="field-info">{{ o.ask }}{% if val %} — {{ val }}{% endif %}</p>
+    {% elif t == 'alert' %}
+      <div class="message {{ 'error' if o.style in ('danger', 'warning') else '' }}">{{ o.ask }}</div>
+    {% elif t == 'button' %}
+          {% else %}
+            {% if t != 'boolean' %}
+        <label for="opt-{{ o.id }}">{{ o.ask }}{% if o.optional is defined and not o.optional %} *{% endif %}</label>
+      {% endif %}
+      {% if t == 'boolean' %}
+                {% set yes_val = o.yes if o.yes is defined and o.yes is not none else 1 %}
+        {% set is_checked = val == yes_val or val|string == yes_val|string %}
+        <label class="checkbox-field" for="opt-{{ o.id }}">
+          <input type="checkbox" id="opt-{{ o.id }}" name="{{ o.id }}" value="1" {{ "checked" if is_checked else "" }} {{ ro }}>
+          <span>
+            {{ o.ask }}{% if o.optional is defined and not o.optional %} *{% endif %}
+            {% if o.help %}<br><small class="field-info">{{ o.help }}</small>{% endif %}
+          </span>
+        </label>
+      {% elif t == 'tags' %}
+                {% set current_tags = (val.split(',') if val else []) %}
+        {% if o.choices %}
+          <select id="opt-{{ o.id }}" name="{{ o.id }}" multiple size="{{ [(o.choices|length), 6]|min }}" {{ ro }}>
+            {% if o.choices is mapping %}
+              {% for key, c_label in o.choices.items() %}
+                <option value="{{ key }}" {{ "selected" if key|string in current_tags else "" }}>{{ c_label }}</option>
+              {% endfor %}
+            {% else %}
+              {% for c in o.choices %}
+                <option value="{{ c }}" {{ "selected" if c|string in current_tags else "" }}>{{ c }}</option>
+              {% endfor %}
+            {% endif %}
+          </select>
+          <p class="field-info" style="margin: 0.3rem 0 0;">Ctrl/Cmd + clic pour sélectionner plusieurs valeurs.</p>
+        {% else %}
+          <input type="text" id="opt-{{ o.id }}" name="{{ o.id }}" value="{{ val or '' }}" placeholder="valeur1, valeur2, ..."
+                 {% if o.pattern and o.pattern.regexp %}pattern="{{ o.pattern.regexp }}" title="{{ o.pattern.error or '' }}"{% endif %} {{ ro }}>
+        {% endif %}
+      {% elif t == 'select' or o.choices %}
+                <select id="opt-{{ o.id }}" name="{{ o.id }}" {{ ro }}>
+          {% if o.choices is mapping %}
+            {% for key, c_label in o.choices.items() %}
+              <option value="{{ key }}" {{ "selected" if key|string == val|string else "" }}>{{ c_label }}</option>
+            {% endfor %}
+          {% else %}
+            {% for c in (o.choices or []) %}
+              <option value="{{ c }}" {{ "selected" if c|string == val|string else "" }}>{{ c }}</option>
+            {% endfor %}
+          {% endif %}
+        </select>
+      {% elif t == 'text' %}
+                <textarea id="opt-{{ o.id }}" name="{{ o.id }}" rows="4" {{ ro }}
+                  {% if o.example %}placeholder="{{ o.example }}"{% endif %}>{{ val or "" }}</textarea>
+      {% elif t == 'password' %}
+                <input type="password" id="opt-{{ o.id }}" name="{{ o.id }}" placeholder="••••••••••••" {{ ro }}>
+      {% elif t == 'range' %}
+                <div style="display: flex; align-items: center; gap: 0.6rem;">
+          <input type="range" id="opt-{{ o.id }}" name="{{ o.id }}" value="{{ val if val is not none else (o.min or 0) }}"
+                 {% if o.min is not none %}min="{{ o.min }}"{% endif %}
+                 {% if o.max is not none %}max="{{ o.max }}"{% endif %}
+                 {% if o.step is not none %}step="{{ o.step }}"{% endif %}
+                 oninput="this.nextElementSibling.textContent = this.value" {{ ro }}>
+          <output>{{ val if val is not none else (o.min or 0) }}</output>
+        </div>
+      {% elif t == 'number' %}
+        <input type="number" id="opt-{{ o.id }}" name="{{ o.id }}" value="{{ val if val is not none else '' }}"
+               {% if o.min is not none %}min="{{ o.min }}"{% endif %}
+               {% if o.max is not none %}max="{{ o.max }}"{% endif %}
+               {% if o.step is not none %}step="{{ o.step }}"{% endif %} {{ ro }}>
+      {% elif t == 'date' %}
+        <input type="date" id="opt-{{ o.id }}" name="{{ o.id }}" value="{{ val or '' }}" {{ ro }}>
+      {% elif t == 'time' %}
+        <input type="time" id="opt-{{ o.id }}" name="{{ o.id }}" value="{{ val or '' }}" {{ ro }}>
+      {% elif t == 'color' %}
+                <input type="color" id="opt-{{ o.id }}" name="{{ o.id }}" value="{{ val or '' }}" {{ ro }}>
+      {% elif t == 'email' %}
+        <input type="email" id="opt-{{ o.id }}" name="{{ o.id }}" value="{{ val or '' }}" {% if o.example %}placeholder="{{ o.example }}"{% endif %} {{ ro }}>
+      {% elif t == 'url' %}
+        <input type="url" id="opt-{{ o.id }}" name="{{ o.id }}" value="{{ val or '' }}" {% if o.example %}placeholder="{{ o.example }}"{% endif %} {{ ro }}>
+      {% elif t == 'file' %}
+        {% if val %}
+          <div class="file-current-row">
+            <p class="field-info file-current-text">Fichier actuel : <code>{{ val.split('/')[-1] }}</code></p>
+            <button type="button" class="btn btn-danger file-remove-btn" data-target="opt-{{ o.id }}-remove">Supprimer</button>
+            <input type="checkbox" id="opt-{{ o.id }}-remove" name="{{ o.id }}__remove" value="1" class="file-remove-checkbox" hidden>
+          </div>
+          <p class="field-info file-remove-note" id="opt-{{ o.id }}-remove-note" hidden>Ce fichier sera supprimé lors de l'enregistrement.</p>
+          <p class="field-info" style="margin: 0.6rem 0 0.4rem;">Remplacer par un nouveau fichier :</p>
+        {% endif %}
+        <input type="file" id="opt-{{ o.id }}" name="{{ o.id }}__upload" {% if o.accept %}accept="{{ o.accept|join(',') }}"{% endif %} {{ ro }}>
+      {% else %}
+                <input type="text" id="opt-{{ o.id }}" name="{{ o.id }}" value="{{ val or '' }}"
+               {% if o.pattern and o.pattern.regexp %}pattern="{{ o.pattern.regexp }}" title="{{ o.pattern.error or '' }}"{% endif %}
+               {% if o.example %}placeholder="{{ o.example }}"{% endif %} {{ ro }}>
+      {% endif %}
+      {% if o.help and t not in ('boolean',) %}<p class="field-info" style="margin: 0.2rem 0 0;">{{ o.help }}</p>{% endif %}
+    {% endif %}
+  </div>
+{% endmacro %}

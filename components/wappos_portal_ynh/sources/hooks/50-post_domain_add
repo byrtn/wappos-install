@@ -1,0 +1,36 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+set -eu
+
+domain="$1"
+
+conf_dir="/etc/nginx/conf.d/${domain}.d"
+mkdir -p "$conf_dir"
+
+cat > "$conf_dir/__APP___crossdomain.conf" <<'NGINX_EOF'
+rewrite ^/__URL_PATH__$ /__URL_PATH__/ permanent;
+location /__URL_PATH__/ {
+  access_by_lua_block {
+    return
+  }
+
+  proxy_pass        http://127.0.0.1:__PORT__/;
+  proxy_redirect    off;
+  proxy_set_header  Host $host;
+  proxy_set_header  X-Real-IP $remote_addr;
+  proxy_set_header  X-Forwarded-Proto $scheme;
+  proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header  X-Forwarded-Host $server_name;
+  proxy_set_header  X-Forwarded-Port $server_port;
+  proxy_set_header  X-Forwarded-Prefix /__URL_PATH__;
+
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+
+  more_clear_input_headers 'Accept-Encoding';
+}
+NGINX_EOF
+
+nginx -t && systemctl reload nginx

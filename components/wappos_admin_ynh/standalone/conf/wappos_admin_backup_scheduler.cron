@@ -1,0 +1,1 @@
+0 2 * * * root __INSTALL_DIR__/venv/bin/python3 __INSTALL_DIR__/backup_scheduler.py __ADMIN_ALERT_MAIL__ >> /var/log/wappos_admin-backup-scheduler.log 2>&1

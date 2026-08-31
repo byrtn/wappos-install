@@ -1,0 +1,37 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+source "$(dirname "$0")/_common.sh"
+source /usr/share/yunohost/helpers
+
+pkg_dir="$(dirname "$0")/.."
+
+ynh_script_progression --message="Deploying the app's files..." --weight=5
+
+mkdir -p "$install_dir"
+cp -ar "$pkg_dir/sources/." "$install_dir/"
+
+mkdir -p "$install_dir/.package"
+cp "$pkg_dir/manifest.toml" "$install_dir/.package/manifest.toml"
+
+ynh_script_progression --message="Setting up the Python environment..." --weight=15
+
+python3 -m venv "$venv_dir"
+"$venv_dir/bin/pip" install --upgrade pip
+"$venv_dir/bin/pip" install -r "$install_dir/requirements.txt"
+
+chown -R "$app:$app" "$install_dir"
+chmod 750 "$install_dir"
+
+ynh_script_progression --message="Configuring the systemd service..." --weight=5
+
+ynh_add_systemd_config
+
+ynh_script_progression --message="Starting Wappos API..." --weight=10
+
+yunohost service add "$app" --description="Wappos API"
+
+systemctl enable "$app"
+systemctl start "$app"
+
+ynh_script_progression --message="Installation completed." --last

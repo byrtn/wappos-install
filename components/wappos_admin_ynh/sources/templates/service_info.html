@@ -1,0 +1,123 @@
+{% extends "base.html" %}
+{% set active_tab = "services" %}
+{% block title %}{{ info.name }} — Services{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('services') }}">Services</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ info.name }}</span>{% endblock %}
+
+{% block content %}
+    
+    <div class="card">
+      <div class="service-header">
+        <h2 style="margin: 0;">{{ info.name }}</h2>
+        <div class="service-actions">
+          {% if info.status in ("running", "exited") %}
+            <form method="post" action="{{ url_for('run_service_action', name=info.name, action='restart') }}"
+                  onsubmit="return confirm('Voulez-vous vraiment redémarrer {{ info.name }} ?');">
+              <button type="submit" class="btn btn-warning">Redémarrer</button>
+            </form>
+            {% if not is_critical %}
+              <form method="post" action="{{ url_for('run_service_action', name=info.name, action='stop') }}"
+                    onsubmit="return confirm('Voulez-vous vraiment arrêter {{ info.name }} ?');">
+                <button type="submit" class="btn btn-danger">Arrêter</button>
+              </form>
+            {% endif %}
+          {% else %}
+            <form method="post" action="{{ url_for('run_service_action', name=info.name, action='start') }}"
+                  onsubmit="return confirm('Voulez-vous vraiment démarrer {{ info.name }} ?');">
+              <button type="submit" class="btn btn-success">Démarrer</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+
+      <div class="service-row">
+        <strong class="service-row-label">Statut</strong>
+        <span class="{{ 'text-success' if info.status in ('running', 'exited') else 'text-danger' }}">
+          {{ info.status|service_status_fr }}
+        </span>
+        <span class="service-since">depuis {{ info.last_state_change|service_since }}</span>
+      </div>
+      <div class="service-row">
+        <strong class="service-row-label">Lancement au démarrage</strong>
+        <span class="{{ 'text-success' if info.start_on_boot == 'enabled' else 'text-danger' }}">
+          {{ 'Activé' if info.start_on_boot == 'enabled' else 'Désactivé' }}
+        </span>
+                        {% if info.start_on_boot == "enabled" %}
+          <form method="post" action="{{ url_for('run_service_action', name=info.name, action='disable') }}" class="service-inline-form"
+                onsubmit="return confirm({{ ('Voulez-vous vraiment désactiver ' + info.name + ' au démarrage ? C\'est un service critique — le serveur pourrait ne plus redémarrer correctement.' if is_critical else 'Voulez-vous vraiment désactiver ' + info.name + ' au démarrage ?')|tojson }});">
+            {% if is_critical %}<input type="hidden" name="confirm" value="1">{% endif %}
+            <button type="submit" class="diag-ignore-btn">Désactiver</button>
+          </form>
+        {% else %}
+          <form method="post" action="{{ url_for('run_service_action', name=info.name, action='enable') }}" class="service-inline-form">
+            <button type="submit" class="diag-ignore-btn">Activer</button>
+          </form>
+        {% endif %}
+      </div>
+      {% if info.description %}
+        <div class="service-row">
+          <strong class="service-row-label">Description</strong>
+          <span>{{ info.description }}</span>
+        </div>
+      {% endif %}
+      <div class="service-row">
+        <strong class="service-row-label">Configuration</strong>
+        <span class="{{ 'text-danger' if info.configuration == 'broken' else '' }}">
+          {{ {"valid": "Valide", "broken": "Cassée", "unknown": "Inconnue"}.get(info.configuration, info.configuration) }}
+        </span>
+      </div>
+      {% if info.configuration_details %}
+        <div class="service-row">
+          <strong class="service-row-label"></strong>
+          <pre class="service-conf-details">{{ info.configuration_details|join('\n') }}</pre>
+        </div>
+      {% endif %}
+    </div>
+
+    <h2>Journaux</h2>
+        <form method="get" class="inline-form" style="margin-bottom: 0.75rem;">
+      <label for="lines" style="font-size: 0.85rem; color: var(--color-text-dim);">Lignes par journal :</label>
+      <select id="lines" name="lines" onchange="this.form.submit()">
+        {% for n in (50, 100, 200, 500, 1000) %}
+          <option value="{{ n }}" {{ "selected" if log_lines == n else "" }}>{{ n }}</option>
+        {% endfor %}
+      </select>
+    </form>
+    {% for filename, content in logs %}
+      <div class="card">
+        <details {{ "open" if loop.first else "" }}>
+          <summary class="service-log-summary">{{ filename }}</summary>
+          <pre class="service-log-content"><code>{% for line in content %}{{ line|colorize_log_line }}
+{% endfor %}</code></pre>
+        </details>
+      </div>
+    {% endfor %}
+{% endblock %}
+
+{% block extra_style %}
+    .service-header { display: flex; align-items: center; justify-content: space-between;
+                       padding: 1.25rem 1.5rem; border-bottom: 1px solid var(--color-border); flex-wrap: wrap; gap: 0.75rem; }
+    .service-actions { display: flex; gap: 0.5rem; }
+    .btn-success { background: #1a7a3d; }
+    .btn-success:hover { background: #145c2e; }
+    .btn-warning { background: #b8860b; }
+    .btn-warning:hover { background: #966d09; }
+    .service-row { display: flex; align-items: center; gap: 1rem; padding: 0.75rem 1.5rem;
+                    border-bottom: 1px solid #f0f0f0; font-size: 0.9rem; }
+    .service-row:last-child { border-bottom: none; }
+    .service-row-label { flex: 0 0 180px; }
+    .service-since { color: var(--color-text-faint); font-size: 0.8rem; margin-left: auto; }
+    .service-inline-form { margin-left: auto; }
+    .service-conf-details { margin: 0; font-size: 0.8rem; color: var(--color-danger); white-space: pre-wrap; }
+        .service-log-summary { cursor: pointer; padding: 1.25rem 1.5rem; font-weight: 600; font-size: 0.95rem;
+                            list-style: none; }
+    .service-log-summary::-webkit-details-marker { display: none; }
+    .service-log-content { margin: 0; padding: 1.25rem 1.5rem; font-size: 0.78rem; background: #1e1e1e;
+                            color: #ddd; overflow-x: auto; max-height: 600px; user-select: none; }
+    .text-success { color: var(--color-text-success); }
+    .text-danger { color: var(--color-text-danger); }
+    .log-line-error { color: #ff8080; }
+    .log-line-warning { color: #ffd452; }
+    .log-line-success { color: #70ea8d; }
+    .log-line-info { color: #8ec9e0; }
+{% endblock %}

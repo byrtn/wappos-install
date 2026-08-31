@@ -1,0 +1,57 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+source "$(dirname "$0")/_common.sh"
+source /usr/share/yunohost/helpers
+
+pkg_dir="$(dirname "$0")/.."
+
+ynh_script_progression --message="Stopping the service..." --weight=5
+systemctl stop "$app" 2>/dev/null || true
+
+ynh_script_progression --message="Updating the app's files..." --weight=5
+cp -ar "$pkg_dir/sources/." "$install_dir/"
+
+mkdir -p "$install_dir/.package"
+cp "$pkg_dir/conf/wappos_portal.sudoers" "$install_dir/.package/wappos_portal.sudoers"
+cp "$pkg_dir/manifest.toml" "$install_dir/.package/manifest.toml"
+
+ynh_script_progression --message="Updating the Python environment..." --weight=15
+"$venv_dir/bin/pip" install --upgrade pip
+"$venv_dir/bin/pip" install -r "$install_dir/requirements.txt"
+
+chown -R "$app:$app" "$install_dir"
+chmod 750 "$install_dir"
+
+ynh_script_progression --message="Updating the targeted sudo rights..." --weight=5
+cp "$install_dir/.package/wappos_portal.sudoers" /etc/sudoers.d/$app
+sed -i "s/__APP__/$app/g" /etc/sudoers.d/$app
+chmod 440 /etc/sudoers.d/$app
+chown root:root /etc/sudoers.d/$app
+visudo -c -f /etc/sudoers.d/$app || ynh_die --message="The generated sudoers file is invalid, update aborted for safety."
+
+ynh_script_progression --message="Updating the health check cron..." --weight=5
+_compute_admin_alert_mail
+ynh_add_config --template="wappos_portal.cron" --destination="/etc/cron.d/$app"
+
+ynh_script_progression --message="Updating the systemd configuration..." --weight=5
+ynh_add_systemd_config
+
+ynh_script_progression --message="Restarting the service..." --weight=5
+systemctl restart "$app"
+
+ynh_script_progression --message="Registering the cross-domain reachability hook..." --weight=2
+url_path="${app//_/-}"
+sed -i "s/__PORT__/$port/g; s/__APP__/$app/g; s/__URL_PATH__/$url_path/g" "$install_dir/hooks/50-post_domain_add"
+systemd-run --collect --uid=0 \
+    yunohost tools shell -c "
+from yunohost.hook import hook_add
+hook_add('$app', '$install_dir/hooks/50-post_domain_add')
+"
+
+ynh_script_progression --message="Deploying to existing domains..." --weight=5
+for existing_domain in $(yunohost domain list --output-as json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['domains']))"); do
+    bash "$install_dir/hooks/50-post_domain_add" "$existing_domain"
+done
+
+ynh_script_progression --message="Upgrade completed." --last

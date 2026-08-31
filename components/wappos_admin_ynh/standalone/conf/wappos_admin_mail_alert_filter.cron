@@ -1,0 +1,1 @@
+0 7 * * * root __INSTALL_DIR__/venv/bin/python3 __INSTALL_DIR__/mail_alert_filter.py __ADMIN_ALERT_MAIL__ __ALERT_MBOX__ >> /var/log/wappos_admin-mail-alert-filter.log 2>&1

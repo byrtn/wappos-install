@@ -1,0 +1,22 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+source "$(dirname "$0")/_common.sh"
+source /usr/share/yunohost/helpers
+
+ynh_script_progression --message="Backing up the app's files..."
+ynh_backup --src_path="$install_dir"
+
+ynh_script_progression --message="Backing up the nginx configuration..."
+for existing_domain in $(yunohost domain list --output-as json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['domains']))"); do
+    frag="/etc/nginx/conf.d/${existing_domain}.d/${app}_crossdomain.conf"
+    [ -f "$frag" ] && ynh_backup --src_path="$frag"
+done
+
+ynh_script_progression --message="Backing up the systemd configuration..."
+ynh_backup --src_path="/etc/systemd/system/$app.service"
+
+ynh_script_progression --message="Backing up the health check cron..."
+ynh_backup --src_path="/etc/cron.d/$app"
+
+ynh_script_progression --message="Backup completed." --last

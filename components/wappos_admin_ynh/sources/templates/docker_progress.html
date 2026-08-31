@@ -1,0 +1,97 @@
+{% extends "base.html" %}
+{% set active_tab = "docker" %}
+{% set action_label = action_label or "Installation" %}
+{% block title %}{{ action_label }} Docker — {{ slug }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">Applications Docker</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ action_label }}</span>{% endblock %}
+
+{% block content %}
+    <div class="card create-card">
+      <div class="card-header"><h3>{{ action_label }} de {{ slug }}</h3></div>
+      <div class="card-body">
+        <div id="steps-list">
+          {% for s in steps %}
+            <div class="progress-step" id="step-{{ loop.index0 }}">
+              <span class="progress-step-icon">&#9675;</span>
+              <span>{{ s }}</span>
+            </div>
+          {% endfor %}
+        </div>
+
+        <div id="error-box" class="error" style="display: none; margin-top: 1rem;"></div>
+
+        <div id="summary-box" style="display: none; margin-top: 1rem;">
+          <div class="message" id="summary-ok" style="display: none;">{{ action_label }} terminée avec succès.</div>
+          <div class="message" id="summary-warning" style="display: none; background: var(--color-warning-bg); color: var(--color-warning-text);">
+            <strong>{{ action_label }} terminée — points à vérifier :</strong>
+            <ul id="summary-warning-list" style="margin: 0.5rem 0 0; padding-left: 1.25rem;"></ul>
+          </div>
+        </div>
+
+        <div id="back-link" style="display: none; margin-top: 1rem;">
+          <a class="btn" href="{{ url_for('docker_apps') }}">Retour à Docker</a>
+        </div>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .progress-step { display: flex; align-items: center; gap: 0.6rem; padding: 0.4rem 0; opacity: 0.4; }
+    .progress-step-icon { width: 1.3rem; text-align: center; }
+{% endblock %}
+
+{% block extra_script %}
+    var jobId = {{ job_id|tojson }};
+    var totalSteps = {{ steps|length }};
+
+    function poll() {
+      fetch({{ url_for('docker_progress_status', job_id=job_id)|tojson }})
+        .then(function (r) { return r.json(); })
+        .then(function (data) {
+          if (data.error === "not_found") {
+            document.getElementById("error-box").style.display = "block";
+            document.getElementById("error-box").textContent = "Suivi de progression introuvable (le service a peut-être redémarré).";
+            document.getElementById("back-link").style.display = "block";
+            return;
+          }
+          for (var i = 0; i < totalSteps; i++) {
+            var row = document.getElementById("step-" + i);
+            var icon = row.querySelector(".progress-step-icon");
+            if (i < data.current || (data.done && !data.error)) {
+              row.style.opacity = "1";
+              icon.textContent = "✓";
+            } else if (i === data.current && !data.done) {
+              row.style.opacity = "1";
+              icon.textContent = "…";
+            }
+          }
+          if (data.done) {
+            if (data.error) {
+              document.getElementById("error-box").style.display = "block";
+              document.getElementById("error-box").textContent = data.error;
+              document.getElementById("back-link").style.display = "block";
+            } else {
+              var warnings = data.warnings || [];
+              document.getElementById("summary-box").style.display = "block";
+              if (warnings.length === 0) {
+                document.getElementById("summary-ok").style.display = "block";
+                setTimeout(function () { window.location.href = {{ url_for('docker_apps')|tojson }}; }, 1200);
+              } else {
+                var list = document.getElementById("summary-warning-list");
+                warnings.forEach(function (w) {
+                  var li = document.createElement("li");
+                  li.textContent = w;
+                  list.appendChild(li);
+                });
+                document.getElementById("summary-warning").style.display = "block";
+                document.getElementById("back-link").style.display = "block";
+              }
+            }
+            return;
+          }
+          setTimeout(poll, 1000);
+        })
+        .catch(function () { setTimeout(poll, 2000); });
+    }
+    poll();
+{% endblock %}

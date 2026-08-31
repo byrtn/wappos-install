@@ -1,0 +1,378 @@
+{% extends "base.html" %}
+{% import "_option_fields.html" as fields %}
+{% set active_tab = "domains" %}
+{% block title %}{{ detail.name if detail else "Domaine" }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('domains_page') }}">Domaines</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ detail.name if detail else "Domaine" }}</span>{% endblock %}
+
+{% block content %}
+    
+    {% if detail %}
+      <div class="card create-card">
+        <div class="card-header app-detail-header">
+          <span class="domain-card-icon">&#127760;</span>
+          <div>
+            <h1 style="margin: 0; font-size: 1.05rem;">
+              {{ detail.name }}
+              {% if detail.main %}<span class="badge-main" title="Domaine principal">&#9733; Domaine principal</span>{% endif %}
+            </h1>
+            <a href="https://{{ detail.name }}" target="_blank" rel="noopener">https://{{ detail.name }}</a>
+          </div>
+          {% if not detail.main %}
+            <form method="post" action="{{ url_for('domain_set_main', domain=detail.name) }}" style="margin-left: auto;"
+                  onsubmit="return confirm('Faire de {{ detail.name }} le nouveau domaine principal ?');">
+              <button type="submit" class="btn">Définir comme domaine principal</button>
+            </form>
+          {% endif %}
+        </div>
+        <div class="card-body">
+                {% set cert_class = {'success': 'text-success', 'warning': 'text-warning', 'danger': 'text-danger'} %}
+        {% set ca_type_labels = {'letsencrypt': "Let's Encrypt", 'selfsigned': 'Auto-signé', 'other': 'Autre/Inconnu'} %}
+        <p style="margin: 0 0 0.4rem;">
+          <strong>Certificat :</strong>
+          <span class="{{ cert_class.get(detail.certificate.style, '') }}">{{ ca_type_labels.get(detail.certificate.CA_type, detail.certificate.CA_type) }}</span>
+          <span class="field-info">(valide {{ detail.certificate.validity }} jours)</span>
+        </p>
+        {% if detail.registrar == 'parent_domain' %}
+          <p class="field-info" style="margin: 0 0 0.9rem;">Registrar : configuré via le domaine parent</p>
+        {% elif detail.registrar %}
+          <p class="field-info" style="margin: 0 0 0.9rem;">Registrar : {{ detail.registrar }}</p>
+        {% endif %}
+
+        {% if detail.apps %}
+          <div class="app-pill-list">
+            {% for a in detail.apps %}
+              <a href="{{ url_for('app_detail', app_id=a.id) }}" class="app-pill">{{ a.name }} <span class="app-item-id">{{ a.path }}</span></a>
+            {% endfor %}
+          </div>
+        {% else %}
+          <p class="field-info" style="margin: 0;">Aucune app sur ce domaine.</p>
+        {% endif %}
+        </div>
+      </div>
+
+      {% if panels %}
+        <div class="tab-bar">
+          {% for panel in panels %}
+            <button type="button" class="tab-btn {{ 'active' if loop.first else '' }}" data-tab="panel-{{ panel.id }}">{{ panel.name }}</button>
+          {% endfor %}
+        </div>
+
+        {% for panel in panels %}
+          <div class="tab-pane {{ 'active' if loop.first else '' }}" id="panel-{{ panel.id }}">
+            {% if panel.id == 'cert' %}
+                            {% set cert_ns = namespace(acme_eligible=none) %}
+              {% for section in panel.sections %}
+                                {% for o in section.options if o.id == 'acme_eligible' %}
+                  {% set val = o.value if ('value' in o and o.value is not none) else o.default %}
+                  {% set yes_val = o.yes if o.yes is defined and o.yes is not none else 1 %}
+                  {% set cert_ns.acme_eligible = (none if val is none else (val == yes_val or val|string == yes_val|string)) %}
+                {% endfor %}
+                <div class="card create-card">
+                  {% if section.name %}<div class="card-header"><h3>{{ section.name }}</h3></div>{% endif %}
+                  <div class="card-body">
+                                    {% for o in section.options if o.type in ('alert', 'display_text') %}
+                    {% set show = true %}
+                    {% if o.visible is defined and o.visible is not sameas true and 'acme_eligible' in o.visible %}
+                      {% set show = (cert_ns.acme_eligible is none or cert_ns.acme_eligible is sameas false) %}
+                    {% endif %}
+                    {% if show %}
+                      {% if o.type == 'alert' %}
+                        <div class="message {{ 'error' if o.style in ('danger', 'warning') else '' }}" style="margin-bottom: 0.75rem;">{{ o.ask|safe }}</div>
+                      {% else %}
+                        <p class="field-info" style="margin: 0 0 0.75rem;">{{ o.ask|safe }}</p>
+                      {% endif %}
+                    {% endif %}
+                  {% endfor %}
+                  <table>
+                    {% for o in section.options if o.type not in ('button', 'alert', 'display_text', 'markdown') %}
+                      <tr>
+                        <td style="font-size: 0.85rem; color: var(--color-text-dim);">{{ o.ask }}</td>
+                        <td>
+                          {% set val = o.value if ('value' in o and o.value is not none) else o.default %}
+                          {% if o.type == 'boolean' %}
+                                                        {% set yes_val = o.yes if o.yes is defined and o.yes is not none else 1 %}
+                            {% set is_yes = val is not none and (val == yes_val or val|string == yes_val|string) %}
+                            {% if val is none %}
+                              Inconnu
+                            {% elif is_yes %}
+                              Oui
+                            {% else %}
+                              Non
+                            {% endif %}
+                          {% elif o.type == 'select' and o.choices is mapping %}
+                            {{ o.choices.get(val|string, val) }}
+                          {% else %}
+                            {{ val if val is not none and val != '' else '—' }}
+                          {% endif %}
+                        </td>
+                      </tr>
+                    {% endfor %}
+                  </table>
+                  </div>
+                </div>
+              {% endfor %}
+
+              <div class="card create-card">
+                <div class="card-header"><h3>Opérations</h3></div>
+                <div class="card-body">
+                                <form method="post" action="{{ url_for('domain_cert_install', domain=detail.name) }}" class="form-row"
+                      {% if cert_ns.acme_eligible is sameas false %}
+                      onsubmit="return this.no_checks.checked || confirm('Ce domaine ne semble pas éligible à un certificat Let\'s Encrypt (DNS non propagé ?). Continuer quand même ?');"
+                      {% endif %}>
+                  <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                    <input type="checkbox" name="force" value="1"> Forcer (remplacer un certificat déjà valide)
+                  </label>
+                  <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                    <input type="checkbox" name="self_signed" value="1"> Certificat auto-signé (au lieu de Let's Encrypt)
+                  </label>
+                  <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                    <input type="checkbox" name="no_checks" value="1"> Ne pas vérifier la config DNS/joignabilité avant (déconseillé)
+                  </label>
+                  <button type="submit" class="btn">Installer un certificat Let's Encrypt</button>
+                </form>
+                <form method="post" action="{{ url_for('domain_cert_renew', domain=detail.name) }}" class="form-row" style="margin-top: 0.75rem;">
+                  <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                    <input type="checkbox" name="force" value="1"> Forcer (ignorer le seuil de 15 jours)
+                  </label>
+                  <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                    <input type="checkbox" name="email" value="1"> M'envoyer un email si le renouvellement échoue
+                  </label>
+                  <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                    <input type="checkbox" name="no_checks" value="1"> Ne pas vérifier la config DNS/joignabilité avant (déconseillé)
+                  </label>
+                  <button type="submit" class="btn">Renouveler le certificat</button>
+                </form>
+                </div>
+              </div>
+            {% else %}
+                            {% for section in panel.sections %}
+                                {% set section_tag = 'details' if section.collapsed else 'div' %}
+                <{{ section_tag }} class="card create-card section-block"
+                     {% if section.visible is defined and section.visible is not sameas true %}data-visible-expr="{{ section.visible }}"{% endif %}
+                     {% if section.collapsed %}{{ 'open' if not section.name else '' }}{% endif %}>
+                  {% if section.collapsed and section.name %}
+                    <summary class="card-header-summary">{{ section.name }}</summary>
+                  {% elif section.name %}
+                    <div class="card-header"><h3>{{ section.name }}</h3></div>
+                  {% endif %}
+                  <div class="card-body">
+                  {% if section.is_action_section %}
+                    {% set buttons = section.options|selectattr('type', 'equalto', 'button')|list %}
+                    <form method="post" action="{{ url_for('domain_action_submit', domain=detail.name, action_id=panel.id ~ '.' ~ section.id ~ '.' ~ (buttons[0].id if buttons else '')) }}" class="config-panel-form" enctype="multipart/form-data">
+                      {% for o in section.options if o.type != 'button' %}{{ fields.render_option(o) }}{% endfor %}
+                      {% for b in buttons %}<button type="submit" class="btn">{{ b.ask }}</button>{% endfor %}
+                    </form>
+                  {% else %}
+                    <form method="post" action="{{ url_for('domain_config_submit', domain=detail.name, panel_key=panel.id) }}" class="config-panel-form" enctype="multipart/form-data">
+                      <input type="hidden" name="__section_id__" value="{{ section.id }}">
+                      {% for o in section.options %}{{ fields.render_option(o) }}{% endfor %}
+                      <button type="submit" class="btn">Appliquer</button>
+                    </form>
+                  {% endif %}
+                  </div>
+                </{{ section_tag }}>
+              {% endfor %}
+            {% endif %}
+
+            {% if panel.id == 'dns' %}
+              <div class="card create-card" id="dns">
+                <div class="card-header"><h3>Configuration DNS automatique chez le registrar</h3></div>
+                <div class="card-body">
+                {% if not dns_push_checked %}
+                  <p class="field-info" style="margin: 0 0 0.75rem;">
+                    Vérifie si la zone DNS chez le registrar correspond à la configuration suggérée par Wappos.
+                    Nécessite des identifiants API registrar configurés pour ce domaine.
+                  </p>
+                  <a href="{{ url_for('domain_detail', domain=detail.name, check_dns_push=1) }}#dns" class="btn">Vérifier la synchronisation DNS</a>
+                {% elif dns_push_error %}
+                  <p class="field-info" style="margin: 0;">{{ dns_push_error }}</p>
+                {% elif dns_push_preview %}
+                  {% set creates = dns_push_preview.get('create', []) %}
+                  {% set updates = dns_push_preview.get('update', []) %}
+                  {% set deletes = dns_push_preview.get('delete', []) %}
+                  {% set unchanged = dns_push_preview.get('unchanged', []) %}
+                  {% set changes = creates + updates + deletes %}
+                  {% if not changes %}
+                    <p class="field-info" style="margin: 0;">Zone DNS déjà synchronisée avec la suggestion Wappos ({{ unchanged|length }} enregistrement(s) inchangé(s)).</p>
+                  {% else %}
+                    {% set has_unmanaged = changes|selectattr('managed_by_yunohost', 'equalto', false)|list|length > 0 %}
+                    <p class="field-info" style="margin: 0 0 0.75rem;">Aperçu (dry-run) : {{ creates|length }} à créer, {{ updates|length }} à mettre à jour, {{ deletes|length }} à supprimer.</p>
+                    <table>
+                      {% for label, records in (('Créer', creates), ('Mettre à jour', updates), ('Supprimer', deletes)) %}
+                        {% for rec in records %}
+                          <tr>
+                            <td style="font-size: 0.8rem; color: var(--color-text-dim);">{{ label }}</td>
+                            <td style="font-size: 0.82rem;">{{ rec.get('name') }} {{ rec.get('type') }} {{ rec.get('content') }}{% if not rec.get('managed_by_yunohost', true) %} <span class="text-warning">(non géré par Wappos)</span>{% endif %}</td>
+                          </tr>
+                        {% endfor %}
+                      {% endfor %}
+                    </table>
+                    <form method="post" action="{{ url_for('domain_dns_push_submit', domain=detail.name) }}" class="form-row" style="margin-top: 0.75rem;"
+                          onsubmit="return confirm('Pousser réellement ces changements DNS chez le registrar de {{ detail.name }} ? Cette action modifie de vrais enregistrements DNS.');">
+                      {% if has_unmanaged %}
+                        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                          <input type="checkbox" name="force" value="1"> Forcer (inclure aussi les enregistrements non gérés par Wappos, ci-dessus)
+                        </label>
+                      {% endif %}
+                      <button type="submit" class="btn">Appliquer réellement ces changements</button>
+                    </form>
+                  {% endif %}
+                {% endif %}
+                </div>
+              </div>
+              {% if dns_suggestion %}
+                <h3 style="font-size: 0.95rem;">Configuration DNS suggérée (pour saisie manuelle)</h3>
+                                <p class="field-info" style="margin: 0 0 0.75rem;">
+                  Ceci est une recommandation basée sur la configuration actuelle du serveur — vérifiez-la avant de l'appliquer chez votre registrar, elle ne remplace pas votre propre jugement sur votre zone DNS.
+                </p>
+                {% if dns_adjusted_for_relay %}
+                  <div class="message" style="background: #fff4e5; color: #7a4b00;">
+                    Ajustée par rapport à la suggestion Wappos native : ce domaine utilise un relais SMTP externe (SMTP2GO, réglage visible dans Réglages → Email). Le SPF a été complété avec <code>include:spf.smtp2go.com</code> et l'enregistrement DKIM local a été commenté (non utilisé — SMTP2GO signe avec sa propre clé, sélecteur propre à ce domaine à récupérer dans leur tableau de bord).
+                  </div>
+                {% endif %}
+                <div class="card">
+                  <pre class="service-log-content"><code>{{ dns_suggestion }}</code></pre>
+                </div>
+              {% endif %}
+            {% endif %}
+          </div>
+        {% endfor %}
+      {% endif %}
+
+      <div class="card create-card" style="border: 1px solid #f0c4c4; margin-top: 2rem;">
+        <div class="card-header"><h3 style="color: var(--color-danger);">Zone dangereuse</h3></div>
+        <div class="card-body">
+        {% if detail.main %}
+          <p class="field-info" style="margin: 0;">Ce domaine est le domaine principal — il ne peut pas être supprimé tant que ce sera le cas (définissez un autre domaine comme principal d'abord).</p>
+        {% elif detail.apps %}
+                    <p class="field-info" style="margin: 0;">
+            Ce domaine ne peut pas être supprimé tant que des apps y sont installées — désinstallez-les d'abord :
+          </p>
+          <ul style="margin: 0.5rem 0 0; padding-left: 1.25rem; font-size: 0.85rem;">
+            {% for a in detail.apps %}
+              <li><a href="{{ url_for('app_detail', app_id=a.id) }}">{{ a.name }} <span class="app-item-id">{{ a.path }}</span></a></li>
+            {% endfor %}
+          </ul>
+        {% else %}
+          <form method="post" action="{{ url_for('domain_remove', domain=detail.name) }}" class="form-row"
+                onsubmit="return confirm('Supprimer définitivement le domaine {{ detail.name }} ? Cette action est irréversible.') &amp;&amp; (document.getElementById('confirm-domain-name').value === {{ detail.name|tojson }} || (alert('Pour supprimer ce domaine, tape exactement « {{ detail.name }} » dans le champ prévu.'), false));">
+            {% if detail.name.endswith('.nohost.me') or detail.name.endswith('.noho.st') or detail.name.endswith('.ynh.fr') %}
+                            <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
+                <input type="checkbox" name="ignore_dyndns" value="1">
+                Ne pas annuler l'enregistrement DynDNS de ce domaine (le laisse abonné au service)
+              </label>
+            {% endif %}
+            <label style="display: block; font-size: 0.85rem; margin-top: 0.5rem;">
+              Tapez « {{ detail.name }} » pour confirmer
+              <input type="text" id="confirm-domain-name" autocomplete="off"
+                     style="display: block; margin-top: 0.25rem; padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; max-width: 320px;">
+            </label>
+            <button type="submit" class="btn" style="background: var(--color-danger); margin-top: 0.75rem;">Supprimer ce domaine</button>
+          </form>
+        {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <div class="error">Domaine introuvable ou inaccessible.</div>
+    {% endif %}
+{% endblock %}
+
+{% block extra_style %}
+    .card.create-card { margin-bottom: 1.25rem; }
+    .app-detail-header { display: flex; align-items: center; gap: 1rem; }
+        @media (max-width: 1024px) {
+      .app-detail-header { flex-wrap: wrap; }
+      .app-detail-header form { margin-left: 0 !important; }
+    }
+    .domain-card-icon { font-size: 2rem; line-height: 1; }
+    .text-success { color: var(--color-text-success); }
+    .text-warning { color: var(--color-text-warning); }
+    .text-danger { color: var(--color-text-danger); }
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .badge-main { display: inline-block; font-size: 0.7rem; background: #fff4e5; color: #a67c00;
+                  border-radius: 4px; padding: 0.15rem 0.5rem; margin-left: 0.5rem; vertical-align: middle; }
+    .app-pill-list { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+    .app-pill { display: inline-block; border: 1px solid var(--color-border-strong); border-radius: 6px; padding: 0.3rem 0.6rem;
+                font-size: 0.82rem; color: var(--color-text); background: var(--color-hover-bg); }
+    .app-pill:hover { background: var(--color-hover-bg); }
+    table { width: 100%; }
+    table td { padding: 0.4rem 1.25rem; border-bottom: 1px solid var(--color-border); font-size: 0.9rem; }
+    .service-log-content { margin: 0; padding: 1.25rem 1.5rem; font-size: 0.78rem; background: #1e1e1e;
+                            color: #ddd; overflow-x: auto; max-height: 500px; white-space: pre-wrap; }
+        .tab-bar { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 1.5rem 0 1rem; border-bottom: 1px solid var(--color-border-strong);
+               overflow-x: auto; -webkit-overflow-scrolling: touch; }
+    .tab-btn { border: none; background: none; padding: 0.5rem 1rem; font-size: 0.9rem; color: var(--color-text-dim);
+               cursor: pointer; border-bottom: 2px solid transparent; white-space: nowrap; }
+    .tab-btn.active { color: var(--color-link); font-weight: 600; border-bottom-color: var(--color-link); }
+    .tab-pane { display: none; }
+    .tab-pane.active { display: block; }
+    .config-panel-form .field { margin-bottom: 0.9rem; }
+    .config-panel-form label { display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem; }
+    .config-panel-form input[type="text"], .config-panel-form input[type="password"],
+    .config-panel-form input[type="number"], .config-panel-form input[type="date"],
+    .config-panel-form input[type="time"], .config-panel-form input[type="email"],
+    .config-panel-form input[type="url"], .config-panel-form select, .config-panel-form textarea {
+      padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; width: 100%; max-width: 420px;
+    }
+    .option-field[data-hidden="true"] { display: none; }
+    .section-block[data-hidden="true"] { display: none; }
+{% endblock %}
+
+{% block extra_script %}
+    document.querySelectorAll('.tab-btn').forEach(function (btn) {
+      btn.addEventListener('click', function () {
+        document.querySelectorAll('.tab-btn').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.tab-pane').forEach(function (p) { p.classList.remove('active'); });
+        btn.classList.add('active');
+        document.getElementById(btn.dataset.tab).classList.add('active');
+      });
+    });
+
+    function wappasEvalVisible(expr, values) {
+      function wappasMatch(value, pattern) {
+        try { return new RegExp('^(?:' + pattern + ')').test(value == null ? '' : value); }
+        catch (e) { return false; }
+      }
+      var strings = [];
+      var withoutStrings = expr.replace(/"[^"]*"|'[^']*'/g, function (s) {
+        strings.push(s);
+        return 'WAPPOSSTR' + (strings.length - 1) + 'ENDSTR';
+      });
+      var withMatch = withoutStrings.replace(
+        /\bmatch\s*\(\s*([A-Za-z_][A-Za-z0-9_]*)\s*,\s*(WAPPOSSTR\d+ENDSTR)\s*\)/g,
+        function (_, field, ph) { return '__wappasMatch(values[' + JSON.stringify(field) + '], ' + ph + ')'; }
+      );
+      var rewritten = withMatch.replace(/[A-Za-z_][A-Za-z0-9_]*/g, function (token) {
+        if (['true', 'false', 'null', '__wappasMatch'].includes(token)) return token;
+        var m = /^WAPPOSSTR(\d+)ENDSTR$/.exec(token);
+        if (m) return strings[+m[1]];
+        return Object.prototype.hasOwnProperty.call(values, token) ? 'values[' + JSON.stringify(token) + ']' : 'undefined';
+      });
+      return !!Function('values', '__wappasMatch', 'return (' + rewritten + ')')(values, wappasMatch);
+    }
+    function wappasCollectValues(scope) {
+      var values = {};
+      scope.querySelectorAll('[name]').forEach(function (el) {
+        values[el.name] = el.type === 'checkbox' ? el.checked : el.value;
+      });
+      return values;
+    }
+    function wappasApplyVisibility(form) {
+      var scope = form.closest('.tab-pane') || form;
+      var values = wappasCollectValues(scope);
+      scope.querySelectorAll('.option-field[data-visible-expr], .section-block[data-visible-expr]').forEach(function (field) {
+        var expr = field.dataset.visibleExpr;
+        var visible = true;
+        try {
+          visible = wappasEvalVisible(expr, values);
+        } catch (e) { visible = true; }
+        field.dataset.hidden = visible ? 'false' : 'true';
+      });
+    }
+    document.querySelectorAll('.config-panel-form').forEach(function (form) {
+      wappasApplyVisibility(form);
+      form.addEventListener('input', function () { wappasApplyVisibility(form); });
+      form.addEventListener('change', function () { wappasApplyVisibility(form); });
+    });
+{% endblock %}

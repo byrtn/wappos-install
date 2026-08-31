@@ -1,0 +1,1 @@
+*/4 * * * * __APP__ cd __INSTALL_DIR__ && __INSTALL_DIR__/venv/bin/python3 -c "from wappos_api.connectors.admin import _cached_consumer_sizes; _cached_consumer_sizes(force=True)" >> /var/log/wappos_api-disk-cache.log 2>&1

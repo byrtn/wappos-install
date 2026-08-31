@@ -26,10 +26,10 @@ _DEFAULT_SCHEDULE = {
     "scope": "full",
     "apps": [],
     "last_run": None,
-    "retention_enabled": False,
+    "retention_enabled": True,
     "retention_mode": "count",
-    "retention_keep_count": 5,
-    "retention_keep_days": 30,
+    "retention_keep_count": 2,
+    "retention_keep_days": 2,
 }
 
 

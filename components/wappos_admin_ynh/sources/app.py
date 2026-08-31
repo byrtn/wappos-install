@@ -236,6 +236,8 @@ WAPPOS_API_BASE = "http://127.0.0.1:9400"
 _MANIFEST = tomllib.loads((Path(__file__).parent / ".package" / "manifest.toml").read_text())
 APP_VERSION = _MANIFEST["version"]
 
+_HIDDEN_SYSTEM_USERS = {"cron.alerts"}
+
 
 @app.before_request
 def _require_login():
@@ -1577,7 +1579,7 @@ def index():
         return "Unauthorized", 401
 
     try:
-        users = _wappos_api_admin_users(token)
+        users = [u for u in _wappos_api_admin_users(token) if u.get("username") not in _HIDDEN_SYSTEM_USERS]
         domains = _wappos_api_domains(token)
     except requests.exceptions.RequestException as e:
         app.logger.error("Failed to load admin data for %r: %s", user, e)

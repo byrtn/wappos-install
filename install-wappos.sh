@@ -54,6 +54,14 @@ NETEOF
         echo "1. Attendez 10 secondes."
         echo "2. Fermez cette connexion (elle va se couper toute seule)."
         echo "3. Reconnectez-vous avec : ssh root@$static_ip"
+        echo
+        echo "   Si votre ordinateur affiche un avertissement du type"
+        echo "   'REMOTE HOST IDENTIFICATION HAS CHANGED' : ce n'est pas"
+        echo "   un piratage, c'est normal ici (nouvelle machine ou nouvelle"
+        echo "   installation utilisant cette meme adresse IP). Suivez"
+        echo "   simplement la commande que votre terminal vous propose"
+        echo "   pour oublier l'ancienne cle, puis reconnectez-vous."
+        echo
         echo "4. Relancez ce meme script : $script_dir/install-wappos.sh"
         echo "=============================================="
         echo

@@ -47,13 +47,18 @@ NETEOF
 
         touch "$network_configured_marker"
         echo
+        echo "=============================================="
         echo "IP statique configuree : $static_ip"
-        echo "Si cette session est en SSH, elle risque de se couper au redemarrage du reseau."
-        echo "Reconnectez-vous alors sur : $static_ip"
-        sleep 3
-        systemctl restart networking
         echo
-        echo "Reseau redemarre. Relancez ce script pour continuer l'installation."
+        echo "A FAIRE MAINTENANT :"
+        echo "1. Attendez 10 secondes."
+        echo "2. Fermez cette connexion (elle va se couper toute seule)."
+        echo "3. Reconnectez-vous avec : ssh root@$static_ip"
+        echo "4. Relancez ce meme script : $script_dir/install-wappos.sh"
+        echo "=============================================="
+        echo
+        (sleep 2 && systemctl restart networking) >/dev/null 2>&1 &
+        disown
         exit 0
     else
         touch "$network_configured_marker"
@@ -74,10 +79,16 @@ fi
 
 if [ ! -f /etc/yunohost/installed ]; then
     echo
-    echo "--- Configuration initiale (domaine, mot de passe administrateur) ---"
+    echo "=============================================="
+    echo "CONFIGURATION INITIALE"
+    echo "Les questions suivantes vous demandent :"
+    echo "- le nom de domaine de votre serveur"
+    echo "- un mot de passe administrateur (robuste, evitez les mots courants)"
+    echo "- d'accepter les conditions d'utilisation de YunoHost"
+    echo "=============================================="
     until yunohost tools postinstall -u adminynh; do
         echo
-        echo "La configuration a echoue, reessayons."
+        echo "Echec, on recommence ces memes questions."
         echo
     done
 fi
@@ -107,4 +118,10 @@ for component in wappos_api_ynh wappos_sso_bypass wappos_admin_ynh wappos_portal
 done
 
 echo
-echo "Wappos est installe."
+echo "=============================================="
+echo "INSTALLATION TERMINEE"
+echo
+echo "Wappos est installe et pret a l'usage."
+echo "Portail : https://$main_domain/wappos-portal/"
+echo "Administration : https://$main_domain/wappos-admin/"
+echo "=============================================="

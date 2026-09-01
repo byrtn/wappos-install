@@ -19,24 +19,6 @@ step() {
     echo
 }
 
-netmask_to_cidr() {
-    local netmask="$1" cidr=0 octet
-    IFS='.' read -r a b c d <<< "$netmask"
-    for octet in "$a" "$b" "$c" "$d"; do
-        case "$octet" in
-            255) cidr=$((cidr+8)) ;;
-            254) cidr=$((cidr+7)) ;;
-            252) cidr=$((cidr+6)) ;;
-            248) cidr=$((cidr+5)) ;;
-            240) cidr=$((cidr+4)) ;;
-            224) cidr=$((cidr+3)) ;;
-            192) cidr=$((cidr+2)) ;;
-            128) cidr=$((cidr+1)) ;;
-        esac
-    done
-    echo "$cidr"
-}
-
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 release_dir="$script_dir/components"
 alert_box_user="cron.alerts"
@@ -47,82 +29,12 @@ title "Installeur Wappos"
 
 if [ ! -f "$network_configured_marker" ]; then
     step "Configuration reseau"
-    interface="$(ip route show default | awk '{print $5; exit}')"
-    if [ -z "$interface" ]; then
-        interface="$(ip -o link show | awk -F': ' '$2 != "lo" {print $2; exit}')"
-    fi
-    echo "Interface reseau detectee : $interface"
+    echo "Ce serveur utilise l'adresse IP fournie automatiquement par votre routeur (DHCP)."
+    echo "Aucune action requise ici."
     echo
-    echo -e "  ${bold}1)${reset} DHCP (automatique)"
-    echo -e "  ${bold}2)${reset} IP statique (recommande pour un serveur)"
-    echo
-    read -rp "Choix [1/2] : " network_choice
-
-    if [ "$network_choice" = "2" ]; then
-        echo
-        read -rp "Adresse IP (ex. 192.168.1.201) : " static_ip
-        read -rp "Masque de sous-reseau (ex. 255.255.255.0) : " static_netmask
-        read -rp "Passerelle (ex. 192.168.1.254) : " static_gateway
-        read -rp "Serveur DNS (ex. 192.168.1.254) : " static_dns
-
-        cat > /etc/network/interfaces << NETEOF
-source /etc/network/interfaces.d/*
-
-auto lo
-iface lo inet loopback
-
-allow-hotplug $interface
-iface $interface inet static
-    address $static_ip
-    netmask $static_netmask
-    gateway $static_gateway
-    dns-nameservers $static_dns
-
-iface $interface inet6 auto
-NETEOF
-
-        touch "$network_configured_marker"
-
-        cidr="$(netmask_to_cidr "$static_netmask")"
-        ip addr add "$static_ip/$cidr" dev "$interface" 2>/dev/null || true
-
-        title "Nouvelle IP activee EN PLUS de l'ancienne : $static_ip"
-        echo -e "${bold}Cette connexion actuelle n'a PAS ete coupee. Ne la fermez pas encore.${reset}"
-        echo
-        echo -e "${bold}A FAIRE MAINTENANT :${reset}"
-        echo
-        echo "  1. Ouvrez un NOUVEAU terminal (gardez celui-ci ouvert et connecte)."
-        echo -e "  2. Dans ce nouveau terminal, connectez-vous sur : ${bold}ssh root@$static_ip${reset}"
-        echo
-        echo "     Si votre ordinateur affiche un avertissement du type"
-        echo "     'REMOTE HOST IDENTIFICATION HAS CHANGED' : ce n'est pas"
-        echo "     un piratage, c'est normal ici (nouvelle machine ou nouvelle"
-        echo "     installation utilisant cette meme adresse IP). Suivez"
-        echo "     simplement la commande que votre terminal vous propose"
-        echo "     pour oublier l'ancienne cle, puis reconnectez-vous."
-        echo
-        echo "  3. Une fois connecte avec succes dans ce nouveau terminal,"
-        echo "     revenez ICI, dans CETTE fenetre-ci (celle qui affiche ce texte),"
-        echo "     et appuyez sur Entree pour finaliser la configuration reseau."
-        echo
-        read -rp "Appuyez sur Entree une fois la nouvelle IP confirmee dans l'autre terminal : " _
-
-        systemctl restart networking
-
-        echo
-        title "Reseau finalise"
-        echo "Cette session-ci (l'ancienne IP) va maintenant se couper, c'est normal."
-        echo -e "Retournez dans votre AUTRE terminal (deja connecte sur ${bold}$static_ip${reset}) et lancez :"
-        echo
-        echo -e "  ${bold}cd $script_dir${reset}"
-        echo -e "  ${bold}./install-wappos.sh${reset}"
-        echo
-        exit 0
-    else
-        touch "$network_configured_marker"
-        echo
-        echo "DHCP conserve."
-    fi
+    echo "Pour lui donner une adresse fixe, faites-le APRES l'installation, depuis"
+    echo "l'interface d'administration Wappos (menu Reseau) une fois connecte."
+    touch "$network_configured_marker"
 fi
 
 if ! command -v curl >/dev/null 2>&1 || ! command -v rsync >/dev/null 2>&1; then

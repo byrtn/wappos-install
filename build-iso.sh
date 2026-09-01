@@ -30,14 +30,21 @@ umount "$WORKDIR/mnt"
 
 cp "$PRESEED_SRC" "$WORKDIR/iso/preseed.cfg"
 
+if [ ! -f "$WORKDIR/iso/install.amd/gtk/vmlinuz" ] || [ ! -f "$WORKDIR/iso/install.amd/gtk/initrd.gz" ]; then
+    echo "Noyau/initrd graphique introuvable a l'emplacement attendu (install.amd/gtk/) sur cette ISO."
+    echo "Contenu de install.amd/ :"
+    ls -la "$WORKDIR/iso/install.amd/" 2>/dev/null || echo "(dossier install.amd/ absent)"
+    exit 1
+fi
+
 cat > "$WORKDIR/iso/isolinux/isolinux.cfg" << 'EOF'
 default auto
 prompt 0
 timeout 1
 
 label auto
-  kernel /install.amd/vmlinuz
-  append auto=true priority=critical vga=788 initrd=/install.amd/initrd.gz preseed/file=/cdrom/preseed.cfg --- quiet
+  kernel /install.amd/gtk/vmlinuz
+  append vga=788 initrd=/install.amd/gtk/initrd.gz preseed/file=/cdrom/preseed.cfg ---
 EOF
 
 cd "$WORKDIR/iso"

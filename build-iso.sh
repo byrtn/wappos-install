@@ -47,6 +47,13 @@ if [ -f "$BRANDING_DIR/logo_debian.png" ] && [ -f "$BRANDING_DIR/logo_debian_dar
     ( cd "$INITRD_WORK" && zcat "$INITRD_GTK" | cpio -idm --no-absolute-filenames 2>/dev/null )
     cp "$BRANDING_DIR/logo_debian.png" "$INITRD_WORK/usr/share/graphics/logo_debian.png"
     cp "$BRANDING_DIR/logo_debian_dark.png" "$INITRD_WORK/usr/share/graphics/logo_debian_dark.png"
+
+    echo "Remplacement de la couleur de selection (turquoise Debian) par le bleu Wappos..."
+    GTKRC="$INITRD_WORK/usr/share/themes/Clearlooks/gtk-2.0/gtkrc"
+    if [ -f "$GTKRC" ]; then
+        sed -i 's/#298d85/#016f93/g' "$GTKRC"
+    fi
+
     ( cd "$INITRD_WORK" && find . | cpio -o -H newc 2>/dev/null | gzip -9 ) > "$INITRD_GTK"
 fi
 

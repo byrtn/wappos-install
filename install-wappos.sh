@@ -19,6 +19,24 @@ step() {
     echo
 }
 
+netmask_to_cidr() {
+    local netmask="$1" cidr=0 octet
+    IFS='.' read -r a b c d <<< "$netmask"
+    for octet in "$a" "$b" "$c" "$d"; do
+        case "$octet" in
+            255) cidr=$((cidr+8)) ;;
+            254) cidr=$((cidr+7)) ;;
+            252) cidr=$((cidr+6)) ;;
+            248) cidr=$((cidr+5)) ;;
+            240) cidr=$((cidr+4)) ;;
+            224) cidr=$((cidr+3)) ;;
+            192) cidr=$((cidr+2)) ;;
+            128) cidr=$((cidr+1)) ;;
+        esac
+    done
+    echo "$cidr"
+}
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 release_dir="$script_dir/components"
 alert_box_user="cron.alerts"
@@ -64,12 +82,17 @@ iface $interface inet6 auto
 NETEOF
 
         touch "$network_configured_marker"
-        title "IP statique configuree : $static_ip"
+
+        cidr="$(netmask_to_cidr "$static_netmask")"
+        ip addr add "$static_ip/$cidr" dev "$interface" 2>/dev/null || true
+
+        title "Nouvelle IP activee EN PLUS de l'ancienne : $static_ip"
+        echo -e "${bold}Cette connexion actuelle n'a PAS ete coupee. Ne la fermez pas encore.${reset}"
+        echo
         echo -e "${bold}A FAIRE MAINTENANT :${reset}"
         echo
-        echo "  1. Attendez 10 secondes."
-        echo "  2. Fermez cette connexion (elle va se couper toute seule)."
-        echo -e "  3. Reconnectez-vous avec : ${bold}ssh root@$static_ip${reset}"
+        echo "  1. Ouvrez un NOUVEAU terminal (gardez celui-ci ouvert et connecte)."
+        echo -e "  2. Dans ce nouveau terminal, connectez-vous sur : ${bold}ssh root@$static_ip${reset}"
         echo
         echo "     Si votre ordinateur affiche un avertissement du type"
         echo "     'REMOTE HOST IDENTIFICATION HAS CHANGED' : ce n'est pas"
@@ -78,10 +101,22 @@ NETEOF
         echo "     simplement la commande que votre terminal vous propose"
         echo "     pour oublier l'ancienne cle, puis reconnectez-vous."
         echo
-        echo -e "  4. Relancez ce meme script : ${bold}$script_dir/install-wappos.sh${reset}"
+        echo "  3. Une fois connecte avec succes dans ce nouveau terminal,"
+        echo "     revenez ICI, dans CETTE fenetre-ci (celle qui affiche ce texte),"
+        echo "     et appuyez sur Entree pour finaliser la configuration reseau."
         echo
-        (sleep 2 && systemctl restart networking) >/dev/null 2>&1 &
-        disown
+        read -rp "Appuyez sur Entree une fois la nouvelle IP confirmee dans l'autre terminal : " _
+
+        systemctl restart networking
+
+        echo
+        title "Reseau finalise"
+        echo "Cette session-ci (l'ancienne IP) va maintenant se couper, c'est normal."
+        echo -e "Retournez dans votre AUTRE terminal (deja connecte sur ${bold}$static_ip${reset}) et lancez :"
+        echo
+        echo -e "  ${bold}cd $script_dir${reset}"
+        echo -e "  ${bold}./install-wappos.sh${reset}"
+        echo
         exit 0
     else
         touch "$network_configured_marker"

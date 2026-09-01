@@ -30,10 +30,8 @@ title "Installeur Wappos"
 if [ ! -f "$network_configured_marker" ]; then
     step "Configuration reseau"
     echo "Ce serveur utilise l'adresse IP fournie automatiquement par votre routeur (DHCP)."
-    echo "Aucune action requise ici."
-    echo
-    echo "Pour lui donner une adresse fixe, faites-le APRES l'installation, depuis"
-    echo "l'interface d'administration Wappos (menu Reseau) une fois connecte."
+    echo "Aucune action requise ici. Une adresse fixe pourra etre proposee a la fin"
+    echo "de cette installation, une fois Wappos en place."
     touch "$network_configured_marker"
 fi
 
@@ -95,4 +93,51 @@ echo -e "${bold}Wappos est installe et pret a l'usage.${reset}"
 echo
 echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}"
 echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}"
+echo
+
+interface="$(ip route show default | awk '{print $5; exit}')"
+current_ip="$(ip -4 -o addr show dev "$interface" | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+
+step "Adresse IP"
+echo -e "Votre IP est ${bold}$current_ip${reset}, definie en DHCP (attribuee automatiquement"
+echo "par votre routeur, elle peut changer a l'avenir)."
+echo
+echo -e "${bold}Nous conseillons une IP fixe pour un serveur.${reset} Souhaitez-vous la parametrer"
+echo "maintenant ? [o/N]"
+read -rp "> " set_static_ip
+
+if [ "$set_static_ip" = "o" ] || [ "$set_static_ip" = "O" ]; then
+    echo
+    read -rp "Adresse IP fixe (ex. 192.168.1.201) : " static_ip
+    read -rp "Masque de sous-reseau (ex. 255.255.255.0) : " static_netmask
+    read -rp "Passerelle (ex. 192.168.1.254) : " static_gateway
+    read -rp "Serveur DNS (ex. 192.168.1.254) : " static_dns
+
+    cat > /etc/network/interfaces << NETEOF
+source /etc/network/interfaces.d/*
+
+auto lo
+iface lo inet loopback
+
+allow-hotplug $interface
+iface $interface inet static
+    address $static_ip
+    netmask $static_netmask
+    gateway $static_gateway
+    dns-nameservers $static_dns
+
+iface $interface inet6 auto
+NETEOF
+
+    title "IMPORTANT AVANT DE CONTINUER"
+    echo -e "${bold}Cette connexion va se couper dans quelques secondes.${reset} C'est normal."
+    echo
+    echo -e "Reconnectez-vous ensuite avec : ${bold}ssh root@$static_ip${reset}"
+    echo "Aucune autre action n'est necessaire, l'installation est deja terminee."
+    echo
+    read -rp "Appuyez sur Entree pour appliquer la nouvelle adresse : " _
+
+    systemctl restart networking
+    exit 0
+fi
 echo

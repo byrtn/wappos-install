@@ -44,7 +44,7 @@ timeout 1
 
 label auto
   kernel /install.amd/gtk/vmlinuz
-  append vga=788 initrd=/install.amd/gtk/initrd.gz preseed/file=/cdrom/preseed.cfg priority=medium ---
+  append vga=788 initrd=/install.amd/gtk/initrd.gz preseed/file=/cdrom/preseed.cfg ---
 EOF
 
 cd "$WORKDIR/iso"

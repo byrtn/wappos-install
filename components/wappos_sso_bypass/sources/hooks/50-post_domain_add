@@ -36,4 +36,14 @@ location ~ ^/yunohost/sso/(css|assets|fonts)/(.*)$ {
 }
 NGINX_EOF
 
+# Acces par IP brute (ou tout hote sans domaine correspondant) : YunoHost redirige
+# nativement vers /yunohost/admin (fichier regenere par YunoHost, on l'ecrase ici,
+# a reappliquer si un `yunohost tools regen-conf nginx --force` le restaure).
+mkdir -p /etc/nginx/conf.d/default.d
+cat > /etc/nginx/conf.d/default.d/redirect_to_admin.conf <<'NGINX_EOF'
+location / {
+    return 302 https://$host/wappos-portal/;
+}
+NGINX_EOF
+
 nginx -t && systemctl reload nginx

@@ -41,7 +41,7 @@ label auto
 EOF
 
 cd "$WORKDIR/iso"
-find . -follow -type f ! -name md5sum.txt -exec md5sum {} \; > md5sum.txt
+find . -type f ! -name md5sum.txt -exec md5sum {} \; > md5sum.txt
 
 xorriso -as mkisofs \
     -r -J -joliet-long \

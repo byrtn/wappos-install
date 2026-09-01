@@ -33,4 +33,33 @@ location /wappos-admin/ {
 }
 NGINX_EOF
 
+# Meme configuration dans le bloc nginx "par defaut" (acces par IP brute, sans nom
+# de domaine correspondant) : les clients sur un reseau local utilisent l'IP, pas
+# un nom de domaine. Sans ce fichier, l'IP brute ne sait pas servir /wappos-admin/.
+mkdir -p /etc/nginx/conf.d/default.d
+cat > /etc/nginx/conf.d/default.d/wappos_admin_crossdomain.conf <<'NGINX_EOF'
+location /wappos-admin/ {
+  access_by_lua_block {
+    return
+  }
+
+  proxy_read_timeout 320s;
+  proxy_pass        http://127.0.0.1:9500/;
+  proxy_redirect    off;
+  proxy_set_header  Host $host;
+  proxy_set_header  X-Real-IP $remote_addr;
+  proxy_set_header  X-Forwarded-Proto $scheme;
+  proxy_set_header  X-Forwarded-For $proxy_add_x_forwarded_for;
+  proxy_set_header  X-Forwarded-Host $server_name;
+  proxy_set_header  X-Forwarded-Port $server_port;
+  proxy_set_header  X-Forwarded-Prefix /wappos-admin;
+
+  proxy_http_version 1.1;
+  proxy_set_header Upgrade $http_upgrade;
+  proxy_set_header Connection "upgrade";
+
+  more_clear_input_headers 'Accept-Encoding';
+}
+NGINX_EOF
+
 nginx -t && systemctl reload nginx

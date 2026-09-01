@@ -39,11 +39,12 @@ NGINX_EOF
 # Acces par IP brute (ou tout hote sans domaine correspondant) : YunoHost redirige
 # nativement vers /yunohost/admin (fichier regenere par YunoHost, on l'ecrase ici,
 # a reappliquer si un `yunohost tools regen-conf nginx --force` le restaure).
-# On pointe vers le nom de domaine reel (pas $host, qui reprendrait l'IP tapee :
-# /wappos-portal/ n'est proxifie que pour le vrai domaine, pas pour une IP brute).
+# Redirection RELATIVE (pas de domaine en dur) : conserve l'IP/hote tape par le
+# client. Necessite que /wappos-portal/ soit aussi configure dans default.d/
+# (fait par wappos_portal_ynh) pour que la redirection aboutisse reellement.
 mkdir -p /etc/nginx/conf.d/default.d
-cat > /etc/nginx/conf.d/default.d/redirect_to_admin.conf <<NGINX_EOF
-rewrite ^/\$ https://${domain}/wappos-portal/ redirect;
+cat > /etc/nginx/conf.d/default.d/redirect_to_admin.conf <<'NGINX_EOF'
+rewrite ^/$ /wappos-portal/ redirect;
 NGINX_EOF
 
 nginx -t && systemctl reload nginx

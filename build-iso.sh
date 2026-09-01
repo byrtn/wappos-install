@@ -37,6 +37,19 @@ if [ ! -f "$WORKDIR/iso/install.amd/gtk/vmlinuz" ] || [ ! -f "$WORKDIR/iso/insta
     exit 1
 fi
 
+BRANDING_DIR="$SCRIPT_DIR/branding"
+if [ -f "$BRANDING_DIR/logo_debian.png" ] && [ -f "$BRANDING_DIR/logo_debian_dark.png" ]; then
+    echo "Remplacement du logo Debian par le logo Wappos dans l'installeur graphique..."
+    INITRD_GTK="$WORKDIR/iso/install.amd/gtk/initrd.gz"
+    INITRD_WORK="$WORKDIR/initrd-rebuild"
+    rm -rf "$INITRD_WORK"
+    mkdir -p "$INITRD_WORK"
+    ( cd "$INITRD_WORK" && zcat "$INITRD_GTK" | cpio -idm --no-absolute-filenames 2>/dev/null )
+    cp "$BRANDING_DIR/logo_debian.png" "$INITRD_WORK/usr/share/graphics/logo_debian.png"
+    cp "$BRANDING_DIR/logo_debian_dark.png" "$INITRD_WORK/usr/share/graphics/logo_debian_dark.png"
+    ( cd "$INITRD_WORK" && find . | cpio -o -H newc 2>/dev/null | gzip -9 ) > "$INITRD_GTK"
+fi
+
 cat > "$WORKDIR/iso/isolinux/isolinux.cfg" << 'EOF'
 default auto
 prompt 0

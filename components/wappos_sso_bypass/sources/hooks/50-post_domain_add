@@ -41,9 +41,7 @@ NGINX_EOF
 # a reappliquer si un `yunohost tools regen-conf nginx --force` le restaure).
 mkdir -p /etc/nginx/conf.d/default.d
 cat > /etc/nginx/conf.d/default.d/redirect_to_admin.conf <<'NGINX_EOF'
-location / {
-    return 302 https://$host/wappos-portal/;
-}
+rewrite ^/$ https://$host/wappos-portal/ redirect;
 NGINX_EOF
 
 nginx -t && systemctl reload nginx

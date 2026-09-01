@@ -7,6 +7,7 @@ conf_dir="/etc/nginx/conf.d/${domain}.d"
 mkdir -p "$conf_dir"
 
 cat > "$conf_dir/wappos_sso_bypass.conf" <<'NGINX_EOF'
+rewrite ^/$ /wappos-portal/ redirect;
 rewrite ^/yunohost/sso$ /wappos-portal/ redirect;
 rewrite ^/yunohost/sso/(?!applogos/|css/|assets/|customassets/|fonts/)(.*)$ /wappos-portal/$1 redirect;
 

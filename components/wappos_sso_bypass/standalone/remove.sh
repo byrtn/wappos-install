@@ -10,6 +10,7 @@ if [ "$confirm" != "OUI" ]; then
 fi
 
 rm -f /etc/yunohost/hooks.d/post_domain_add/50-wappos-sso-bypass
+rm -f /etc/yunohost/hooks.d/post_domain_remove/50-wappos-sso-bypass
 
 for existing_domain in $(yunohost domain list --output-as json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['domains']))"); do
     rm -f "/etc/nginx/conf.d/${existing_domain}.d/wappos_sso_bypass.conf"

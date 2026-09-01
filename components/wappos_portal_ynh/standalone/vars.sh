@@ -24,4 +24,10 @@ deploy_crossdomain_hook() {
     for existing_domain in $(yunohost domain list --output-as json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['domains']))"); do
         bash "$install_dir/hooks/50-post_domain_add" "$existing_domain"
     done
+
+    sed -e "s/__APP__/$app/g" \
+        "$pkg_dir/sources/hooks/50-post_domain_remove" > "$install_dir/hooks/50-post_domain_remove"
+    chmod 755 "$install_dir/hooks/50-post_domain_remove"
+    mkdir -p /etc/yunohost/hooks.d/post_domain_remove
+    cp "$install_dir/hooks/50-post_domain_remove" "/etc/yunohost/hooks.d/post_domain_remove/50-$app"
 }

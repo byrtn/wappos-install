@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eu
+
+domain="$1"
+
+rm -f "/etc/nginx/conf.d/${domain}.d/wappos_sso_bypass.conf"
+
+nginx -t && systemctl reload nginx || true

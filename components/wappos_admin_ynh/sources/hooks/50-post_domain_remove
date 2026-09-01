@@ -1,0 +1,10 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+set -eu
+
+domain="$1"
+
+rm -f "/etc/nginx/conf.d/${domain}.d/wappos_admin_crossdomain.conf"
+
+nginx -t && systemctl reload nginx || true

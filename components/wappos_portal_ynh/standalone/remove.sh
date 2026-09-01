@@ -15,6 +15,7 @@ done
 nginx -t && systemctl reload nginx
 
 rm -f "/etc/yunohost/hooks.d/post_domain_add/50-$app"
+rm -f "/etc/yunohost/hooks.d/post_domain_remove/50-$app"
 rm -f "/etc/cron.d/$app"
 rm -rf "$install_dir"
 userdel "$app" 2>/dev/null || true

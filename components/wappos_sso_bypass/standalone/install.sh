@@ -9,4 +9,7 @@ for existing_domain in $(yunohost domain list --output-as json | python3 -c "imp
     bash /etc/yunohost/hooks.d/post_domain_add/50-wappos-sso-bypass "$existing_domain"
 done
 
+mkdir -p /etc/yunohost/hooks.d/post_domain_remove
+install -m 755 "$pkg_dir/sources/hooks/50-post_domain_remove" /etc/yunohost/hooks.d/post_domain_remove/50-wappos-sso-bypass
+
 echo "wappos_sso_bypass installe (protection permanente, jamais retiree par un install/remove d'autre composant)."

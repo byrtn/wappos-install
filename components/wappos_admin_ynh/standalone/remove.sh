@@ -17,6 +17,7 @@ nginx -t && systemctl reload nginx
 rm -f /etc/sudoers.d/wappos_admin_docker_ce
 rm -f /etc/sudoers.d/wappos_admin_security_monitor
 rm -f "/etc/yunohost/hooks.d/post_domain_add/50-$app"
+rm -f "/etc/yunohost/hooks.d/post_domain_remove/50-$app"
 rm -f /etc/yunohost/hooks.d/backup/60-wappos_data
 rm -f /etc/yunohost/hooks.d/restore/60-wappos_data
 rm -f "/etc/cron.d/${app}-config-guard"

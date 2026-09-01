@@ -1,0 +1,10 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+set -eu
+
+domain="$1"
+
+rm -f "/etc/nginx/conf.d/${domain}.d/__APP___crossdomain.conf"
+
+nginx -t && systemctl reload nginx || true

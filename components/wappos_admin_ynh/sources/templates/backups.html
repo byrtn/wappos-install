@@ -1,4 +1,5 @@
 {% extends "base.html" %}
+{% import "_option_fields.html" as fields %}
 {% set active_tab = "backups" %}
 {% block title %}Sauvegardes{% endblock %}
 
@@ -47,15 +48,20 @@
           </label>
           <div class="form-row" style="margin-bottom: 0.75rem;">
             <label style="font-size: 0.85rem; color: var(--color-text-dim);">Politique :
-              <select name="retention_mode" style="padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);">
+              <select name="retention_mode" id="retention-mode-select" onchange="wapposToggleRetentionMode(this.value)"
+                      style="padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);">
                 <option value="count" {{ 'selected' if schedule.retention_mode == 'count' }}>Garder les N dernières</option>
                 <option value="days" {{ 'selected' if schedule.retention_mode == 'days' }}>Garder X jours</option>
               </select>
             </label>
-            <input type="number" name="retention_keep_count" min="1" value="{{ schedule.retention_keep_count }}"
-                   style="width: 80px; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);"> dernières
-            <input type="number" name="retention_keep_days" min="1" value="{{ schedule.retention_keep_days }}"
-                   style="width: 80px; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);"> jours
+            <span id="retention-count-field" {{ 'hidden' if schedule.retention_mode == 'days' }}>
+              <input type="number" name="retention_keep_count" min="1" value="{{ schedule.retention_keep_count }}"
+                     style="width: 80px; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);"> dernières sauvegardes
+            </span>
+            <span id="retention-days-field" {{ 'hidden' if schedule.retention_mode == 'count' }}>
+              <input type="number" name="retention_keep_days" min="1" value="{{ schedule.retention_keep_days }}"
+                     style="width: 80px; padding: 0.35rem 0.5rem; border-radius: 6px; border: 1px solid var(--color-border-strong);"> jours
+            </span>
           </div>
           <button type="submit" class="btn">Enregistrer les réglages</button>
         </form>
@@ -65,6 +71,23 @@
         <p class="field-info" style="margin: 0.5rem 0 0;">La sauvegarde s'exécute chaque nuit à 2h si activée. Le nettoyage s'applique après chaque sauvegarde planifiée si activé.</p>
       </div>
     </div>
+
+    {% if compression_section %}
+      <div class="card create-card">
+        {% if compression_section.name %}<div class="card-header"><h3>{{ compression_section.name }}</h3></div>{% endif %}
+        <div class="card-body">
+          {% if compression_section.help %}<p class="field-info">{{ compression_section.help }}</p>{% endif %}
+          <form method="post" action="{{ url_for('settings_submit', panel_key=compression_panel_id) }}" class="config-panel-form" enctype="multipart/form-data">
+            <input type="hidden" name="__section_id__" value="{{ compression_section.id }}">
+            <input type="hidden" name="__next__" value="backups">
+            {% for o in compression_section.options %}
+              {{ fields.render_option(o) }}
+            {% endfor %}
+            <button type="submit" class="btn">Appliquer</button>
+          </form>
+        </div>
+      </div>
+    {% endif %}
 
     <div class="card create-card">
       <div class="card-header"><h3>Créer une sauvegarde manuelle</h3></div>
@@ -124,4 +147,20 @@
     .backup-status-warning { color: #b8860b; }
     .backup-status-critical { color: #a33; }
     .backup-status-unknown { color: var(--color-text-faint); }
+    .config-panel-form .field { margin-bottom: 0.9rem; }
+    .config-panel-form label { display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem; }
+    .config-panel-form input[type="text"], .config-panel-form input[type="password"],
+    .config-panel-form input[type="number"], .config-panel-form input[type="date"],
+    .config-panel-form input[type="time"], .config-panel-form input[type="email"],
+    .config-panel-form input[type="url"], .config-panel-form select, .config-panel-form textarea {
+      padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; width: 100%; max-width: 420px;
+    }
+    .option-field[data-hidden="true"] { display: none; }
+{% endblock %}
+
+{% block extra_script %}
+    function wapposToggleRetentionMode(mode) {
+      document.getElementById('retention-count-field').hidden = mode !== 'count';
+      document.getElementById('retention-days-field').hidden = mode !== 'days';
+    }
 {% endblock %}

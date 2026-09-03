@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import logging
 import os
+import re
 import secrets
 import time
 from pathlib import Path
@@ -14,9 +15,12 @@ from fastapi.responses import StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Gauge, Histogram, generate_latest, multiprocess
 
 from wappos_api.config import settings
+from wappos_api.connectors import adguard as adguard_connector
 from wappos_api.connectors import admin as admin_connector
+from wappos_api.connectors import domains_public as domains_public_connector
 from wappos_api.connectors import portal as portal_connector
-from wappos_api.errors import WapposApiError
+from wappos_api.errors import UpstreamValidationError, WapposApiError
+from wappos_api.schemas.adguard import AdguardRewrite, AdguardRewriteRequest, AdguardStatus
 from wappos_api.schemas.admin import (
     AdminLoginRequest,
     AdminTokenResponse,
@@ -26,7 +30,7 @@ from wappos_api.schemas.admin import (
 from wappos_api.schemas.app import AppCatalog, AppDetail, AppInfo, AppManifest
 from wappos_api.schemas.backup import BackupCreateRequest, BackupRestoreRequest
 from wappos_api.schemas.diagnosis import DiagnosisIgnoreRequest, DiagnosisReport
-from wappos_api.schemas.domain import DomainDetail
+from wappos_api.schemas.domain import DomainCertificate, DomainDetail, LocalDomainRequest, LocalDomainResult
 from wappos_api.schemas.firewall import FirewallRules
 from wappos_api.schemas.group import (
     CreateGroupRequest,
@@ -45,7 +49,13 @@ from wappos_api.schemas.portal import PortalLoginRequest, PortalLogoutResponse, 
 from wappos_api.schemas.service import ServiceInfo
 from wappos_api.schemas.storage import DiskInfo, MountInfo, SmartReport
 from wappos_api.schemas.system import SystemHealth, WapposComponentVersion
-from wappos_api.schemas.tools import PostinstallRequest, RegenConfRequest, RootPasswordChangeRequest
+from wappos_api.schemas.tools import (
+    Migration,
+    MigrationRunRequest,
+    PostinstallRequest,
+    RegenConfRequest,
+    RootPasswordChangeRequest,
+)
 from wappos_api.schemas.user import SshKey, SshKeyAddRequest, SshKeyRemoveRequest, User, UserDetail
 
 logging.basicConfig(level=settings.log_level)
@@ -203,6 +213,14 @@ def portal_public(x_portal_host: str = Header(), x_portal_token: str | None = He
         _raise_as_http(exc)
 
 
+@app.get("/portal/domains", response_model=list[str])
+def portal_domains() -> list[str]:
+    try:
+        return domains_public_connector.list_domain_names()
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
 @app.post("/admin/login", response_model=AdminTokenResponse)
 def admin_login(payload: AdminLoginRequest) -> AdminTokenResponse:
     try:
@@ -290,6 +308,14 @@ def admin_domains(full: bool = False, x_admin_token: str = Header()) -> list[str
         _raise_as_http(exc)
 
 
+@app.get("/admin/domains/certificates", response_model=dict[str, DomainCertificate])
+def admin_domains_certificates(x_admin_token: str = Header()) -> dict:
+    try:
+        return admin_connector.get_certificates_status(x_admin_token)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
 @app.get("/admin/domains/{domain}", response_model=DomainDetail)
 def admin_domain_detail(domain: str, x_admin_token: str = Header()) -> DomainDetail:
     try:
@@ -366,7 +392,6 @@ def admin_add_domain(
     domain: str = Body(..., embed=True),
     install_letsencrypt_cert: bool = Body(False, embed=True),
     dyndns_recovery_password: str | None = Body(None, embed=True),
-    skip_dyndns_tos: bool = Body(False, embed=True),
     x_admin_token: str = Header(),
 ) -> Response:
     try:
@@ -375,7 +400,6 @@ def admin_add_domain(
             domain,
             install_letsencrypt_cert=install_letsencrypt_cert,
             dyndns_recovery_password=dyndns_recovery_password,
-            skip_dyndns_tos=skip_dyndns_tos,
         )
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -384,13 +408,74 @@ def admin_add_domain(
 
 @app.delete("/admin/domains/{domain}", status_code=204)
 def admin_remove_domain(
-    domain: str, remove_apps: bool = False, ignore_dyndns: bool = False, x_admin_token: str = Header()
+    domain: str,
+    remove_apps: bool = False,
+    ignore_dyndns: bool = False,
+    dyndns_recovery_password: str | None = None,
+    x_admin_token: str = Header(),
 ) -> Response:
     try:
-        admin_connector.remove_domain(x_admin_token, domain, remove_apps=remove_apps, ignore_dyndns=ignore_dyndns)
+        admin_connector.remove_domain(
+            x_admin_token, domain, remove_apps=remove_apps, ignore_dyndns=ignore_dyndns,
+            dyndns_recovery_password=dyndns_recovery_password,
+        )
     except WapposApiError as exc:
         _raise_as_http(exc)
     return Response(status_code=204)
+
+
+_LOCAL_DOMAIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.lan$")
+
+
+def _check_local_domain_name(domain: str) -> None:
+    if not _LOCAL_DOMAIN_RE.match(domain):
+        raise HTTPException(
+            status_code=400,
+            detail={
+                "code": "invalid_local_domain",
+                "message": f"{domain} n'est pas un domaine .lan a un seul niveau (ex. wappos.lan)",
+            },
+        )
+
+
+@app.post("/admin/local-domains", response_model=LocalDomainResult)
+def admin_add_local_domain(payload: LocalDomainRequest, x_admin_token: str = Header()) -> LocalDomainResult:
+    _check_local_domain_name(payload.domain)
+    try:
+        admin_connector.add_domain(x_admin_token, payload.domain)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+    adguard_rewrite_added = None
+    if adguard_connector.is_installed():
+        try:
+            ip = adguard_connector.lan_ip()
+            adguard_connector.add_rewrite(payload.domain, ip)
+            adguard_rewrite_added = True
+        except WapposApiError:
+            adguard_rewrite_added = False
+
+    return LocalDomainResult(domain=payload.domain, domain_added=True, adguard_rewrite_added=adguard_rewrite_added)
+
+
+@app.delete("/admin/local-domains/{domain}", response_model=LocalDomainResult)
+def admin_remove_local_domain(domain: str, x_admin_token: str = Header()) -> LocalDomainResult:
+    _check_local_domain_name(domain)
+
+    adguard_rewrite_removed = None
+    if adguard_connector.is_installed():
+        try:
+            adguard_connector.remove_rewrite(domain)
+            adguard_rewrite_removed = True
+        except WapposApiError:
+            adguard_rewrite_removed = False
+
+    try:
+        admin_connector.remove_domain(x_admin_token, domain)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+    return LocalDomainResult(domain=domain, domain_added=False, adguard_rewrite_added=adguard_rewrite_removed)
 
 
 @app.post("/admin/domains/{domain}/dns/push")
@@ -401,6 +486,50 @@ def admin_push_domain_dns(
         return admin_connector.push_domain_dns(x_admin_token, domain, dry_run=dry_run, force=force, purge=purge)
     except WapposApiError as exc:
         _raise_as_http(exc)
+
+
+@app.get("/admin/adguard/status", response_model=AdguardStatus)
+def admin_adguard_status(x_admin_token: str = Header()) -> AdguardStatus:
+    try:
+        admin_connector.list_domain_names(x_admin_token)
+        return AdguardStatus(installed=adguard_connector.is_installed())
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.get("/admin/adguard/rewrites", response_model=list[AdguardRewrite])
+def admin_adguard_rewrites(x_admin_token: str = Header()) -> list[AdguardRewrite]:
+    try:
+        admin_connector.list_domain_names(x_admin_token)
+        return adguard_connector.list_rewrites()
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.post("/admin/adguard/rewrites", status_code=204)
+def admin_adguard_add_rewrite(payload: AdguardRewriteRequest, x_admin_token: str = Header()) -> Response:
+    try:
+        domains = admin_connector.list_domain_names(x_admin_token, full=True)
+        bare_domain = payload.domain[2:] if payload.domain.startswith("*.") else payload.domain
+        if bare_domain not in domains and not any(bare_domain.endswith(f".{d}") for d in domains):
+            raise UpstreamValidationError(
+                f"{payload.domain} n'est pas un domaine enregistre sur ce serveur",
+                error_key="adguard_rewrite_unknown_domain",
+            )
+        adguard_connector.add_rewrite(payload.domain, payload.answer)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return Response(status_code=204)
+
+
+@app.delete("/admin/adguard/rewrites/{domain}", status_code=204)
+def admin_adguard_remove_rewrite(domain: str, x_admin_token: str = Header()) -> Response:
+    try:
+        admin_connector.list_domain_names(x_admin_token)
+        adguard_connector.remove_rewrite(domain)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return Response(status_code=204)
 
 
 @app.get("/admin/apps", response_model=list[AppInfo])
@@ -802,7 +931,7 @@ def admin_service_log(name: str, number: int = 50, x_admin_token: str = Header()
 
 
 @app.get("/admin/logs", response_model=list[LogEntry])
-def admin_logs(limit: int = 25, x_admin_token: str = Header()) -> list[LogEntry]:
+def admin_logs(limit: int = 50, x_admin_token: str = Header()) -> list[LogEntry]:
     try:
         return admin_connector.list_logs(x_admin_token, limit=limit)
     except WapposApiError as exc:
@@ -810,7 +939,7 @@ def admin_logs(limit: int = 25, x_admin_token: str = Header()) -> list[LogEntry]
 
 
 @app.get("/admin/logs/{name}", response_model=LogDetail)
-def admin_log_detail(name: str, number: int = 25, x_admin_token: str = Header()) -> LogDetail:
+def admin_log_detail(name: str, number: int = 50, x_admin_token: str = Header()) -> LogDetail:
     try:
         return admin_connector.get_log(x_admin_token, name, number=number)
     except WapposApiError as exc:
@@ -1178,6 +1307,29 @@ def admin_refresh_updates(target: str, no_refresh: bool = False, x_admin_token: 
 def admin_run_upgrade(target: str, x_admin_token: str = Header()) -> dict:
     try:
         return admin_connector.run_upgrade(x_admin_token, target)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.get("/admin/migrations", response_model=list[Migration])
+def admin_migrations(pending: bool = False, done: bool = False, x_admin_token: str = Header()) -> list[dict]:
+    try:
+        return admin_connector.list_migrations(x_admin_token, pending=pending, done=done)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.put("/admin/migrations")
+def admin_run_migrations(payload: MigrationRunRequest, x_admin_token: str = Header()) -> dict:
+    try:
+        return admin_connector.run_migrations(
+            x_admin_token,
+            targets=payload.targets or None,
+            skip=payload.skip,
+            force_rerun=payload.force_rerun,
+            accept_disclaimer=payload.accept_disclaimer,
+            auto=payload.auto,
+        )
     except WapposApiError as exc:
         _raise_as_http(exc)
 

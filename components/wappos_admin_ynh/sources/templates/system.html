@@ -2,7 +2,7 @@
 {% set active_tab = "system" %}
 {% block title %}Système{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Système et mises à jour</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Mises à jour</span>{% endblock %}
 
 {% block content %}
                 {% if api_restart %}
@@ -108,7 +108,7 @@
       {% endif %}
       {% if updates.get('pending_migrations') %}
         <div class="alert alert-warning" style="margin-top: 0.75rem;">
-          {{ updates.pending_migrations | length }} migration(s) système en attente — elles s'exécuteront automatiquement lors de la mise à jour du système.
+          {{ updates.pending_migrations | length }} migration(s) système en attente. Certaines s'exécutent automatiquement lors de la mise à jour du système ; les migrations marquées comme manuelles (montées de version majeures notamment) ne le sont pas et doivent être lancées explicitement — voir la page <a href="{{ url_for('migrations_page') }}">Migrations</a>.
         </div>
       {% endif %}
 
@@ -177,11 +177,9 @@
         <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
           <input type="checkbox" name="dry_run" value="1" checked> Aperçu seulement (ne rien appliquer)
         </label>
-        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-          <input type="checkbox" name="force" value="1"> Forcer (écraser les modifications manuelles)
-        </label>
         <button type="submit" class="btn">Exécuter</button>
       </form>
+      <p class="field-info" style="margin-top: 0.5rem;">L'option « forcer » n'est volontairement pas proposée ici : elle écraserait des fichiers nginx personnalisés par Wappos (redirection du portail, restriction d'accès à l'API portail), avec pour effet une régression de sécurité et de fonctionnement silencieuse.</p>
 
       {% if regen_result %}
         <div style="margin-top: 1rem;">

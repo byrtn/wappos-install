@@ -15,6 +15,8 @@ class PermissionInfo(BaseModel):
     hide_from_public: bool | None = None
     protected: bool | None = None
     logo_hash: str | None = None
+    corresponding_users: list[str] = []
+    additional_urls: list[str] = []
 
 
 class PermissionUpdateRequest(BaseModel):

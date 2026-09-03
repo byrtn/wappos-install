@@ -1,0 +1,87 @@
+{% extends "base.html" %}
+{% set active_tab = "system" %}
+{% block title %}Migrations{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Migrations</span>{% endblock %}
+
+{% block content %}
+    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+
+    <div class="alert alert-info">
+      Les migrations système modifient en profondeur la configuration du serveur (montées de version majeures, restructuration de composants). Les migrations <strong>automatiques</strong> s'exécutent déjà seules lors d'une mise à jour système normale. Les migrations <strong>manuelles</strong> nécessitent une action explicite ici, après lecture de leur avertissement.
+    </div>
+
+    {% set pending = migrations | selectattr('state', 'equalto', 'pending') | list %}
+    {% set done = migrations | rejectattr('state', 'equalto', 'pending') | list %}
+
+    {% if pending %}
+      <form method="post" action="{{ url_for('run_migrations') }}" style="margin-bottom: 1.25rem;"
+            onsubmit="return confirm('Exécuter toutes les migrations automatiques en attente ? Les migrations manuelles doivent être lancées individuellement ci-dessous.');">
+        <input type="hidden" name="auto" value="1">
+        <button type="submit" class="btn">Exécuter les migrations automatiques en attente</button>
+      </form>
+    {% endif %}
+
+    {% for m in pending %}
+      <div class="card migration-card">
+        <div class="card-header">
+          <h3>{{ m.description }}</h3>
+          <span class="migration-badge migration-badge-{{ m.mode }}">{{ 'Manuelle' if m.mode == 'manual' else 'Automatique' }}</span>
+        </div>
+        <div class="card-body">
+          {% if m.disclaimer %}
+            <div class="alert alert-warning migration-disclaimer">{{ m.disclaimer }}</div>
+            <form method="post" action="{{ url_for('run_migrations') }}" class="migration-run-form"
+                  onsubmit="return confirm('Exécuter la migration « ' + {{ m.description|tojson }} + ' » ? Cette action peut être longue et modifier significativement le serveur.');">
+              <input type="hidden" name="target" value="{{ m.id }}">
+              <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; margin-bottom: 0.75rem;">
+                <input type="checkbox" name="accept_disclaimer" value="1" required> J'ai lu et j'accepte l'avertissement ci-dessus.
+              </label>
+              <button type="submit" class="btn btn-danger">Exécuter cette migration</button>
+            </form>
+          {% else %}
+            <form method="post" action="{{ url_for('run_migrations') }}" class="migration-run-form"
+                  onsubmit="return confirm('Exécuter la migration « ' + {{ m.description|tojson }} + ' » ?');">
+              <input type="hidden" name="target" value="{{ m.id }}">
+              <button type="submit" class="btn">Exécuter cette migration</button>
+            </form>
+          {% endif %}
+        </div>
+      </div>
+    {% else %}
+      <p class="field-info">Aucune migration en attente.</p>
+    {% endfor %}
+
+    {% if done %}
+      <details class="card migration-done-details">
+        <summary class="card-header">Migrations déjà effectuées ({{ done | length }})</summary>
+        <div class="card-body">
+          <ul class="migration-done-list">
+            {% for m in done %}
+              <li>{{ m.description }} <span class="field-info">({{ m.state }})</span></li>
+            {% endfor %}
+          </ul>
+        </div>
+      </details>
+    {% endif %}
+{% endblock %}
+
+{% block extra_style %}
+    .alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
+    .alert-info { background: var(--color-info-bg); color: var(--color-info-text); border: 1px solid var(--color-border-strong); }
+    .alert-danger { background: #fbe9e7; color: #7a1f00; border: 1px solid #f3b7a6; }
+    .alert-success { background: #e8f5e9; color: #1a4d24; border: 1px solid #a8d5b0; }
+    .alert-warning { background: var(--color-warning-bg); color: var(--color-warning-text); border: 1px solid var(--color-border-strong); }
+    .migration-card { margin-bottom: 1.25rem; }
+    .migration-card .card-header { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem; }
+    .migration-badge { font-size: 0.75em; font-weight: 500; padding: 0.35em 0.65em; border-radius: 0.375rem; white-space: nowrap; }
+    .migration-badge-manual { background: var(--color-warning-bg); color: var(--color-warning-text); }
+    .migration-badge-auto { background: var(--color-message-bg); color: var(--color-message-text); }
+    .migration-disclaimer { white-space: pre-wrap; font-size: 0.88rem; }
+    .migration-run-form { margin: 0; }
+    .migration-done-details summary { cursor: pointer; list-style: none; }
+    .migration-done-details summary::-webkit-details-marker { display: none; }
+    .migration-done-list { margin: 0; padding-left: 1.25rem; font-size: 0.9rem; }
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+{% endblock %}

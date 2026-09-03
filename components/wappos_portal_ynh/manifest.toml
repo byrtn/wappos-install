@@ -6,7 +6,7 @@ name = "Wappos Portal"
 description.en = "Custom BYRTN portal showing app tiles read from YunoHost's own permissions, with reorderable tiles and new-tab links"
 description.fr = "Portal BYRTN personnalisé affichant les tuiles des apps lues depuis les permissions natives de YunoHost, avec tuiles réordonnables et ouverture en nouvel onglet"
 
-version = "0.7.23~ynh26"
+version = "0.7.35~ynh1"
 
 maintainers = ["byrtn"]
 

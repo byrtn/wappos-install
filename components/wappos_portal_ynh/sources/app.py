@@ -1,4 +1,5 @@
 # Auteur : Patrick Ritaine
+import base64
 import json
 import os
 import re
@@ -9,6 +10,7 @@ import tomllib
 from datetime import date, timedelta
 from email.message import EmailMessage
 from pathlib import Path
+from urllib.parse import urlparse
 
 import requests
 from flask import Flask, Response, abort, g, jsonify, make_response, redirect, render_template, request, session, url_for
@@ -97,6 +99,14 @@ def _generate_metrics() -> bytes:
     return generate_latest()
 
 
+@app.route("/service-worker.js")
+def service_worker():
+    return Response(
+        "self.addEventListener('fetch', function () {});",
+        mimetype="application/javascript",
+    )
+
+
 @app.route("/metrics")
 def metrics():
     auth = request.headers.get("Authorization", "")
@@ -130,6 +140,31 @@ def _safe_next_path(raw: str | None) -> str | None:
     return raw
 
 
+def _known_domain_names() -> set[str]:
+    try:
+        resp = requests.get(f"{WAPPOS_API_BASE}/portal/domains", timeout=5)
+        resp.raise_for_status()
+        return set(resp.json())
+    except requests.exceptions.RequestException:
+        return set()
+
+
+def _safe_r_redirect(raw: str | None) -> str | None:
+    if not raw:
+        return None
+    try:
+        decoded = base64.b64decode(raw + "=" * (-len(raw) % 4)).decode("utf-8")
+    except (ValueError, UnicodeDecodeError):
+        return None
+    parsed = urlparse(decoded)
+    if parsed.scheme != "https" or not parsed.netloc:
+        return None
+    host = parsed.netloc.split(":")[0]
+    if host not in _known_domain_names():
+        return None
+    return decoded
+
+
 class SessionExpiredError(Exception):
     pass
 
@@ -157,13 +192,14 @@ def login():
     username = request.form.get("username", "")
     password = request.form.get("password", "")
     next_path = _safe_next_path(request.form.get("next"))
+    r_param = request.form.get("r")
     try:
         token, portal_cookie = _wappos_api_login(username, password)
     except requests.exceptions.HTTPError:
         lang = get_lang()
         return render_template(
             "login.html", user=None, app_version=APP_VERSION, year=date.today().year,
-            hide_chrome=True, next=next_path,
+            hide_chrome=True, next=next_path, r=r_param,
             error_username=i18n.t("err_possibly_invalid_username", lang),
             error_password=i18n.t("err_possibly_invalid_password", lang),
             **_anonymous_context(),
@@ -171,7 +207,7 @@ def login():
     except requests.exceptions.RequestException:
         return render_template(
             "login.html", user=None, app_version=APP_VERSION, year=date.today().year,
-            hide_chrome=True, next=next_path,
+            hide_chrome=True, next=next_path, r=r_param,
             error=i18n.t("err_server_unreachable", get_lang()),
             **_anonymous_context(),
         ), 503
@@ -179,7 +215,7 @@ def login():
     session["user"] = username
     session["token"] = token
     g.portal_cookie = portal_cookie
-    return redirect(next_path or url_for("index"))
+    return redirect(next_path or _safe_r_redirect(r_param) or url_for("index"))
 
 
 @app.route("/logout", methods=["POST"])
@@ -284,6 +320,16 @@ def _wappos_api_me(token: str) -> dict:
     return resp.json()
 
 
+def _native_error_message(e: requests.exceptions.RequestException) -> str | None:
+    response = getattr(e, "response", None)
+    if response is None:
+        return None
+    try:
+        return response.json().get("detail", {}).get("native_detail")
+    except (ValueError, AttributeError):
+        return None
+
+
 def _wappos_api_update(token: str, **fields) -> None:
     resp = requests.put(
         f"{WAPPOS_API_BASE}/portal/update",
@@ -366,23 +412,29 @@ def _load_branding():
     logo = public.get("portal_logo")
     g.branding = {
         "logo_url": f"/yunohost/sso/customassets/{logo}" if logo else None,
+        "default_theme": public.get("portal_theme", "system"),
     }
 
 
 @app.context_processor
 def _inject_branding():
-    return {"branding": getattr(g, "branding", {"logo_url": None})}
+    return {"branding": getattr(g, "branding", {"logo_url": None, "default_theme": "system"})}
 
 
 @app.route("/")
 def index():
     user = _current_user()
+    r_param = request.args.get("r")
     if not user:
         return render_template(
             "login.html", user=None, app_version=APP_VERSION, year=date.today().year,
-            hide_chrome=True, next=_safe_next_path(request.args.get("next")),
+            hide_chrome=True, next=_safe_next_path(request.args.get("next")), r=r_param,
             **_anonymous_context(),
         )
+
+    r_redirect = _safe_r_redirect(r_param)
+    if r_redirect:
+        return redirect(r_redirect)
 
     try:
         token = session.get("token")
@@ -404,6 +456,7 @@ def index():
         search_engine=public.get("search_engine"),
         search_engine_name=public.get("search_engine_name"),
         tile_theme=public.get("portal_tile_theme", "simple"),
+        error=i18n.t("err_access_denied", get_lang()) if request.args.get("msg") == "access_denied" else None,
         app_version=APP_VERSION, year=date.today().year,
     )
 
@@ -567,7 +620,7 @@ def profile():
                         message = i18n.t("msg_password_updated", lang)
         except requests.exceptions.RequestException as e:
             app.logger.error("Profile action %r failed: %s", action, e)
-            error = i18n.t("err_action_failed", lang)
+            error = _native_error_message(e) or i18n.t("err_action_failed", lang)
 
     try:
         me = _wappos_api_me(token)

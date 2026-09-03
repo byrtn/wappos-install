@@ -1,0 +1,5 @@
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/adguard_rewrite.py check
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/adguard_rewrite.py list
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/adguard_rewrite.py add *
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/adguard_rewrite.py remove *
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/adguard_rewrite.py lan-ip

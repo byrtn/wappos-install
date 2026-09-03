@@ -6,7 +6,7 @@ name = "Wappos Admin"
 description.en = "Wappos administration portal (MVP) — user management, consuming the Wappos API's Admin connector instead of the native YunoHost WebAdmin"
 description.fr = "Portail d'administration Wappos (MVP) — gestion des utilisateurs, consommant le connecteur Admin de l'API Wappos plutôt que le WebAdmin natif YunoHost"
 
-version = "0.3.11~ynh1"
+version = "0.3.37~ynh1"
 
 maintainers = ["byrtn"]
 

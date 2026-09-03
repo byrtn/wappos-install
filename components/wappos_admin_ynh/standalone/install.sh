@@ -48,6 +48,7 @@ deploy_crossdomain_hook
 deploy_maildir_hook
 deploy_prometheus_readonly_user
 deploy_backup_hooks
+deploy_portal_branding_hook
 
 cat > /usr/local/bin/wappos <<'WAPPOS_CLI_ALIAS'
 #!/bin/sh
@@ -63,6 +64,7 @@ sed -e "s#__INSTALL_DIR__#$install_dir#g" -e "s/__ADMIN_ALERT_MAIL__/$admin_aler
 sed -e "s#__INSTALL_DIR__#$install_dir#g" -e "s/__ADMIN_ALERT_MAIL__/$admin_alert_mail/g" -e "s#__ALERT_MBOX__#$alert_box_mbox#g" \
     "$pkg_dir/standalone/conf/wappos_admin_mail_alert_filter.cron" > "/etc/cron.d/${app}-mail-alert-filter"
 cp "$pkg_dir/standalone/conf/wappos_admin_diagnosis_cache.cron" "/etc/cron.d/${app}-diagnosis-cache"
+cp "$pkg_dir/standalone/conf/wappos_admin_yunohost_log_purge.cron" "/etc/cron.d/${app}-yunohost-log-purge"
 deploy_mail_alert_filter_config
 
 echo "wappos_admin installe (standalone, hors systeme d'apps YunoHost)."

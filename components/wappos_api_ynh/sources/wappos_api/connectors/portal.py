@@ -3,6 +3,8 @@
 from __future__ import annotations
 
 import http.cookies
+import ipaddress
+from pathlib import Path
 
 import httpx
 
@@ -14,9 +16,29 @@ from wappos_api.errors import (
     UpstreamValidationError,
 )
 
+_CURRENT_HOST_FILE = Path("/etc/yunohost/current_host")
+
+
+def _is_ip_address(host: str) -> bool:
+    try:
+        ipaddress.ip_address(host)
+    except ValueError:
+        return False
+    return True
+
+
+def _normalize_host(host: str) -> str:
+    bare_host = host.split(":", 1)[0]
+    if not _is_ip_address(bare_host):
+        return host
+    try:
+        return _CURRENT_HOST_FILE.read_text().strip() or host
+    except OSError:
+        return host
+
 
 def _host_header(host: str) -> dict[str, str]:
-    return {"Host": host, "locale": "fr"}
+    return {"Host": _normalize_host(host), "locale": "fr"}
 
 
 def _extract_portal_cookie(response: httpx.Response) -> str | None:
@@ -107,13 +129,16 @@ def update(host: str, token: str, **fields: object) -> None:
         raise InvalidCredentialsError("portalapi session token rejected")
     if response.status_code >= 400:
         error_key = None
+        native_message = None
         try:
-            error_key = response.json().get("error_key")
+            payload = response.json()
+            error_key = payload.get("error_key")
+            native_message = payload.get("error")
         except ValueError:
             pass
         if error_key:
             raise UpstreamValidationError(
-                f"portalapi /update rejected: {error_key}", error_key=error_key
+                f"portalapi /update rejected: {error_key}", error_key=error_key, detail=native_message
             )
         raise UpstreamProtocolError(f"portalapi /update returned unexpected status {response.status_code}")
 

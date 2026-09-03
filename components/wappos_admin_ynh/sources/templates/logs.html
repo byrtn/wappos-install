@@ -2,7 +2,7 @@
 {% set active_tab = "logs" %}
 {% block title %}Journaux{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Journaux</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Journaux</span>{% endblock %}
 
 {% block content %}
     {% if error %}

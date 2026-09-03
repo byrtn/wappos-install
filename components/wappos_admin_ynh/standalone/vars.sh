@@ -87,6 +87,16 @@ deploy_crossdomain_hook() {
     cp "$install_dir/hooks/50-post_domain_remove" "/etc/yunohost/hooks.d/post_domain_remove/50-$app"
 }
 
+deploy_portal_branding_hook() {
+    cp "$pkg_dir/sources/hooks/55-post_domain_add_branding" "$install_dir/hooks/55-post_domain_add_branding"
+    chmod 755 "$install_dir/hooks/55-post_domain_add_branding"
+    mkdir -p /etc/yunohost/hooks.d/post_domain_add
+    cp "$install_dir/hooks/55-post_domain_add_branding" "/etc/yunohost/hooks.d/post_domain_add/55-$app"
+    for existing_domain in $(yunohost domain list --output-as json | python3 -c "import json,sys; print('\n'.join(json.load(sys.stdin)['domains']))"); do
+        bash "$install_dir/hooks/55-post_domain_add_branding" "$existing_domain"
+    done
+}
+
 deploy_backup_hooks() {
     mkdir -p /etc/yunohost/hooks.d/backup /etc/yunohost/hooks.d/restore
     cp "$pkg_dir/sources/hooks/backup/60-wappos_data" /etc/yunohost/hooks.d/backup/60-wappos_data

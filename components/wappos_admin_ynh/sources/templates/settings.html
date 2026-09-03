@@ -3,13 +3,13 @@
 {% set active_tab = "settings" %}
 {% block title %}Réglages{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Réglages</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Réglages</span>{% endblock %}
 
 {% block content %}
         <div class="card create-card section-block">
       <div class="card-header"><h3>Apparence</h3></div>
       <div class="card-body">
-      <div class="field" style="max-width: 260px;">
+      <div class="field field-inline">
         <label for="admin-theme">Thème</label>
         <select id="admin-theme" onchange="setWapposAdminTheme(this.value);">
           <option value="system">Système</option>
@@ -19,13 +19,6 @@
       </div>
       </div>
     </div>
-
-        {% if panels %}
-      <form method="post" action="{{ url_for('settings_reset_all') }}"
-            onsubmit="return confirm('Réinitialiser TOUS les réglages système à leurs valeurs par défaut ? Cette action est irréversible et peut affecter le fonctionnement du serveur (sécurité, SSH, etc.).');">
-        <button type="submit" class="btn btn-danger">Tout réinitialiser</button>
-      </form>
-    {% endif %}
 
         {% for panel in panels %}
       <h2>{{ panel.name }}</h2>
@@ -47,13 +40,6 @@
             <input type="hidden" name="__section_id__" value="{{ section.id }}">
             {% for o in section.options %}
               {{ fields.render_option(o) }}
-              {% if o.type not in ('display_text', 'markdown', 'alert', 'button') %}
-                <button type="submit" class="btn option-reset-btn"
-                        formaction="{{ url_for('setting_reset', key=o.id) }}"
-                        onclick="return confirm('Réinitialiser « ' + {{ (o.ask or o.id)|tojson }} + ' » à sa valeur par défaut ?');">
-                  Réinitialiser
-                </button>
-              {% endif %}
                             {% if o.id == 'security_experimental_enabled' %}
                 <details class="option-help">
                   <summary>En savoir plus</summary>
@@ -80,6 +66,9 @@
 
 {% block extra_style %}
     .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .field-inline { display: flex; align-items: center; gap: 0.75rem; }
+    .field-inline label { margin-bottom: 0; white-space: nowrap; }
+    .field-inline select { max-width: 220px; }
     .card.create-card { margin-bottom: 1.25rem; }
     .config-panel-form .field { margin-bottom: 0.9rem; }
     .config-panel-form label { display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem; }
@@ -94,7 +83,6 @@
     .option-help { margin: -0.5rem 0 0.9rem; }
     .option-help summary { cursor: pointer; font-size: 0.82rem; color: var(--color-link); }
     .option-help p { margin: 0.5rem 0 0; font-size: 0.82rem; color: var(--color-text-muted); }
-    .option-reset-btn { font-size: 0.78rem; padding: 0.2rem 0.5rem; margin: -0.6rem 0 0.9rem; background: transparent; border: 1px solid var(--color-border-strong); color: var(--color-text-muted); }
 {% endblock %}
 
 {% block extra_script %}

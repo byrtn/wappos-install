@@ -2,14 +2,10 @@
 {% set active_tab = "storage" %}
 {% block title %}Stockage{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Stockage</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Stockage</span>{% endblock %}
 
 {% block content %}
-        <div class="message" style="background: #fff4e5; color: #7a4b00;">
-      Cette section est expérimentale et en cours de construction.
-    </div>
-
-    {% if mounts %}
+        {% if mounts %}
       <h3 class="storage-section-title">Occupation</h3>
       <div class="mount-grid">
         {% for m in mounts %}

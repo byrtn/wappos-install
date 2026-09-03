@@ -2,7 +2,7 @@
 {% set active_tab = "firewall" %}
 {% block title %}Pare-feu{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Pare-feu</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Pare-feu</span>{% endblock %}
 
 {% block content %}
         {% for protocol, ports in [("tcp", rules.tcp), ("udp", rules.udp)] %}
@@ -18,11 +18,13 @@
                 <td class="fw-col-port">{{ p.port }}</td>
                 <td class="fw-col-switch">
                   {% if p.open %}
-                    <form method="post" action="{{ url_for('close_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form">
+                    <form method="post" action="{{ url_for('close_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form"
+                          onsubmit="return confirm('Fermer le port {{ p.port }}/{{ protocol|upper }} ?');">
                       <button type="submit" class="fw-switch fw-switch-on" aria-label="Fermer le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
                     </form>
                   {% else %}
-                                        <form method="post" action="{{ url_for('open_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form">
+                                        <form method="post" action="{{ url_for('open_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form"
+                          onsubmit="return confirm('Ouvrir le port {{ p.port }}/{{ protocol|upper }} ?');">
                       <input type="hidden" name="comment" value="{{ p.comment }}">
                       {% if p.upnp %}<input type="hidden" name="upnp" value="on">{% endif %}
                       <button type="submit" class="fw-switch fw-switch-off" aria-label="Ouvrir le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
@@ -69,7 +71,7 @@
     <div class="card create-card">
       <div class="card-header"><h3 id="operations">Opérations</h3></div>
       <div class="card-body">
-        <form method="post" action="{{ url_for('apply_firewall_operation') }}">
+        <form method="post" action="{{ url_for('apply_firewall_operation') }}" id="fw-operations-form">
           <div class="fields">
             <div class="field">
               <label for="op-action">Action</label>
@@ -167,4 +169,13 @@
     }
     document.getElementById('op-action').addEventListener('change', wappasToggleUpnpOnly);
     wappasToggleUpnpOnly();
+
+    document.getElementById('fw-operations-form').addEventListener('submit', function (e) {
+      var action = document.getElementById('op-action').value === 'open' ? 'Ouvrir' : 'Fermer';
+      var port = document.getElementById('op-port').value;
+      var protocol = document.getElementById('op-protocol').value.toUpperCase();
+      if (!confirm(action + ' le port ' + port + '/' + protocol + ' ?')) {
+        e.preventDefault();
+      }
+    });
 {% endblock %}

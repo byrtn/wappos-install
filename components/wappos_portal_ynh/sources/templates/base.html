@@ -5,13 +5,21 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
     <meta name="google" content="notranslate">
     <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+    <link rel="apple-touch-icon" href="{{ url_for('static', filename='icon-192.png') }}">
+    <link rel="manifest" href="{{ url_for('static', filename='manifest.json') }}">
+    <meta name="theme-color" content="#016f93">
+    <meta name="mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    <meta name="apple-mobile-web-app-title" content="Wappos">
     <link rel="preload" href="{{ url_for('static', filename='fonts/Montserrat-Variable.woff2') }}" as="font" type="font/woff2" crossorigin>
   <title>{% block title %}WAPPOS PORTAL{% endblock %}</title>
   <script>
     (function () {
       var saved = localStorage.getItem('wappos_theme');
-      var theme = saved && saved !== 'system'
-        ? saved
+      var domainDefault = {{ branding.default_theme|tojson }};
+      var effective = saved || (domainDefault !== 'system' ? domainDefault : null);
+      var theme = effective && effective !== 'system'
+        ? effective
         : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
       document.documentElement.setAttribute('data-theme', theme);
     })();
@@ -188,8 +196,8 @@
             -webkit-user-select: none; user-select: none; }
     .tile.hidden { display: none; }
     .tile { display: flex; flex-direction: column; align-items: center; gap: 0.5rem;
-            width: 170px; padding: 1.25rem 0.5rem; border-radius: 12px; background: var(--color-card-bg);
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); text-decoration: none; color: inherit;
+            width: 170px; padding: 1.25rem 0.5rem; border-radius: 12px; background: var(--color-bg);
+            text-decoration: none; color: inherit;
             cursor: grab; -webkit-user-select: none; user-select: none; -webkit-touch-callout: none; }
     .tile:hover { box-shadow: 0 2px 6px rgba(0,0,0,0.15); }
     .tile.dragging { box-shadow: 0 0 0 3px var(--color-link, #016f93), 0 16px 32px rgba(0,0,0,0.4);
@@ -269,6 +277,19 @@
                     margin-bottom: 1rem; text-align: center; }
     .footer-links a:hover { opacity: 0.75; }
 
+    .pwa-install-banner[hidden] { display: none; }
+    .pwa-install-banner { position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 1000;
+            background: var(--color-card-bg); color: var(--color-text); border-radius: 12px;
+            box-shadow: 0 2px 12px rgba(0,0,0,0.25); padding: 0.9rem 1.1rem; display: flex;
+            flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem;
+            max-width: 480px; margin: 0 auto; }
+    .pwa-install-row[hidden] { display: none; }
+    .pwa-install-row { display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+            padding: 0 0 1rem; font-size: 0.85rem; }
+    .pwa-install-row a { color: var(--color-link); }
+    .pwa-install-row-dismiss { background: none; border: none; padding: 0; margin: 0;
+            font: inherit; color: var(--color-text-muted); text-decoration: underline; cursor: pointer; }
+
                 .page { width: 100%; max-width: 1200px; margin: 0 auto; }
 
     
@@ -329,8 +350,82 @@
   {% endif %}
  </div>
 
+  <div id="pwa-install-row" class="pwa-install-row" hidden>
+    <a href="#" id="pwa-install-link">{{ t('pwa_install_link') }}</a>
+    <button type="button" id="pwa-install-hide" class="pwa-install-row-dismiss">{{ t('pwa_install_dismiss') }}</button>
+  </div>
+
+  <div id="pwa-install-banner" class="pwa-install-banner" hidden>
+    <span id="pwa-install-text"></span>
+    <button type="button" id="pwa-install-dismiss" class="btn">{{ t('pwa_install_dismiss') }}</button>
+  </div>
+
   <script>
     {% block extra_script %}{% endblock %}
+
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.register('{{ url_for("service_worker") }}');
+    }
+
+    (function () {
+      var STORAGE_KEY = 'wappos_pwa_install_hidden';
+      var row = document.getElementById('pwa-install-row');
+      var link = document.getElementById('pwa-install-link');
+      var hideBtn = document.getElementById('pwa-install-hide');
+      var banner = document.getElementById('pwa-install-banner');
+      var text = document.getElementById('pwa-install-text');
+      var dismissBtn = document.getElementById('pwa-install-dismiss');
+      var deferredPrompt = null;
+      var isIos = /iphone|ipad|ipod/i.test(window.navigator.userAgent);
+      var isAndroid = /android/i.test(window.navigator.userAgent);
+      var isMobile = isIos || isAndroid;
+
+      function isStandalone() {
+        return window.matchMedia('(display-mode: standalone)').matches || window.navigator.standalone === true;
+      }
+      function isHiddenByUser() {
+        try { return localStorage.getItem(STORAGE_KEY) === '1'; } catch (e) { return false; }
+      }
+      function hideEverything() {
+        row.hidden = true;
+        banner.hidden = true;
+      }
+      function showInstructions(message) {
+        text.textContent = message;
+        banner.hidden = false;
+      }
+
+      dismissBtn.addEventListener('click', function () { banner.hidden = true; });
+
+      if (isStandalone() || isHiddenByUser() || !isMobile) {
+        hideEverything();
+      } else {
+        row.hidden = false;
+
+        hideBtn.addEventListener('click', function () {
+          try { localStorage.setItem(STORAGE_KEY, '1'); } catch (e) {}
+          hideEverything();
+        });
+
+        window.addEventListener('beforeinstallprompt', function (ev) {
+          ev.preventDefault();
+          deferredPrompt = ev;
+        });
+        window.addEventListener('appinstalled', hideEverything);
+
+        link.addEventListener('click', function (ev) {
+          ev.preventDefault();
+          if (deferredPrompt) {
+            banner.hidden = true;
+            deferredPrompt.prompt();
+          } else if (isIos) {
+            showInstructions({{ t('pwa_install_ios_prompt')|tojson }});
+          } else {
+            showInstructions({{ t('pwa_install_unsupported')|tojson }});
+          }
+        });
+      }
+    })();
   </script>
 </body>
 </html>

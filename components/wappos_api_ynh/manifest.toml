@@ -6,7 +6,7 @@ name = "Wappos API"
 description.en = "Internal API service — single stable HTTP contract in front of the YunoHost engine, consumed by all Wappos frontends (portal, admin, future products)"
 description.fr = "Service API interne — un seul contrat HTTP stable devant le moteur YunoHost, consommé par tous les frontends Wappos (portail, admin, futurs produits)"
 
-version = "0.2.24~ynh16"
+version = "0.2.35~ynh1"
 
 maintainers = ["byrtn"]
 

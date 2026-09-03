@@ -1,0 +1,8 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+
+set -eu
+
+domain="$1"
+
+yunohost domain config set "$domain" feature.portal.portal_title -v "Wappos" 2>/dev/null || true

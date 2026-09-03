@@ -1,0 +1,1 @@
+0 3 * * * root /usr/bin/find /var/log/yunohost/operations -maxdepth 1 -type f -mtime +90 -delete >> /var/log/wappos_admin-yunohost-log-purge.log 2>&1

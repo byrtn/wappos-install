@@ -27,3 +27,13 @@ class DomainDetail(BaseModel):
     apps: list[DomainApp] = []
     main: bool = False
     topest_parent: str | None = None
+
+
+class LocalDomainRequest(BaseModel):
+    domain: str
+
+
+class LocalDomainResult(BaseModel):
+    domain: str
+    domain_added: bool
+    adguard_rewrite_added: bool | None = None

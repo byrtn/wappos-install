@@ -262,6 +262,11 @@
                 <input type="checkbox" name="ignore_dyndns" value="1">
                 Ne pas annuler l'enregistrement DynDNS de ce domaine (le laisse abonné au service)
               </label>
+              <label style="display: block; font-size: 0.85rem; margin-top: 0.5rem;">
+                Mot de passe de récupération DynDNS (optionnel, nécessaire si l'annulation de l'abonnement l'exige)
+                <input type="password" name="dyndns_recovery_password" autocomplete="off"
+                       style="display: block; margin-top: 0.25rem; padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; max-width: 320px;">
+              </label>
             {% endif %}
             <label style="display: block; font-size: 0.85rem; margin-top: 0.5rem;">
               Tapez « {{ detail.name }} » pour confirmer

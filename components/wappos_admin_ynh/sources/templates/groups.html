@@ -83,6 +83,32 @@
       </details>
     {% endfor %}
 
+    <div class="card create-card">
+      <div class="card-header"><h3>Détail des permissions</h3></div>
+      <div class="card-body">
+        <table class="permission-detail-table">
+          <thead>
+            <tr>
+              <th>Permission</th>
+              <th>URL</th>
+              <th>URLs additionnelles</th>
+              <th>Utilisateurs effectifs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in permission_options %}
+              <tr>
+                <td data-label="Permission">{{ p.label }}</td>
+                <td data-label="URL">{{ p.url or "—" }}</td>
+                <td data-label="URLs additionnelles">{{ p.additional_urls|join(", ") if p.additional_urls else "—" }}</td>
+                <td data-label="Utilisateurs effectifs">{{ p.corresponding_users|join(", ") if p.corresponding_users else "—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </div>
+
     {% if user_groups %}
       <div class="card create-card">
         <div class="card-header"><h3>Autorisations pour des comptes individuels</h3></div>
@@ -168,6 +194,22 @@
     .individual-account-picker { margin-bottom: 1rem; }
     .individual-account-picker select { padding: 0.4rem 0.6rem; border-radius: 6px;
                      border: 1px solid var(--color-border-strong); font-size: 0.9rem; }
+    .permission-detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
+    .permission-detail-table th, .permission-detail-table td { text-align: left; padding: 0.5rem 0.75rem;
+                     border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
+    .permission-detail-table th { color: var(--color-text-muted); font-weight: 600; }
+    @media (max-width: 640px) {
+      .permission-detail-table thead { display: none; }
+      .permission-detail-table, .permission-detail-table tbody, .permission-detail-table tr,
+      .permission-detail-table td { display: block; width: 100%; }
+      .permission-detail-table tr { border: 1px solid var(--color-border); border-radius: 8px;
+                     margin-bottom: 0.75rem; overflow: hidden; }
+      .permission-detail-table td { border-bottom: 1px solid var(--color-border); padding: 0.5rem 0.75rem; }
+      .permission-detail-table tr td:last-child { border-bottom: none; }
+      .permission-detail-table td::before { content: attr(data-label); display: block; font-size: 0.72rem;
+                     color: var(--color-text-faint); text-transform: uppercase; letter-spacing: 0.03em;
+                     margin-bottom: 0.15rem; }
+    }
 {% endblock %}
 
 {% block extra_script %}

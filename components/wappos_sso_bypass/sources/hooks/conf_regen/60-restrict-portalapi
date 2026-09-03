@@ -1,0 +1,18 @@
+#!/bin/bash
+# Auteur : Patrick Ritaine
+#
+# /yunohost/portalapi/ (API du portail utilisateur natif) n'a aucune restriction
+# d'acces native (contrairement a /yunohost/admin/ et /yunohost/api/, couverts
+# par le reglage YunoHost security.webadmin.webadmin_allowlist). Wappos appelle
+# deja cette API en interne via 127.0.0.1:6788, jamais via nginx : on peut donc
+# la restreindre a localhost sans rien casser cote Wappos.
+set -eu
+
+CONF=/etc/nginx/conf.d/yunohost_api.conf.inc
+
+if [ -f "$CONF" ] && ! grep -q 'allow 127.0.0.1;' "$CONF"; then
+    sed -i '/location \/yunohost\/portalapi\/ {/a\
+\    allow 127.0.0.1;\
+\    deny all;' "$CONF"
+    nginx -t && systemctl reload nginx
+fi

@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set active_tab = "performance" %}
-{% block title %}Performance{% endblock %}
+{% block title %}Performances{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Performance</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Performances</span>{% endblock %}
 
 {% block content %}
     {% if not available %}
@@ -46,7 +46,7 @@
 {% endblock %}
 
 {% block extra_style %}
-    .perf-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 1rem; }
+    .perf-grid { display: grid; grid-template-columns: 1fr; gap: 1rem; }
     .perf-card { padding: 0; }
     .perf-row { display: flex; gap: 1.5rem; padding: 0.75rem 0; border-bottom: 1px solid var(--color-border); }
     .perf-row:last-child { border-bottom: none; }

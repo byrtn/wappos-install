@@ -1,0 +1,1 @@
+__APP__ ALL=(root) NOPASSWD: /usr/bin/yunohost domain list --output-as json

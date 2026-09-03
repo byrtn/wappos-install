@@ -3,7 +3,8 @@
 {% block content %}
   {% if error %}
     <div class="error">{{ error }}</div>
-  {% else %}
+  {% endif %}
+  {% if not error or tiles %}
     {% if user_intro %}
       <div class="intro">{{ user_intro|safe }}</div>
     {% endif %}

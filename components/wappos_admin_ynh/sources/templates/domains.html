@@ -12,7 +12,7 @@
         <input type="text" name="domain" placeholder="exemple.dev.byrtn.fr" required
                style="padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; min-width: 260px; max-width: 100%;">
         <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-          <input type="checkbox" name="install_letsencrypt_cert" value="1">
+          <input type="checkbox" name="install_letsencrypt_cert" value="1" checked>
           Installer un certificat Let's Encrypt automatiquement
         </label>
         <button type="submit" class="btn">Ajouter</button>
@@ -21,10 +21,6 @@
           <div style="margin-top: 0.5rem; display: flex; flex-wrap: wrap; gap: 0.75rem; align-items: center;">
             <input type="password" name="dyndns_recovery_password" placeholder="Mot de passe de récupération DynDNS"
                    style="padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; min-width: 220px; max-width: 100%;">
-            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-              <input type="checkbox" name="skip_dyndns_tos" value="1">
-              J'accepte les conditions d'utilisation du service DynDNS
-            </label>
           </div>
         </details>
       </form>
@@ -32,15 +28,73 @@
       </div>
     </div>
 
+    <div class="card create-card">
+      <div class="card-header"><h3>Accès réseau local</h3></div>
+      <div class="card-body">
+        {% if not adguard_installed %}
+          <p class="field-info" style="margin: 0 0 0.75rem;">
+            Pour un accès fiable à Wappos depuis le réseau local — y compris sur les appareils où la découverte automatique (mDNS) ne fonctionne pas de façon fiable, notamment Android —
+            <a href="{{ url_for('app_catalog_page', q='adguard') }}">installez AdGuard Home</a>.
+          </p>
+          <p class="field-info" style="margin: 0;">
+            En attendant, un accès local limité reste possible sans rien installer : ajoutez un domaine se terminant par <code>.local</code> ci-dessus
+            (via "Ajouter un domaine") — la découverte automatique (mDNS) le rendra accessible sur la plupart des ordinateurs du réseau, mais pas de façon fiable sur Android.
+          </p>
+        {% elif local_domains %}
+          <p class="field-info" style="margin: 0 0 0.75rem;">
+            Activé — ces domaines sont accessibles depuis le réseau local sur tous les appareils, la résolution DNS étant assurée par AdGuard Home.
+          </p>
+          <ul class="local-domain-list">
+            {% for d in local_domains %}
+              <li class="local-domain-item">
+                <span>{{ d }}</span>
+                <form method="post" action="{{ url_for('local_domain_remove', domain=d) }}"
+                      onsubmit="return confirm('Retirer le domaine local {{ d }} ? La réécriture DNS AdGuard associée sera retirée aussi.');">
+                  <button type="submit" class="btn btn-danger">Retirer</button>
+                </form>
+              </li>
+            {% endfor %}
+          </ul>
+          <details style="margin-top: 0.75rem;">
+            <summary style="font-size: 0.82rem; cursor: pointer; color: var(--color-text-muted);">Ajouter un autre domaine local</summary>
+            <form method="post" action="{{ url_for('local_domain_add') }}" class="form-row" style="margin-top: 0.5rem;">
+              <input type="text" name="domain" placeholder="exemple.lan" pattern="[A-Za-z0-9-]+\.lan" required
+                     title="Un seul niveau, se terminant par .lan (ex. wappos.lan)"
+                     style="padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; min-width: 220px; max-width: 100%;">
+              <button type="submit" class="btn">Ajouter</button>
+            </form>
+          </details>
+        {% else %}
+          <p class="field-info" style="margin: 0 0 0.75rem;">
+            Désactivé. Une fois activé, Wappos sera accessible depuis le réseau local sur tous les appareils (y compris Android), la résolution DNS étant assurée par AdGuard Home.
+          </p>
+          <form method="post" action="{{ url_for('local_domain_add') }}">
+            <input type="hidden" name="domain" value="wappos.lan">
+            <button type="submit" class="btn">Activer l'accès réseau local (wappos.lan)</button>
+          </form>
+        {% endif %}
+      </div>
+    </div>
+
+    {% set cert_class = {'success': 'text-success', 'warning': 'text-warning', 'danger': 'text-danger'} %}
+    {% macro domain_card(d, child=false) %}
+      <a href="{{ url_for('domain_detail', domain=d) }}" class="card domain-card{{ ' domain-card-child' if child }}">
+        <span class="domain-card-icon">{{ ('&#8618;' if child else '&#127760;')|safe }}</span>
+        <div class="domain-card-body">
+          <strong>{{ d }}</strong>
+          <span class="field-info">https://{{ d }}</span>
+          {% if certificates.get(d) %}
+            <span class="field-info {{ cert_class.get(certificates[d].style, '') }}">Certificat valide {{ certificates[d].validity }} jour{{ 's' if certificates[d].validity > 1 }}</span>
+          {% endif %}
+        </div>
+      </a>
+    {% endmacro %}
     <div class="domain-grid">
-      {% for d in domains %}
-        <a href="{{ url_for('domain_detail', domain=d) }}" class="card domain-card">
-          <span class="domain-card-icon">&#127760;</span>
-          <div class="domain-card-body">
-            <strong>{{ d }}</strong>
-            <span class="field-info">https://{{ d }}</span>
-          </div>
-        </a>
+      {% for group in domain_groups %}
+        {{ domain_card(group.domain) }}
+        {% for c in group.children %}
+          {{ domain_card(c, child=true) }}
+        {% endfor %}
       {% else %}
         <p class="field-info">Aucun domaine.</p>
       {% endfor %}
@@ -55,4 +109,13 @@
     .domain-card:hover { box-shadow: 0 2px 8px rgba(0,0,0,0.15); }
     .domain-card-icon { font-size: 1.6rem; line-height: 1; }
     .domain-card-body { display: flex; flex-direction: column; gap: 0.15rem; min-width: 0; }
+    .domain-card-child { padding: 0.8rem 1.1rem 0.8rem 1.8rem; background: var(--color-hover-bg); }
+    .domain-card-child .domain-card-icon { font-size: 1.1rem; color: var(--color-text-faint); }
+    .local-domain-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; }
+    .local-domain-item { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
+            padding: 0.6rem 0.9rem; background: var(--color-hover-bg); border-radius: 8px; font-size: 0.9rem; }
+    .local-domain-item form { margin: 0; }
+    .text-success { color: var(--color-text-success); }
+    .text-warning { color: var(--color-text-warning); }
+    .text-danger { color: var(--color-text-danger); }
 {% endblock %}

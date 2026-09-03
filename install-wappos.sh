@@ -67,6 +67,23 @@ if ! command -v docker >/dev/null 2>&1; then
     curl -fsSL https://get.docker.com | sh
 fi
 
+if [ ! -f /etc/systemd/system/docker.service.d/nftables-resync.conf ]; then
+    step "Protection Docker contre les rechargements nftables"
+    mkdir -p /etc/systemd/system/docker.service.d
+    cat > /etc/systemd/system/docker.service.d/nftables-resync.conf <<'NFTABLES_EOF'
+[Unit]
+PartOf=nftables.service
+StartLimitIntervalSec=120
+StartLimitBurst=5
+
+[Service]
+ExecStartPre=/bin/sleep 5
+Restart=on-failure
+RestartSec=10
+NFTABLES_EOF
+    systemctl daemon-reload
+fi
+
 main_domain="$(yunohost domain list --output-as json | python3 -c "import json,sys; print(json.load(sys.stdin)['main'])")"
 
 if ! yunohost user list --output-as json | python3 -c "import json,sys; sys.exit(0 if '$alert_box_user' in json.load(sys.stdin)['users'] else 1)"; then
@@ -81,6 +98,22 @@ for component in wappos_api_ynh wappos_sso_bypass wappos_admin_ynh wappos_portal
     echo
 done
 
+if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'rspamd' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then
+    step "Installation de Rspamd (antispam)"
+    yunohost app install rspamd
+
+    cat > /etc/rspamd/local.d/phishing.conf <<'RSPAMD_PHISHING_EOF'
+openphish_enabled = true;
+RSPAMD_PHISHING_EOF
+
+    rspamd_password="$(openssl rand -base64 24)"
+    rspamd_password_hash="$(rspamadm pw -p "$rspamd_password")"
+    printf 'password = "%s";\n' "$rspamd_password_hash" > /etc/rspamd/local.d/worker-controller.inc
+
+    rspamadm configtest
+    systemctl reload rspamd
+fi
+
 step "Finalisation de la liaison Prometheus / wappos_admin"
 (
     source "$release_dir/wappos_admin_ynh/standalone/vars.sh"
@@ -93,6 +126,30 @@ echo -e "${bold}Wappos est installe et pret a l'usage.${reset}"
 echo
 echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}"
 echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}"
+echo
+
+step "Connexion SSH par mot de passe"
+echo "Par defaut, la connexion root en SSH accepte un mot de passe en plus"
+echo "des cles. Pour un serveur expose sur Internet, il est recommande de"
+echo "n'accepter que les cles SSH (plus resistant aux attaques par force brute)."
+echo
+if [ -s /root/.ssh/authorized_keys ]; then
+    echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Desactiver la connexion"
+    echo "par mot de passe maintenant ? [o/N]"
+    read -rp "> " disable_ssh_password
+
+    if [ "$disable_ssh_password" = "o" ] || [ "$disable_ssh_password" = "O" ]; then
+        cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
+        sed -i 's/^#\?PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+        sshd -t
+        systemctl reload sshd
+        echo -e "${bold}Connexion par mot de passe desactivee.${reset} Seules les cles SSH sont acceptees desormais."
+    fi
+else
+    echo -e "${bold}Aucune cle SSH enregistree pour root${reset} — desactiver le mot de passe vous"
+    echo "empecherait de vous reconnecter. Ajoutez d'abord votre cle publique a"
+    echo "/root/.ssh/authorized_keys, puis relancez cette etape plus tard si besoin."
+fi
 echo
 
 interface="$(ip route show default | awk '{print $5; exit}')"

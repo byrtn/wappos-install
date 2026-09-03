@@ -1,0 +1,20 @@
+{% extends "base.html" %}
+{% set active_tab = "system" %}
+{% block title %}Système{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Système</span>{% endblock %}
+
+{% block content %}
+        <div class="nav-list">
+      <a class="nav-list-item" href="{{ url_for('settings_page') }}"><span>Réglages</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('system_page') }}"><span>Mises à jour</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('migrations_page') }}"><span>Migrations</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('firewall') }}"><span>Pare-feu</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('services') }}"><span>Services</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('performance_page') }}"><span>Performances</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('storage') }}"><span>Stockage</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('logs') }}"><span>Journaux</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('app_map_page') }}"><span>Correspondance URL &harr; app</span><span class="chevron">&rsaquo;</span></a>
+    </div>
+
+{% endblock %}

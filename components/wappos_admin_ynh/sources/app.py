@@ -135,12 +135,31 @@ def _relative_fr(epoch: float | None) -> str:
     return f"il y a {days} jour{'s' if days > 1 else ''}"
 
 
+def _duration_fr(epoch: float) -> str:
+    delta = datetime.now().timestamp() - epoch
+    if delta < 60:
+        return "quelques secondes"
+    if delta < 3600:
+        minutes = int(delta // 60)
+        return f"{minutes} minute{'s' if minutes > 1 else ''}"
+    if delta < 86400:
+        hours = int(delta // 3600)
+        return f"{hours} heure{'s' if hours > 1 else ''}"
+    days = int(delta // 86400)
+    return f"{days} jour{'s' if days > 1 else ''}"
+
+
 @app.template_filter("service_since")
 def _service_since(value) -> str:
     if value is None or value == "unknown":
         return "inconnu"
     if isinstance(value, (int, float)):
-        return _relative_fr(value)
+        return _duration_fr(value)
+    if isinstance(value, str):
+        try:
+            return _duration_fr(datetime.fromisoformat(value).timestamp())
+        except ValueError:
+            return "inconnu"
     return str(value)
 
 
@@ -237,6 +256,16 @@ _MANIFEST = tomllib.loads((Path(__file__).parent / ".package" / "manifest.toml")
 APP_VERSION = _MANIFEST["version"]
 
 _HIDDEN_SYSTEM_USERS = {"cron.alerts"}
+
+_NATIVE_PLACEHOLDER_COMMENTS = {"manually set without comment"}
+
+
+def _clean_firewall_rules(rules: dict) -> dict:
+    for protocol in ("tcp", "udp"):
+        for p in rules.get(protocol, []):
+            if p.get("comment", "").strip().lower() in _NATIVE_PLACEHOLDER_COMMENTS:
+                p["comment"] = ""
+    return rules
 
 
 @app.before_request
@@ -384,7 +413,34 @@ def _wappos_api_admin_users(token: str) -> list[dict]:
         timeout=10,
     )
     _raise_for_status(resp)
-    return resp.json()
+    return [u for u in resp.json() if u.get("username") not in _HIDDEN_SYSTEM_USERS]
+
+
+def _group_domains_by_parent(domains: list[str]) -> list[dict]:
+    domain_set = set(domains)
+
+    def _immediate_parent(d: str) -> str | None:
+        candidates = [o for o in domain_set if o != d and d.endswith("." + o)]
+        return max(candidates, key=len) if candidates else None
+
+    def _root_of(d: str) -> str:
+        seen = {d}
+        current = d
+        while True:
+            parent = _immediate_parent(current)
+            if parent is None or parent in seen:
+                return current
+            seen.add(parent)
+            current = parent
+
+    roots_order = [d for d in domains if _immediate_parent(d) is None]
+    children: dict[str, list[str]] = {}
+    for d in domains:
+        root = _root_of(d)
+        if d != root:
+            children.setdefault(root, []).append(d)
+
+    return [{"domain": d, "children": sorted(children.get(d, []))} for d in roots_order]
 
 
 def _wappos_api_domains(token: str, full: bool = False) -> list[str]:
@@ -523,7 +579,6 @@ def _wappos_api_add_domain(
     domain: str,
     install_letsencrypt_cert: bool = False,
     dyndns_recovery_password: str | None = None,
-    skip_dyndns_tos: bool = False,
 ) -> None:
     resp = requests.post(
         f"{WAPPOS_API_BASE}/admin/domains",
@@ -531,7 +586,6 @@ def _wappos_api_add_domain(
             "domain": domain,
             "install_letsencrypt_cert": install_letsencrypt_cert,
             "dyndns_recovery_password": dyndns_recovery_password,
-            "skip_dyndns_tos": skip_dyndns_tos,
         },
         headers={"X-Admin-Token": token},
         timeout=320,
@@ -540,15 +594,63 @@ def _wappos_api_add_domain(
 
 
 def _wappos_api_remove_domain(
-    token: str, domain: str, remove_apps: bool = False, ignore_dyndns: bool = False
+    token: str,
+    domain: str,
+    remove_apps: bool = False,
+    ignore_dyndns: bool = False,
+    dyndns_recovery_password: str | None = None,
 ) -> None:
+    params: dict = {"remove_apps": remove_apps, "ignore_dyndns": ignore_dyndns}
+    if dyndns_recovery_password:
+        params["dyndns_recovery_password"] = dyndns_recovery_password
     resp = requests.delete(
         f"{WAPPOS_API_BASE}/admin/domains/{domain}",
-        params={"remove_apps": remove_apps, "ignore_dyndns": ignore_dyndns},
+        params=params,
         headers={"X-Admin-Token": token},
         timeout=120,
     )
     _raise_for_status(resp)
+
+
+def _wappos_api_certificates_status(token: str) -> dict:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/domains/certificates",
+        headers={"X-Admin-Token": token},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_adguard_status(token: str) -> dict:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/adguard/status",
+        headers={"X-Admin-Token": token},
+        timeout=10,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_add_local_domain(token: str, domain: str) -> dict:
+    resp = requests.post(
+        f"{WAPPOS_API_BASE}/admin/local-domains",
+        json={"domain": domain},
+        headers={"X-Admin-Token": token},
+        timeout=60,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_remove_local_domain(token: str, domain: str) -> dict:
+    resp = requests.delete(
+        f"{WAPPOS_API_BASE}/admin/local-domains/{domain}",
+        headers={"X-Admin-Token": token},
+        timeout=60,
+    )
+    _raise_for_status(resp)
+    return resp.json()
 
 
 def _wappos_api_push_domain_dns(
@@ -621,16 +723,6 @@ def _wappos_api_delete_backup(token: str, name: str) -> None:
     _raise_for_status(resp)
 
 
-def _wappos_api_versions(token: str) -> dict:
-    resp = requests.get(
-        f"{WAPPOS_API_BASE}/admin/tools/versions",
-        headers={"X-Admin-Token": token},
-        timeout=10,
-    )
-    _raise_for_status(resp)
-    return resp.json()
-
-
 def _wappos_api_system_health(token: str) -> dict:
     resp = requests.get(
         f"{WAPPOS_API_BASE}/admin/system/health",
@@ -681,10 +773,33 @@ def _wappos_api_run_upgrade(token: str, target: str) -> dict:
     return resp.json() if resp.content else {}
 
 
-def _wappos_api_regen_conf(token: str, dry_run: bool = False, force: bool = False) -> dict:
+def _wappos_api_migrations(token: str) -> list[dict]:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/migrations",
+        headers={"X-Admin-Token": token},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_run_migrations(
+    token: str, targets: list[str] | None = None, accept_disclaimer: bool = False, auto: bool = False
+) -> dict:
+    resp = requests.put(
+        f"{WAPPOS_API_BASE}/admin/migrations",
+        json={"targets": targets or [], "accept_disclaimer": accept_disclaimer, "auto": auto},
+        headers={"X-Admin-Token": token},
+        timeout=320,
+    )
+    _raise_for_status(resp)
+    return resp.json() if resp.content else {}
+
+
+def _wappos_api_regen_conf(token: str, dry_run: bool = False) -> dict:
     resp = requests.put(
         f"{WAPPOS_API_BASE}/admin/tools/regenconf",
-        json={"dry_run": dry_run, "force": force, "with_diff": True},
+        json={"dry_run": dry_run, "with_diff": True},
         headers={"X-Admin-Token": token},
         timeout=60,
     )
@@ -762,7 +877,7 @@ def _wappos_api_service_log(token: str, name: str, number: int = 50) -> dict:
     return resp.json()
 
 
-def _wappos_api_logs(token: str, limit: int = 25) -> list[dict]:
+def _wappos_api_logs(token: str, limit: int = 50) -> list[dict]:
     resp = requests.get(
         f"{WAPPOS_API_BASE}/admin/logs",
         params={"limit": limit},
@@ -773,7 +888,7 @@ def _wappos_api_logs(token: str, limit: int = 25) -> list[dict]:
     return resp.json()
 
 
-def _wappos_api_log_detail(token: str, name: str, number: int = 25) -> dict:
+def _wappos_api_log_detail(token: str, name: str, number: int = 50) -> dict:
     resp = requests.get(
         f"{WAPPOS_API_BASE}/admin/logs/{name}",
         params={"number": number},
@@ -791,7 +906,7 @@ def _wappos_api_firewall(token: str) -> dict:
         timeout=15,
     )
     _raise_for_status(resp)
-    return resp.json()
+    return _clean_firewall_rules(resp.json())
 
 
 def _wappos_api_open_firewall_port(token: str, protocol: str, port, comment: str = "", upnp: bool = False) -> None:
@@ -1037,24 +1152,6 @@ def _wappos_api_set_settings(token: str, panel_key: str, args: str) -> None:
     _raise_for_status(resp)
 
 
-def _wappos_api_reset_setting(token: str, key: str) -> None:
-    resp = requests.delete(
-        f"{WAPPOS_API_BASE}/admin/settings/{key}",
-        headers={"X-Admin-Token": token},
-        timeout=30,
-    )
-    _raise_for_status(resp)
-
-
-def _wappos_api_reset_all_settings(token: str) -> None:
-    resp = requests.delete(
-        f"{WAPPOS_API_BASE}/admin/settings",
-        headers={"X-Admin-Token": token},
-        timeout=30,
-    )
-    _raise_for_status(resp)
-
-
 def _wappos_api_admin_permissions(token: str) -> dict[str, dict]:
     resp = requests.get(
         f"{WAPPOS_API_BASE}/admin/permissions",
@@ -1072,7 +1169,7 @@ def _wappos_api_admin_groups(token: str) -> list[dict]:
         timeout=10,
     )
     _raise_for_status(resp)
-    return resp.json()
+    return [g for g in resp.json() if g.get("name") not in _HIDDEN_SYSTEM_USERS]
 
 
 def _wappos_api_update_permission(token: str, permission: str, add=None, remove=None) -> None:
@@ -1144,15 +1241,6 @@ def _wappos_api_admin_run_diagnosis(token: str, category: str | None = None) -> 
     _raise_for_status(resp)
     return resp.json()
 
-
-def _wappos_api_diagnosis_share(token: str) -> str:
-    resp = requests.get(
-        f"{WAPPOS_API_BASE}/admin/diagnosis/share",
-        headers={"X-Admin-Token": token},
-        timeout=30,
-    )
-    _raise_for_status(resp)
-    return resp.json()["url"]
 
 
 def _wappos_api_diagnosis_set_ignored(token: str, category: str, meta: dict, ignored: bool) -> list[dict]:
@@ -1564,12 +1652,12 @@ def home():
     )
 
 
-@app.route("/tools")
-def tools_page():
+@app.route("/system-menu")
+def system_menu():
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
-    return render_template("tools_home.html", user=user, app_version=APP_VERSION)
+    return render_template("system_menu.html", user=user, app_version=APP_VERSION)
 
 
 @app.route("/users")
@@ -1579,7 +1667,7 @@ def index():
         return "Unauthorized", 401
 
     try:
-        users = [u for u in _wappos_api_admin_users(token) if u.get("username") not in _HIDDEN_SYSTEM_USERS]
+        users = _wappos_api_admin_users(token)
         domains = _wappos_api_domains(token)
     except requests.exceptions.RequestException as e:
         app.logger.error("Failed to load admin data for %r: %s", user, e)
@@ -2043,7 +2131,14 @@ def groups():
 
     permission_options = sorted(
         (
-            {"id": pid, "label": data["label"]}
+            {
+                "id": pid,
+                "label": data["label"],
+                "protected": data.get("protected"),
+                "url": data.get("url"),
+                "additional_urls": data.get("additional_urls") or [],
+                "corresponding_users": data.get("corresponding_users") or [],
+            }
             for pid, data in raw_permissions.items()
             if data.get("url") or data.get("protected")
         ),
@@ -2360,13 +2455,9 @@ def update_user_detail(username: str):
     mail = request.form.get("mail", "").strip()
     mail_confirm = request.form.get("mail_confirm", "").strip()
     mailbox_quota_numeric = request.form.get("mailbox_quota", "").strip()
-    change_password = request.form.get("change_password", "")
-    change_password_confirm = request.form.get("change_password_confirm", "")
 
     if mail != mail_confirm:
         return redirect(url_for("edit_user", username=username, error="Les adresses email ne correspondent pas."))
-    if change_password != change_password_confirm:
-        return redirect(url_for("edit_user", username=username, error="Les mots de passe ne correspondent pas."))
 
     mailbox_quota = f"{mailbox_quota_numeric}M" if mailbox_quota_numeric and mailbox_quota_numeric != "0" else "0"
 
@@ -2395,8 +2486,6 @@ def update_user_detail(username: str):
             mail_fields["mail"] = mail
         if mailbox_quota != current["mailbox_quota_limit"]:
             mail_fields["mailbox_quota"] = mailbox_quota
-        if change_password:
-            mail_fields["change_password"] = change_password
 
         alias_fields = {}
         if add_mailalias:
@@ -2423,6 +2512,32 @@ def update_user_detail(username: str):
         return redirect(url_for("edit_user", username=username, error="L'API Wappos est injoignable."))
 
     return redirect(url_for("edit_user", username=username, msg=f"Compte {username} mis à jour."))
+
+
+@app.route("/users/<username>/password", methods=["POST"])
+def update_user_password(username: str):
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+
+    change_password = request.form.get("change_password", "")
+    change_password_confirm = request.form.get("change_password_confirm", "")
+
+    if not change_password:
+        return redirect(url_for("edit_user", username=username, error="Le nouveau mot de passe ne peut pas être vide."))
+    if change_password != change_password_confirm:
+        return redirect(url_for("edit_user", username=username, error="Les mots de passe ne correspondent pas."))
+
+    try:
+        _wappos_api_update_user(token, username, change_password=change_password)
+    except requests.exceptions.HTTPError as e:
+        app.logger.warning("Update user password %r failed: %s", username, e)
+        return redirect(url_for("edit_user", username=username, error=_error_message(e)))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Update user password %r failed: %s", username, e)
+        return redirect(url_for("edit_user", username=username, error="L'API Wappos est injoignable."))
+
+    return redirect(url_for("edit_user", username=username, msg=f"Mot de passe de {username} mis à jour."))
 
 
 _YUNOHOST_WORD_RE = re.compile(r"\byunohost\b", re.IGNORECASE)
@@ -2453,6 +2568,21 @@ def _rebrand_diagnosis_text(reports: list[dict]) -> None:
             details = item.get("details")
             if details:
                 item["details"] = [_wappos_rebrand(d) for d in details]
+
+
+_BACKUP_COMPRESSION_PANEL_ID = "misc"
+_BACKUP_COMPRESSION_SECTION_ID = "backup"
+
+
+def _extract_settings_section(panels: list[dict], panel_id: str, section_id: str) -> dict | None:
+    for panel in panels or []:
+        if panel.get("id") != panel_id:
+            continue
+        sections = panel.get("sections", [])
+        for i, section in enumerate(sections):
+            if section.get("id") == section_id:
+                return sections.pop(i)
+    return None
 
 
 def _rebrand_config_panels(panels: list[dict]) -> None:
@@ -2529,24 +2659,6 @@ def diagnosis():
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )
-
-
-@app.route("/diagnosis/share", methods=["POST"])
-def share_diagnosis():
-    user, token = _login_or_401()
-    if not user:
-        return "Unauthorized", 401
-
-    try:
-        url = _wappos_api_diagnosis_share(token)
-    except requests.exceptions.HTTPError as e:
-        app.logger.warning("Share diagnosis failed: %s", e)
-        return redirect(url_for("diagnosis", error=_error_message(e)))
-    except requests.exceptions.RequestException as e:
-        app.logger.error("Share diagnosis failed: %s", e)
-        return redirect(url_for("diagnosis", error="L'API Wappos est injoignable."))
-
-    return redirect(url_for("diagnosis", msg=f"Rapport partagé : {url}"))
 
 
 @app.route("/diagnosis/run", methods=["POST"])
@@ -2630,12 +2742,13 @@ def services():
     except requests.exceptions.RequestException as e:
         app.logger.error("Failed to load services for %r: %s", user, e)
         return render_template(
-            "services.html", user=user, services=[], error="L'API Wappos est injoignable.",
+            "services.html", user=user, services=[], standalone_services=[],
+            error="L'API Wappos est injoignable.",
             app_version=APP_VERSION,
         ), 503
 
     return render_template(
-        "services.html", user=user, services=service_list,
+        "services.html", user=user, services=service_list, standalone_services=_standalone_services_status(),
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )
@@ -2649,16 +2762,6 @@ def failed_units_page():
 
     units = _failed_system_units_detail()
     return render_template("failed_units.html", user=user, units=units, app_version=APP_VERSION)
-
-
-@app.route("/standalone-services")
-def standalone_services_page():
-    user, token = _login_or_401()
-    if not user:
-        return "Unauthorized", 401
-
-    services = _standalone_services_status()
-    return render_template("standalone_services.html", user=user, services=services, app_version=APP_VERSION)
 
 
 def _redirect_to_service(name: str, *, message: str | None = None, error: str | None = None):
@@ -2831,7 +2934,7 @@ def log_detail(name: str):
     if not user:
         return "Unauthorized", 401
 
-    number = request.args.get("n", default=25, type=int)
+    number = request.args.get("n", default=50, type=int)
 
     try:
         detail = _wappos_api_log_detail(token, name, number=number)
@@ -2844,6 +2947,30 @@ def log_detail(name: str):
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )
+
+
+@app.route("/logs/<name>/share", methods=["POST"])
+def share_log(name: str):
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+
+    try:
+        resp = requests.get(
+            f"{WAPPOS_API_BASE}/admin/logs/{name}/share",
+            headers={"X-Admin-Token": token},
+            timeout=30,
+        )
+        _raise_for_status(resp)
+        url = resp.json()["url"]
+    except requests.exceptions.HTTPError as e:
+        app.logger.warning("Share log %r failed: %s", name, e)
+        return redirect(url_for("log_detail", name=name, error=_error_message(e)))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Share log %r failed: %s", name, e)
+        return redirect(url_for("log_detail", name=name, error="L'API Wappos est injoignable."))
+
+    return redirect(url_for("log_detail", name=name, msg=f"Journal partagé : {url}"))
 
 
 @app.route("/app-map")
@@ -3025,14 +3152,21 @@ def _app_performance(app_name: str, now: float) -> dict:
     )
     mem_q = f"{app_name}_process_resident_memory_bytes"
 
-    req_rate = _prometheus_scalar(req_rate_q) or 0.0
-    error_rate = _prometheus_scalar(error_rate_q) or 0.0
-    p95 = _prometheus_scalar(p95_q)
-    mem_bytes = _prometheus_scalar(mem_q)
-
     start = now - 6 * 3600
-    req_series = _prometheus_series(req_rate_q, start, now, 300)
-    mem_series = _prometheus_series(mem_q, start, now, 300)
+    with ThreadPoolExecutor(max_workers=6) as executor:
+        req_rate_f = executor.submit(_prometheus_scalar, req_rate_q)
+        error_rate_f = executor.submit(_prometheus_scalar, error_rate_q)
+        p95_f = executor.submit(_prometheus_scalar, p95_q)
+        mem_f = executor.submit(_prometheus_scalar, mem_q)
+        req_series_f = executor.submit(_prometheus_series, req_rate_q, start, now, 300)
+        mem_series_f = executor.submit(_prometheus_series, mem_q, start, now, 300)
+
+        req_rate = req_rate_f.result() or 0.0
+        error_rate = error_rate_f.result() or 0.0
+        p95 = p95_f.result()
+        mem_bytes = mem_f.result()
+        req_series = req_series_f.result()
+        mem_series = mem_series_f.result()
 
     return {
         "name": app_name,
@@ -3087,6 +3221,7 @@ def settings_page():
         ), 503
 
     _rebrand_config_panels(data.get("panels", []))
+    _extract_settings_section(data.get("panels", []), _BACKUP_COMPRESSION_PANEL_ID, _BACKUP_COMPRESSION_SECTION_ID)
 
     return render_template(
         "settings.html", user=user, panels=data.get("panels", []),
@@ -3101,6 +3236,7 @@ def settings_submit(panel_key: str):
     if not user:
         return "Unauthorized", 401
     section_id = request.form.get("__section_id__")
+    return_to = "backups_page" if request.form.get("__next__") == "backups" else "settings_page"
     try:
         data = _wappos_api_settings(token)
         options = [
@@ -3114,32 +3250,10 @@ def settings_submit(panel_key: str):
         args = _build_args_from_options(options, request.form, request.files)
         _wappos_api_set_settings(token, panel_key, args)
     except requests.exceptions.HTTPError as e:
-        return redirect(url_for("settings_page", error=_error_message(e)))
-    return redirect(url_for("settings_page", msg="Réglages appliqués."))
+        return redirect(url_for(return_to, error=_error_message(e)))
+    return redirect(url_for(return_to, msg="Réglages appliqués."))
 
 
-@app.route("/settings/reset-all", methods=["POST"])
-def settings_reset_all():
-    user, token = _login_or_401()
-    if not user:
-        return "Unauthorized", 401
-    try:
-        _wappos_api_reset_all_settings(token)
-    except requests.exceptions.HTTPError as e:
-        return redirect(url_for("settings_page", error=_error_message(e)))
-    return redirect(url_for("settings_page", msg="Tous les réglages ont été réinitialisés à leurs valeurs par défaut."))
-
-
-@app.route("/settings/<key>/reset", methods=["POST"])
-def setting_reset(key: str):
-    user, token = _login_or_401()
-    if not user:
-        return "Unauthorized", 401
-    try:
-        _wappos_api_reset_setting(token, key)
-    except requests.exceptions.HTTPError as e:
-        return redirect(url_for("settings_page", error=_error_message(e)))
-    return redirect(url_for("settings_page", msg=f"Réglage « {key} » réinitialisé à sa valeur par défaut."))
 
 
 @app.route("/domains")
@@ -3153,12 +3267,27 @@ def domains_page():
     except requests.exceptions.RequestException as e:
         app.logger.error("Failed to load domains for %r: %s", user, e)
         return render_template(
-            "domains.html", user=user, domains=[],
+            "domains.html", user=user, domains=[], local_domains=[], adguard_installed=False,
             error="L'API Wappos est injoignable.", app_version=APP_VERSION,
         ), 503
 
+    local_domains = sorted(d for d in domains if d.endswith(".lan"))
+    try:
+        adguard_installed = _wappos_api_adguard_status(token).get("installed", False)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load AdGuard status for %r: %s", user, e)
+        adguard_installed = False
+
+    try:
+        certificates = _wappos_api_certificates_status(token)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load certificates status for %r: %s", user, e)
+        certificates = {}
+
     return render_template(
-        "domains.html", user=user, domains=domains,
+        "domains.html", user=user, domains=domains, domain_groups=_group_domains_by_parent(domains),
+        local_domains=local_domains,
+        adguard_installed=adguard_installed, certificates=certificates,
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )
@@ -3172,14 +3301,12 @@ def domain_add():
     domain = (request.form.get("domain") or "").strip()
     install_letsencrypt_cert = request.form.get("install_letsencrypt_cert") == "1"
     dyndns_recovery_password = request.form.get("dyndns_recovery_password") or None
-    skip_dyndns_tos = request.form.get("skip_dyndns_tos") == "1"
     try:
         _wappos_api_add_domain(
             token,
             domain,
             install_letsencrypt_cert=install_letsencrypt_cert,
             dyndns_recovery_password=dyndns_recovery_password,
-            skip_dyndns_tos=skip_dyndns_tos,
         )
     except requests.exceptions.HTTPError as e:
         return redirect(url_for("domains_page", error=_error_message(e)))
@@ -3196,6 +3323,36 @@ def domain_add():
                 "(DNS pas encore propagé ?) — un certificat auto-signé est utilisé en attendant.",
             ))
     return redirect(url_for("domain_detail", domain=domain, msg="Domaine ajouté."))
+
+
+@app.route("/domains/local/add", methods=["POST"])
+def local_domain_add():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    domain = (request.form.get("domain") or "").strip()
+    try:
+        result = _wappos_api_add_local_domain(token, domain)
+    except requests.exceptions.HTTPError as e:
+        return redirect(url_for("domains_page", error=_error_message(e)))
+    if result.get("adguard_rewrite_added") is False:
+        return redirect(url_for(
+            "domains_page",
+            error=f"Domaine {domain} créé, mais la réécriture DNS AdGuard a échoué — à vérifier manuellement.",
+        ))
+    return redirect(url_for("domains_page", msg=f"Domaine local {domain} créé."))
+
+
+@app.route("/domains/local/<domain>/remove", methods=["POST"])
+def local_domain_remove(domain: str):
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    try:
+        _wappos_api_remove_local_domain(token, domain)
+    except requests.exceptions.HTTPError as e:
+        return redirect(url_for("domains_page", error=_error_message(e)))
+    return redirect(url_for("domains_page", msg=f"Domaine local {domain} supprimé."))
 
 
 _REGISTRAR_SUPPORTED_MARKER = "YunoHost a détecté automatiquement que ce domaine est géré par le registrar"
@@ -3218,6 +3375,22 @@ def _rewrite_registrar_supported_text(panels: list[dict], registrar: str | None)
                     o["ask"] = new_text
 
 
+_REGISTRAR_NOT_SUPPORTED_MARKER = "n'a pas pu détecter automatiquement le bureau d'enregistrement gérant ce domaine"
+
+
+def _rewrite_registrar_not_supported_text(panels: list[dict]) -> None:
+    new_text = (
+        "Wappos n'a pas pu détecter automatiquement le bureau d'enregistrement gérant ce domaine. "
+        "Vous devez configurer manuellement vos enregistrements DNS."
+    )
+    for panel in panels:
+        for section in panel.get("sections", []):
+            for o in section.get("options", []):
+                ask = o.get("ask")
+                if isinstance(ask, str) and _REGISTRAR_NOT_SUPPORTED_MARKER in ask:
+                    o["ask"] = new_text
+
+
 @app.route("/domains/<domain>")
 def domain_detail(domain: str):
     user, token = _login_or_401()
@@ -3237,6 +3410,7 @@ def domain_detail(domain: str):
         ), 503
 
     _rewrite_registrar_supported_text(config.get("panels", []), detail.get("registrar"))
+    _rewrite_registrar_not_supported_text(config.get("panels", []))
     _rebrand_config_panels(config.get("panels", []))
 
     relay_options = {
@@ -3374,8 +3548,12 @@ def domain_remove(domain: str):
         return "Unauthorized", 401
     remove_apps = request.form.get("remove_apps") == "1"
     ignore_dyndns = request.form.get("ignore_dyndns") == "1"
+    dyndns_recovery_password = request.form.get("dyndns_recovery_password") or None
     try:
-        _wappos_api_remove_domain(token, domain, remove_apps=remove_apps, ignore_dyndns=ignore_dyndns)
+        _wappos_api_remove_domain(
+            token, domain, remove_apps=remove_apps, ignore_dyndns=ignore_dyndns,
+            dyndns_recovery_password=dyndns_recovery_password,
+        )
     except requests.exceptions.HTTPError as e:
         return _redirect_to_domain_detail(domain, error=_error_message(e))
     return redirect(url_for("domains_page", msg=f"Domaine {domain} supprimé."))
@@ -3431,12 +3609,21 @@ def backups_page():
     try:
         result = _wappos_api_list_backups(token)
         installed_apps = _wappos_api_admin_apps(token)
+        settings_data = _wappos_api_settings(token)
     except requests.exceptions.RequestException as e:
         app.logger.error("Failed to load backups for %r: %s", user, e)
         return render_template(
             "backups.html", user=user, archives=[], installed_apps=[], schedule=backup_scheduler._DEFAULT_SCHEDULE,
+            compression_section=None, compression_panel_id=_BACKUP_COMPRESSION_PANEL_ID,
             error="L'API Wappos est injoignable.", app_version=APP_VERSION,
         ), 503
+
+    _rebrand_config_panels(settings_data.get("panels", []))
+    compression_section = _extract_settings_section(
+        settings_data.get("panels", []), _BACKUP_COMPRESSION_PANEL_ID, _BACKUP_COMPRESSION_SECTION_ID
+    )
+    if compression_section:
+        compression_section["name"] = "Compression des sauvegardes"
 
     history_by_name = {h.get("name"): h for h in backup_scheduler._load_history() if h.get("name")}
     archives = [
@@ -3447,6 +3634,7 @@ def backups_page():
     return render_template(
         "backups.html", user=user, archives=archives, installed_apps=installed_apps,
         schedule=backup_scheduler._load_schedule(),
+        compression_section=compression_section, compression_panel_id=_BACKUP_COMPRESSION_PANEL_ID,
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )
@@ -3619,7 +3807,6 @@ def preview_backup_retention():
 
 
 def _system_page_context(token: str) -> dict:
-    versions = _wappos_api_versions(token)
     updates = _wappos_api_available_updates(token)
     installed_apps = _wappos_api_admin_apps(token)
     try:
@@ -3650,7 +3837,7 @@ def _system_page_context(token: str) -> dict:
         app.logger.error("Failed to load system health: %s", e)
         health = None
     return {
-        "versions": versions, "updates": updates, "wappos_apps": wappos_apps,
+        "updates": updates, "wappos_apps": wappos_apps,
         "app_updates_confirmed": app_updates_confirmed, "app_updates_unknown": app_updates_unknown,
         "health": health,
     }
@@ -3666,7 +3853,7 @@ def system_page():
     except requests.exceptions.RequestException as e:
         app.logger.error("Failed to load system info for %r: %s", user, e)
         return render_template(
-            "system.html", user=user, versions={}, updates={}, wappos_apps=[],
+            "system.html", user=user, updates={}, wappos_apps=[],
             app_updates_confirmed=[], app_updates_unknown=[], api_restart=False, regen_result=None,
             health=None, error="L'API Wappos est injoignable.", app_version=APP_VERSION,
         ), 503
@@ -3755,9 +3942,8 @@ def run_regen_conf():
     if not user:
         return "Unauthorized", 401
     dry_run = request.form.get("dry_run") == "1"
-    force = request.form.get("force") == "1"
     try:
-        result = _wappos_api_regen_conf(token, dry_run=dry_run, force=force)
+        result = _wappos_api_regen_conf(token, dry_run=dry_run)
     except requests.exceptions.HTTPError as e:
         return redirect(url_for("system_page", error=_error_message(e)))
 
@@ -3779,6 +3965,50 @@ def run_regen_conf():
         message=f"{verb} de la configuration effectuée ({applied_count} appliquée(s), {pending_count} en attente).",
         error=None, app_version=APP_VERSION,
     )
+
+
+@app.route("/migrations")
+def migrations_page():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    try:
+        migrations = _wappos_api_migrations(token)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load migrations for %r: %s", user, e)
+        return render_template(
+            "migrations.html", user=user, migrations=[],
+            error="L'API Wappos est injoignable.", app_version=APP_VERSION,
+        ), 503
+
+    return render_template(
+        "migrations.html", user=user, migrations=migrations,
+        error=request.args.get("error"), message=request.args.get("msg"),
+        app_version=APP_VERSION,
+    )
+
+
+@app.route("/migrations/run", methods=["POST"])
+def run_migrations():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    target = request.form.get("target")
+    accept_disclaimer = request.form.get("accept_disclaimer") == "1"
+    auto = request.form.get("auto") == "1"
+    targets = [target] if target else None
+    try:
+        _wappos_api_run_migrations(token, targets=targets, accept_disclaimer=accept_disclaimer, auto=auto)
+    except requests.exceptions.HTTPError as e:
+        return redirect(url_for("migrations_page", error=_error_message(e)))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Run migrations failed: %s", e)
+        return redirect(url_for("migrations_page", error="L'API Wappos est injoignable."))
+
+    return redirect(url_for(
+        "migrations_page",
+        msg=f"Migration {target} exécutée." if target else "Migrations en attente exécutées.",
+    ))
 
 
 @app.route("/system/rootpw", methods=["POST"])
@@ -4090,7 +4320,7 @@ def docker_add():
     job_id = docker_progress.create_job(steps)
 
     def _add_domain(d):
-        _wappos_api_add_domain(token, d)
+        _wappos_api_add_domain(token, d, install_letsencrypt_cert=True)
 
     def _run_diag(category):
         try:

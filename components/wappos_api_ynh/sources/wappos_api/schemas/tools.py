@@ -24,3 +24,21 @@ class PostinstallRequest(BaseModel):
     ignore_dyndns: bool = False
     force_diskspace: bool = False
     i_have_read_terms_of_services: bool = False
+
+
+class Migration(BaseModel):
+    id: str
+    number: int
+    name: str
+    mode: str
+    state: str
+    description: str
+    disclaimer: str | None = None
+
+
+class MigrationRunRequest(BaseModel):
+    targets: list[str] = []
+    skip: bool = False
+    force_rerun: bool = False
+    accept_disclaimer: bool = False
+    auto: bool = False

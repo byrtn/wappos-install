@@ -5,15 +5,14 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Diagnostic</span>{% endblock %}
 
 {% block content %}
+    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
         <div class="alert alert-info">
       {% if reports %}
         La fonctionnalité de diagnostic va tenter de trouver certains problèmes communs sur différents aspects de votre serveur pour être sûr que tout fonctionne normalement. Le diagnostic sera également effectué deux fois par jour et enverra un courriel au compte administrateur si des erreurs sont détectées. À noter que certains tests ne seront pas montrés si vous n'utilisez pas certaines fonctions spécifiques (par exemple l'e-mail) ou s'ils échouent à cause d'une configuration trop complexe. Dans ce cas, et si vous savez ce que vous avez modifié, vous pouvez ignorer les problèmes et les avertissements correspondantes.
       {% else %}
         La fonctionnalité de diagnostic va tenter de trouver certains problèmes communs sur différents aspects de votre serveur pour être sûr que tout fonctionne normalement. Merci de ne pas paniquer si vous voyez une multitude d'erreurs après avoir configuré votre serveur : la fonctionnalité est précisément prévue pour les identifier et vous aider à les résoudre. Le diagnostic sera également effectué deux fois par jour et enverra un courriel au compte administrateur si des erreurs sont détectées.
       {% endif %}
-            <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}" style="margin-top: 0.75rem;">
-        <button type="submit" class="btn">{{ 'Lancer un diagnostic complet' if reports else 'Démarrer le diagnostic initial' }}</button>
-      </form>
       {% if reports %}<p class="field-info" style="margin: 0.4rem 0 0;">Les catégories dont le cache est encore valide ne seront pas revérifiées — utilisez « Relancer le diagnostic » sur une catégorie précise pour forcer une vérification immédiate.</p>{% endif %}
       {% if never_run_categories %}
                 <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}" style="margin-top: 0.75rem;">
@@ -25,6 +24,11 @@
           <button type="submit" class="btn">Lancer cette catégorie (jamais exécutée)</button>
         </form>
       {% endif %}
+      <div style="display: flex; justify-content: flex-end; margin-top: 0.75rem;">
+        <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}">
+          <button type="submit" class="btn">{{ 'Lancer un diagnostic complet' if reports else 'Démarrer le diagnostic initial' }}</button>
+        </form>
+      </div>
     </div>
 
     <div id="diag-progress-overlay" class="diag-progress-overlay" style="display: none;">
@@ -91,7 +95,7 @@
 {% block extra_style %}
     .diag-card { padding: 0; margin-bottom: 1rem; overflow: visible; }
     .diag-header { display: flex; align-items: center; gap: 0.6rem; padding: 1rem 1.5rem; cursor: pointer;
-                   list-style: none; }
+                   list-style: none; flex-wrap: wrap; }
     .diag-header::-webkit-details-marker { display: none; }
     .diag-header::before { content: '▸'; color: var(--color-text-faint); font-size: 0.8rem; }
     details[open] > .diag-header::before { content: '▾'; }
@@ -111,8 +115,8 @@
     .diag-item-error { border-left-color: var(--color-danger); background: var(--color-error-bg); }
     .diag-item-info { border-left-color: var(--color-text-info); }
     .diag-item-ignored { opacity: 0.5; background: var(--color-bg); }
-    .diag-item-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; }
-    .diag-item-summary { margin: 0; color: var(--color-text); }
+    .diag-item-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 0.75rem; flex-wrap: wrap; }
+    .diag-item-summary { margin: 0; color: var(--color-text); min-width: 0; flex: 1 1 220px; overflow-wrap: anywhere; }
         .diag-item-buttons { display: flex; flex-direction: column; align-items: flex-end; gap: 0.4rem; margin-left: auto; flex-shrink: 0; }
     @media (min-width: 1025px) {
       .diag-item-buttons { flex-direction: row; align-items: center; }
@@ -127,7 +131,7 @@
     .diag-btn-outline { border: 1px solid var(--color-border-strong); background: var(--color-card-bg); color: var(--color-text); }
     .diag-btn-outline:hover { background: var(--color-card-header-bg); }
     .diag-btn-outline[aria-expanded="true"] { background: var(--color-hover-bg); }
-    .diag-item-details { margin-top: 0.6rem; font-size: 0.85rem; color: var(--color-text-dim); }
+    .diag-item-details { margin-top: 0.6rem; font-size: 0.85rem; color: var(--color-text-dim); overflow-wrap: anywhere; }
         .diag-item-warning .diag-item-summary, .diag-item-warning .diag-item-details,
     .diag-item-error .diag-item-summary, .diag-item-error .diag-item-details { color: var(--color-text); }
     .diag-item-details ul { margin: 0.4rem 0 0; padding-left: 1.25rem; }
@@ -144,6 +148,8 @@
     @keyframes diag-spin { to { transform: rotate(360deg); } }
     .alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
     .alert-info { background: var(--color-info-bg); color: var(--color-info-text); border: 1px solid var(--color-border-strong); }
+    .alert-danger { background: #fbe9e7; color: #7a1f00; border: 1px solid #f3b7a6; }
+    .alert-success { background: #e8f5e9; color: #1a4d24; border: 1px solid #a8d5b0; }
 {% endblock %}
 
 {% block extra_script %}

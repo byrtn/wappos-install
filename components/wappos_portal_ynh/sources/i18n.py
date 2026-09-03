@@ -17,6 +17,11 @@ STRINGS = {
     "aria_search_app": {"fr": "Rechercher une application", "en": "Search for an app"},
     "no_app_available": {"fr": "Aucune application accessible.", "en": "No app available."},
 
+    "pwa_install_link": {"fr": "Installer l'application", "en": "Install the app"},
+    "pwa_install_ios_prompt": {"fr": "Installer Wappos : appuyez sur Partager puis « Sur l'écran d'accueil ».", "en": "Install Wappos: tap Share, then \"Add to Home Screen\"."},
+    "pwa_install_unsupported": {"fr": "Ce navigateur ne propose pas l'installation automatique. Ouvrez son menu et cherchez « Ajouter à l'écran d'accueil », ou essayez avec Chrome/Edge.", "en": "This browser doesn't offer automatic installation. Open its menu and look for \"Add to Home Screen\", or try Chrome/Edge."},
+    "pwa_install_dismiss": {"fr": "Fermer", "en": "Close"},
+
     "title_login": {"fr": "Connexion — WAPPOS PORTAL", "en": "Log in — WAPPOS PORTAL"},
     "username_label": {"fr": "Nom du compte", "en": "Account name"},
     "username_placeholder": {"fr": "Nom du compte", "en": "Account name"},
@@ -40,6 +45,14 @@ STRINGS = {
     "err_session_expired": {
         "fr": "Ta session a expiré, reconnecte-toi.",
         "en": "Your session has expired, please log in again.",
+    },
+    "err_access_denied": {
+        "fr": "Tu n'as pas la permission d'accéder à cette application.",
+        "en": "You don't have permission to access that application.",
+    },
+    "msg_protected": {
+        "fr": "Connecte-toi pour accéder à cette page.",
+        "en": "Log in to access this page.",
     },
 
     "title_profile": {"fr": "Éditer mon profil — WAPPOS PORTAL", "en": "Edit my profile — WAPPOS PORTAL"},

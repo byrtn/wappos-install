@@ -236,8 +236,11 @@
     window.setWapposTheme = function (value) {
       if (value === 'system') {
         localStorage.removeItem('wappos_theme');
-        const wantDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
-        document.documentElement.setAttribute('data-theme', wantDark ? 'dark' : 'light');
+        const domainDefault = {{ branding.default_theme|tojson }};
+        const effective = domainDefault !== 'system'
+          ? domainDefault
+          : (window.matchMedia('(prefers-color-scheme: dark)').matches ? 'dark' : 'light');
+        document.documentElement.setAttribute('data-theme', effective);
       } else {
         localStorage.setItem('wappos_theme', value);
         document.documentElement.setAttribute('data-theme', value);

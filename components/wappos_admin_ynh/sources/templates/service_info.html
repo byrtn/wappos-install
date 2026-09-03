@@ -2,7 +2,7 @@
 {% set active_tab = "services" %}
 {% block title %}{{ info.name }} — Services{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('services') }}">Services</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ info.name }}</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('services') }}">Services</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ info.name }}</span>{% endblock %}
 
 {% block content %}
     

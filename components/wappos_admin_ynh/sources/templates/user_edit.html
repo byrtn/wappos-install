@@ -84,28 +84,33 @@
           <button type="button" class="btn" onclick="addListField('mail-forward-list', 'mail_forward')">Ajouter un transfert</button>
         </div>
 
-                <div class="password-section">
-          <h3 class="password-section-title">Nouveau mot de passe</h3>
-          <div class="fields">
-            <div class="field">
-              <label for="change_password">Nouveau mot de passe (laisser vide pour ne pas changer)</label>
-              <span class="pw-field" style="display: flex;">
-                <input type="password" id="change_password" name="change_password" minlength="8" style="flex: 1;">
-                <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
-              </span>
-            </div>
-            <div class="field">
-              <label for="change_password_confirm">Confirmer le nouveau mot de passe</label>
-              <span class="pw-field" style="display: flex;">
-                <input type="password" id="change_password_confirm" name="change_password_confirm" style="flex: 1;">
-                <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
-              </span>
-              <span id="password-mismatch" class="field-error" style="display: none;">Les mots de passe ne correspondent pas.</span>
-            </div>
+                <button type="submit" class="btn" id="user-edit-submit">Enregistrer</button>
+      </form>
+      </div>
+    </div>
+
+        <div class="card create-card">
+      <div class="card-header"><h3>Nouveau mot de passe</h3></div>
+      <div class="card-body">
+      <form method="post" action="{{ url_for('update_user_password', username=detail.username) }}" id="user-password-form">
+        <div class="fields">
+          <div class="field">
+            <label for="change_password">Nouveau mot de passe</label>
+            <span class="pw-field" style="display: flex;">
+              <input type="password" id="change_password" name="change_password" minlength="8" required style="flex: 1;">
+              <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
+            </span>
+          </div>
+          <div class="field">
+            <label for="change_password_confirm">Confirmer le nouveau mot de passe</label>
+            <span class="pw-field" style="display: flex;">
+              <input type="password" id="change_password_confirm" name="change_password_confirm" required style="flex: 1;">
+              <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
+            </span>
+            <span id="password-mismatch" class="field-error" style="display: none;">Les mots de passe ne correspondent pas.</span>
           </div>
         </div>
-
-        <button type="submit" class="btn" id="user-edit-submit">Enregistrer</button>
+        <button type="submit" class="btn" id="user-password-submit">Enregistrer</button>
       </form>
       </div>
     </div>
@@ -248,27 +253,38 @@
       var mail = document.getElementById('mail');
       var mailConfirm = document.getElementById('mail_confirm');
       var mailMismatch = document.getElementById('mail-mismatch');
-      var password = document.getElementById('change_password');
-      var passwordConfirm = document.getElementById('change_password_confirm');
-      var passwordMismatch = document.getElementById('password-mismatch');
       var submitBtn = document.getElementById('user-edit-submit');
 
       function checkMatch() {
         var mailMatches = mail.value === mailConfirm.value;
         mailMismatch.style.display = mailMatches ? 'none' : 'inline';
-
-        var passwordMatches = password.value === passwordConfirm.value;
-        var passwordLongEnough = password.value.length === 0 || password.value.length >= 8;
-        passwordMismatch.style.display = passwordMatches ? 'none' : 'inline';
-
-        submitBtn.disabled = !mailMatches || !passwordMatches || !passwordLongEnough;
+        submitBtn.disabled = !mailMatches;
       }
       wappasCheckUserEditMatch = checkMatch;
 
       wireAddressField(document.getElementById('mail-local'), document.getElementById('mail-domain'), mail);
       wireAddressField(document.getElementById('mail_confirm-local'), document.getElementById('mail_confirm-domain'), mailConfirm);
 
-      [mail, mailConfirm, password, passwordConfirm].forEach(function (el) {
+      [mail, mailConfirm].forEach(function (el) {
+        el.addEventListener('input', checkMatch);
+      });
+      checkMatch();
+    })();
+
+    (function () {
+      var password = document.getElementById('change_password');
+      var passwordConfirm = document.getElementById('change_password_confirm');
+      var passwordMismatch = document.getElementById('password-mismatch');
+      var submitBtn = document.getElementById('user-password-submit');
+
+      function checkMatch() {
+        var passwordMatches = password.value === passwordConfirm.value;
+        var passwordLongEnough = password.value.length >= 8;
+        passwordMismatch.style.display = passwordMatches ? 'none' : 'inline';
+        submitBtn.disabled = !passwordMatches || !passwordLongEnough;
+      }
+
+      [password, passwordConfirm].forEach(function (el) {
         el.addEventListener('input', checkMatch);
       });
       checkMatch();

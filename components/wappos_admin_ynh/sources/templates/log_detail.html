@@ -2,10 +2,12 @@
 {% set active_tab = "logs" %}
 {% block title %}{{ detail.description }} — Journaux{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('logs') }}">Journaux</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ detail.description }}</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('logs') }}">Journaux</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ detail.description }}</span>{% endblock %}
 
 {% block content %}
-    
+    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+
     <div class="card">
       <h2 style="margin: 0; padding: 1.25rem 1.5rem 0;">{{ detail.description }}</h2>
       {% if detail.path %}
@@ -49,6 +51,10 @@
 
     <div class="card">
       <h2 style="margin: 0; padding: 1.25rem 1.5rem;">Journal</h2>
+      <form method="post" action="{{ url_for('share_log', name=detail.name) }}" style="padding: 0 1.5rem 1rem;"
+            onsubmit="return confirm('Ce journal sera envoyé à paste.yunohost.org (service tiers) pour obtenir un lien partageable. Continuer ?');">
+        <button type="submit" class="btn">Partager (yunopaste)</button>
+      </form>
       {% if detail.more_logs_available %}
         <a href="{{ url_for('log_detail', name=detail.name, n=number * 10) }}" class="btn log-more-btn">Afficher plus de lignes</a>
       {% endif %}
@@ -65,6 +71,7 @@
     .log-info-path { font-family: monospace; font-size: 0.8rem; word-break: break-all; }
     .alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
     .alert-danger { background: #fbe9e7; color: #7a1f00; border: 1px solid #f3b7a6; }
+    .alert-success { background: #e8f5e9; color: #1a4d24; border: 1px solid #a8d5b0; }
     .log-more-btn { display: block; width: 100%; text-align: center; border-radius: 0; }
     .log-content { margin: 0; padding: 1.25rem 1.5rem; font-size: 0.78rem; background: #1e1e1e;
                     color: #ddd; overflow-x: auto; max-height: 600px; user-select: none; }

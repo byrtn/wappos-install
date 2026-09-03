@@ -28,25 +28,7 @@
       </details>
       <a class="nav-list-item" href="{{ url_for('diagnosis') }}"><span>Diagnostic</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('backups_page') }}"><span>Sauvegardes</span><span class="chevron">&rsaquo;</span></a>
-      <details class="nav-list-group">
-        <summary class="nav-list-item nav-list-group-summary"><span>Système</span><span class="chevron">&rsaquo;</span></summary>
-        <div class="nav-list-sub">
-          <a class="nav-list-sub-item" href="{{ url_for('services') }}"><span>Services</span><span class="chevron">&rsaquo;</span></a>
-          <a class="nav-list-sub-item" href="{{ url_for('performance_page') }}"><span>Performance</span><span class="chevron">&rsaquo;</span></a>
-          <a class="nav-list-sub-item" href="{{ url_for('system_page') }}"><span>Mises à jour</span><span class="chevron">&rsaquo;</span></a>
-          <a class="nav-list-sub-item" href="{{ url_for('storage') }}"><span>Stockage</span><span class="chevron">&rsaquo;</span></a>
-          <a class="nav-list-sub-item" href="{{ url_for('logs') }}"><span>Journaux</span><span class="chevron">&rsaquo;</span></a>
-          <a class="nav-list-sub-item" href="{{ url_for('firewall') }}"><span>Pare-feu</span><span class="chevron">&rsaquo;</span></a>
-        </div>
-      </details>
-      <details class="nav-list-group">
-        <summary class="nav-list-item nav-list-group-summary"><span>Avancé</span><span class="chevron">&rsaquo;</span></summary>
-        <div class="nav-list-sub">
-          <a class="nav-list-sub-item" href="{{ url_for('settings_page') }}"><span>Réglages</span><span class="chevron">&rsaquo;</span></a>
-          <a class="nav-list-sub-item" href="{{ url_for('standalone_services_page') }}"><span>Services Wappos</span><span class="chevron">&rsaquo;</span></a>
-          <a class="nav-list-sub-item" href="{{ url_for('app_map_page') }}"><span>Correspondance URL &harr; app</span><span class="chevron">&rsaquo;</span></a>
-        </div>
-      </details>
+      <a class="nav-list-item" href="{{ url_for('system_menu') }}"><span>Système</span><span class="chevron">&rsaquo;</span></a>
     </div>
 
     <a class="card storage-summary" href="{{ url_for('storage') }}">

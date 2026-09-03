@@ -227,10 +227,7 @@ def list_users(session_token: str) -> list[User]:
     except httpx.HTTPError as exc:
         raise UpstreamUnavailableError("YunoHost API /users unreachable") from exc
 
-    if response.status_code == 401:
-        raise InvalidCredentialsError("YunoHost API session token rejected")
-    if response.status_code >= 400:
-        raise UpstreamProtocolError(f"YunoHost API /users returned unexpected status {response.status_code}")
+    _raise_for_admin_error(response, "YunoHost API /users")
 
     try:
         payload = response.json()
@@ -433,6 +430,25 @@ def install_domain_certificate(
     _raise_for_admin_error(response, f"YunoHost API PUT /domains/{domain}/cert")
 
 
+def get_certificates_status(session_token: str) -> dict:
+    try:
+        response = httpx.get(
+            f"{settings.yunohost_api_base_url}/domains/*/cert",
+            headers=_YUNOHOST_API_HEADERS,
+            cookies={_SESSION_COOKIE_NAME: session_token},
+            timeout=settings.upstream_timeout_seconds,
+        )
+    except httpx.HTTPError as exc:
+        raise UpstreamUnavailableError("YunoHost API GET /domains/*/cert unreachable") from exc
+
+    _raise_for_admin_error(response, "YunoHost API GET /domains/*/cert")
+
+    try:
+        return response.json()["certificates"]
+    except (ValueError, KeyError) as exc:
+        raise UpstreamProtocolError("YunoHost API /domains/*/cert returned an unexpected JSON shape") from exc
+
+
 def renew_domain_certificate(
     session_token: str, domain: str, force: bool = False, email: bool = False, no_checks: bool = False
 ) -> None:
@@ -462,15 +478,12 @@ def add_domain(
     domain: str,
     install_letsencrypt_cert: bool = False,
     dyndns_recovery_password: str | None = None,
-    skip_dyndns_tos: bool = False,
 ) -> None:
     body: dict = {"domain": domain}
     if install_letsencrypt_cert:
         body["install_letsencrypt_cert"] = True
     if dyndns_recovery_password:
         body["dyndns_recovery_password"] = dyndns_recovery_password
-    if skip_dyndns_tos:
-        body["skip_tos"] = True
     try:
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/domains",
@@ -485,13 +498,21 @@ def add_domain(
     _raise_for_admin_error(response, "YunoHost API POST /domains")
 
 
-def remove_domain(session_token: str, domain: str, remove_apps: bool = False, ignore_dyndns: bool = False) -> None:
+def remove_domain(
+    session_token: str,
+    domain: str,
+    remove_apps: bool = False,
+    ignore_dyndns: bool = False,
+    dyndns_recovery_password: str | None = None,
+) -> None:
     body: dict = {"domain": domain}
     if remove_apps:
         body["remove_apps"] = True
         body["force"] = True
     if ignore_dyndns:
         body["ignore_dyndns"] = True
+    if dyndns_recovery_password:
+        body["dyndns_recovery_password"] = dyndns_recovery_password
     try:
         response = httpx.request(
             "DELETE",
@@ -952,6 +973,8 @@ def list_permissions(session_token: str) -> dict[str, PermissionInfo]:
             hide_from_public=data.get("hide_from_public"),
             protected=data.get("protected"),
             logo_hash=data.get("logo_hash"),
+            corresponding_users=data.get("corresponding_users", []),
+            additional_urls=data.get("additional_urls", []),
         )
         for name, data in raw.items()
     }
@@ -1639,7 +1662,7 @@ def get_service_log(session_token: str, name: str, number: int = 50) -> dict[str
         raise UpstreamProtocolError(f"YunoHost API /services/{name}/log returned an unexpected JSON shape") from exc
 
 
-def list_logs(session_token: str, limit: int = 25) -> list[LogEntry]:
+def list_logs(session_token: str, limit: int = 50) -> list[LogEntry]:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/logs",
@@ -1669,7 +1692,7 @@ def list_logs(session_token: str, limit: int = 25) -> list[LogEntry]:
     ]
 
 
-def get_log(session_token: str, name: str, number: int = 25) -> LogDetail:
+def get_log(session_token: str, name: str, number: int = 50) -> LogDetail:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/logs/{name}",
@@ -2864,6 +2887,69 @@ def run_upgrade(session_token: str, target: str) -> dict:
 
     _raise_for_admin_error(response, f"YunoHost API PUT /upgrade/{target}")
     get_available_updates.cache_clear()
+    try:
+        return response.json() or {}
+    except ValueError:
+        return {}
+
+
+def list_migrations(session_token: str, pending: bool = False, done: bool = False) -> list[dict]:
+    params: dict = {}
+    if pending:
+        params["pending"] = ""
+    if done:
+        params["done"] = ""
+    try:
+        response = httpx.get(
+            f"{settings.yunohost_api_base_url}/migrations",
+            params=params,
+            headers=_YUNOHOST_API_HEADERS,
+            cookies={_SESSION_COOKIE_NAME: session_token},
+            timeout=settings.upstream_timeout_seconds,
+        )
+    except httpx.HTTPError as exc:
+        raise UpstreamUnavailableError("YunoHost API GET /migrations unreachable") from exc
+
+    _raise_for_admin_error(response, "YunoHost API GET /migrations")
+
+    try:
+        return response.json()["migrations"]
+    except (ValueError, KeyError) as exc:
+        raise UpstreamProtocolError("YunoHost API /migrations returned an unexpected JSON shape") from exc
+
+
+def run_migrations(
+    session_token: str,
+    targets: list[str] | None = None,
+    skip: bool = False,
+    force_rerun: bool = False,
+    accept_disclaimer: bool = False,
+    auto: bool = False,
+) -> dict:
+    body: dict = {}
+    if skip:
+        body["skip"] = True
+    if force_rerun:
+        body["force_rerun"] = True
+    if accept_disclaimer:
+        body["accept_disclaimer"] = True
+    if auto:
+        body["auto"] = True
+    url = f"{settings.yunohost_api_base_url}/migrations"
+    if targets:
+        url = f"{url}/{','.join(targets)}"
+    try:
+        response = httpx.put(
+            url,
+            json=body,
+            headers=_YUNOHOST_API_HEADERS,
+            cookies={_SESSION_COOKIE_NAME: session_token},
+            timeout=_TOOLS_TIMEOUT_SECONDS,
+        )
+    except httpx.HTTPError as exc:
+        raise UpstreamUnavailableError(f"YunoHost API PUT {url} unreachable") from exc
+
+    _raise_for_admin_error(response, f"YunoHost API PUT {url}")
     try:
         return response.json() or {}
     except ValueError:

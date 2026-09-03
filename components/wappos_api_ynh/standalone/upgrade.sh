@@ -28,6 +28,16 @@ chmod 440 "/etc/sudoers.d/${app}_du"
 chown root:root "/etc/sudoers.d/${app}_du"
 visudo -c -f "/etc/sudoers.d/${app}_du"
 
+sed "s/__APP__/$app/g" "$pkg_dir/standalone/conf/wappos_api_adguard.sudoers" > "/etc/sudoers.d/${app}_adguard"
+chmod 440 "/etc/sudoers.d/${app}_adguard"
+chown root:root "/etc/sudoers.d/${app}_adguard"
+visudo -c -f "/etc/sudoers.d/${app}_adguard"
+
+sed "s/__APP__/$app/g" "$pkg_dir/standalone/conf/wappos_api_domains_public.sudoers" > "/etc/sudoers.d/${app}_domains_public"
+chmod 440 "/etc/sudoers.d/${app}_domains_public"
+chown root:root "/etc/sudoers.d/${app}_domains_public"
+visudo -c -f "/etc/sudoers.d/${app}_domains_public"
+
 sed -e "s/__APP__/$app/g" -e "s#__INSTALL_DIR__#$install_dir#g" -e "s/__PORT__/$port/g" \
     "$pkg_dir/standalone/conf/systemd.service" > "/etc/systemd/system/$app.service"
 sed -e "s/__APP__/$app/g" -e "s/__PORT__/$port/g" \

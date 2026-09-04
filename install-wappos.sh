@@ -69,7 +69,7 @@ quiet() {
     local pid=$! spin='-\|/' i=0
     while kill -0 "$pid" 2>/dev/null; do
         i=$(( (i + 1) % 4 ))
-        printf "\r  %s en cours..." "${spin:$i:1}"
+        printf "\r  %s En cours... Patientez !" "${spin:$i:1}"
         sleep 0.2
     done
     wait "$pid"
@@ -79,7 +79,7 @@ quiet() {
 }
 
 banner
-title "Installeur Wappos"
+echo
 echo "Le detail technique de chaque etape est enregistre dans $install_log"
 
 if [ ! -f "$network_configured_marker" ]; then
@@ -210,8 +210,6 @@ echo
 echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}"
 echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}"
 echo
-
-chage -d 0 root
 
 step "Connexion SSH par mot de passe"
 echo "Par defaut, la connexion root en SSH accepte un mot de passe en plus"

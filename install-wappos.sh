@@ -157,8 +157,8 @@ echo "n'accepter que les cles SSH (plus resistant aux attaques par force brute).
 echo
 if [ -s /root/.ssh/authorized_keys ]; then
     echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Desactiver la connexion"
-    echo "par mot de passe maintenant ? [o/N]"
-    read -rp "> " disable_ssh_password
+    echo "par mot de passe maintenant ? [o/N] (15 secondes, sinon N par defaut)"
+    read -t 15 -rp "> " disable_ssh_password || disable_ssh_password="n"
 
     if [ "$disable_ssh_password" = "o" ] || [ "$disable_ssh_password" = "O" ]; then
         cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
@@ -182,8 +182,8 @@ echo -e "Votre IP est ${bold}$current_ip${reset}, definie en DHCP (attribuee aut
 echo "par votre routeur, elle peut changer a l'avenir)."
 echo
 echo -e "${bold}Nous conseillons une IP fixe pour un serveur.${reset} Souhaitez-vous la parametrer"
-echo "maintenant ? [o/N]"
-read -rp "> " set_static_ip
+echo "maintenant ? [o/N] (15 secondes, sinon N par defaut)"
+read -t 15 -rp "> " set_static_ip || set_static_ip="n"
 
 if [ "$set_static_ip" = "o" ] || [ "$set_static_ip" = "O" ]; then
     echo

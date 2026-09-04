@@ -187,10 +187,14 @@ read -t 15 -rp "> " set_static_ip || set_static_ip="n"
 
 if [ "$set_static_ip" = "o" ] || [ "$set_static_ip" = "O" ]; then
     echo
-    read -rp "Adresse IP fixe (ex. 192.168.1.201) : " static_ip
-    read -rp "Masque de sous-reseau (ex. 255.255.255.0) : " static_netmask
-    read -rp "Passerelle (ex. 192.168.1.254) : " static_gateway
-    read -rp "Serveur DNS (ex. 192.168.1.254) : " static_dns
+    if ! read -t 60 -rp "Adresse IP fixe (ex. 192.168.1.201) : " static_ip \
+        || ! read -t 60 -rp "Masque de sous-reseau (ex. 255.255.255.0) : " static_netmask \
+        || ! read -t 60 -rp "Passerelle (ex. 192.168.1.254) : " static_gateway \
+        || ! read -t 60 -rp "Serveur DNS (ex. 192.168.1.254) : " static_dns; then
+        echo
+        echo "Pas de reponse, IP fixe non configuree. Le serveur reste en DHCP."
+        exit 0
+    fi
 
     cat > /etc/network/interfaces << NETEOF
 source /etc/network/interfaces.d/*

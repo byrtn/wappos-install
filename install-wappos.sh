@@ -107,6 +107,7 @@ fi
 
 if ! command -v yunohost >/dev/null 2>&1; then
     step "Installation du moteur systeme Wappos"
+    echo "Cette etape peut durer plusieurs minutes, c'est normal."
     tries=0
     until quiet bash -c "curl https://install.yunohost.org | bash -s -- -a"; do
         tries=$((tries + 1))
@@ -165,6 +166,7 @@ fi
 
 if ! command -v docker >/dev/null 2>&1; then
     step "Installation de Docker Engine"
+    echo "Cette etape peut durer une a deux minutes, c'est normal."
     quiet bash -c "curl -fsSL https://get.docker.com | sh"
     success_line "  -> Docker installe"
 fi

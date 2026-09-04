@@ -35,6 +35,16 @@ if [ ! -f "$network_configured_marker" ]; then
     touch "$network_configured_marker"
 fi
 
+step "Attente du reseau"
+tries=0
+until getent hosts install.yunohost.org >/dev/null 2>&1; do
+    tries=$((tries + 1))
+    if [ "$tries" -ge 30 ]; then
+        break
+    fi
+    sleep 2
+done
+
 if ! command -v curl >/dev/null 2>&1 || ! command -v rsync >/dev/null 2>&1; then
     apt-get update
     apt-get install -y curl rsync

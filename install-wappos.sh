@@ -19,6 +19,23 @@ step() {
     echo
 }
 
+read_with_countdown() {
+    local timeout="$1" varname="$2" i
+    (
+        for ((i = timeout; i > 0; i--)); do
+            printf "\r> (%2ds restantes) " "$i"
+            sleep 1
+        done
+    ) &
+    local cd_pid=$!
+    read -t "$timeout" -r "$varname"
+    local rc=$?
+    kill "$cd_pid" 2>/dev/null
+    wait "$cd_pid" 2>/dev/null
+    printf "\r%40s\r" " "
+    return $rc
+}
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 release_dir="$script_dir/components"
 alert_box_user="cron.alerts"
@@ -72,6 +89,11 @@ if [ ! -f /etc/yunohost/installed ]; then
     echo -e "  ${bold}- le nom de domaine${reset} de votre serveur"
     echo -e "  ${bold}- un mot de passe administrateur${reset} (robuste, evitez les mots courants)"
     echo -e "  ${bold}- d'accepter les conditions d'utilisation${reset} de YunoHost"
+    echo
+    echo -e "${bold}Attention si ce domaine local (.lan/.local) existe deja ailleurs sur votre"
+    echo -e "reseau${reset} (une autre installation, un autre serveur) : la resolution DNS de"
+    echo "votre reseau pourrait faire pointer ce nom vers l'autre machine plutot que"
+    echo "celle-ci. Choisissez un nom clairement distinct pour une installation de test."
     echo
     until yunohost tools postinstall -u adminynh -F "Administrateur"; do
         echo
@@ -158,7 +180,7 @@ echo
 if [ -s /root/.ssh/authorized_keys ]; then
     echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Desactiver la connexion"
     echo "par mot de passe maintenant ? [o/N] (15 secondes, sinon N par defaut)"
-    read -t 15 -rp "> " disable_ssh_password || disable_ssh_password="n"
+    read_with_countdown 15 disable_ssh_password || disable_ssh_password="n"
 
     if [ "$disable_ssh_password" = "o" ] || [ "$disable_ssh_password" = "O" ]; then
         cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
@@ -183,7 +205,7 @@ echo "par votre routeur, elle peut changer a l'avenir)."
 echo
 echo -e "${bold}Nous conseillons une IP fixe pour un serveur.${reset} Souhaitez-vous la parametrer"
 echo "maintenant ? [o/N] (15 secondes, sinon N par defaut)"
-read -t 15 -rp "> " set_static_ip || set_static_ip="n"
+read_with_countdown 15 set_static_ip || set_static_ip="n"
 
 final_ip="$current_ip"
 
@@ -212,7 +234,8 @@ NETEOF
 
         systemctl restart networking
         final_ip="$static_ip"
-        read -t 15 -rp "Appuyez sur Entree pour continuer (15 secondes)... " _ || true
+        echo "Appuyez sur Entree pour continuer..."
+        read_with_countdown 15 _ || true
     else
         echo
         echo "Pas de reponse, IP fixe non configuree. Le serveur reste en DHCP."

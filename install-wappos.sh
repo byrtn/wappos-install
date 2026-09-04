@@ -143,6 +143,26 @@ fi
 
 step "Systeme de base installe et configure"
 
+if [ -f /usr/bin/yunoprompt ] && ! grep -q "W A P P O S" /usr/bin/yunoprompt; then
+    python3 - <<'PYEOF'
+import re
+path = "/usr/bin/yunoprompt"
+with open(path, encoding="utf-8") as f:
+    content = f.read()
+bar = "═" * 62
+new_logo = f"""LOGO=$(cat << 'EOF'
+{bar}
+                        W A P P O S
+{bar}
+EOF
+)"""
+new_content, n = re.subn(r"LOGO=\$\(cat << 'EOF'.*?\nEOF\n\)", new_logo, content, count=1, flags=re.S)
+if n == 1:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(new_content)
+PYEOF
+fi
+
 if ! command -v docker >/dev/null 2>&1; then
     step "Installation de Docker Engine"
     quiet bash -c "curl -fsSL https://get.docker.com | sh"

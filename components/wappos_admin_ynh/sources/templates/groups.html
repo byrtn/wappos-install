@@ -83,32 +83,6 @@
       </details>
     {% endfor %}
 
-    <div class="card create-card">
-      <div class="card-header"><h3>Détail des permissions</h3></div>
-      <div class="card-body">
-        <table class="permission-detail-table">
-          <thead>
-            <tr>
-              <th>Permission</th>
-              <th>URL</th>
-              <th>URLs additionnelles</th>
-              <th>Utilisateurs effectifs</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in permission_options %}
-              <tr>
-                <td data-label="Permission">{{ p.label }}</td>
-                <td data-label="URL">{{ p.url or "—" }}</td>
-                <td data-label="URLs additionnelles">{{ p.additional_urls|join(", ") if p.additional_urls else "—" }}</td>
-                <td data-label="Utilisateurs effectifs">{{ p.corresponding_users|join(", ") if p.corresponding_users else "—" }}</td>
-              </tr>
-            {% endfor %}
-          </tbody>
-        </table>
-      </div>
-    </div>
-
     {% if user_groups %}
       <div class="card create-card">
         <div class="card-header"><h3>Autorisations pour des comptes individuels</h3></div>
@@ -167,6 +141,32 @@
           </div>
           <button type="submit" class="btn">Ajouter un groupe</button>
         </form>
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>Détail des permissions</h3></div>
+      <div class="card-body">
+        <table class="permission-detail-table">
+          <thead>
+            <tr>
+              <th>Permission</th>
+              <th>URL</th>
+              <th>URLs additionnelles</th>
+              <th>Utilisateurs effectifs</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for p in permission_options %}
+              <tr>
+                <td data-label="Permission">{{ p.label }}</td>
+                <td data-label="URL">{{ p.url or "—" }}</td>
+                <td data-label="URLs additionnelles">{{ p.additional_urls|join(", ") if p.additional_urls else "—" }}</td>
+                <td data-label="Utilisateurs effectifs">{{ p.corresponding_users|join(", ") if p.corresponding_users else "—" }}</td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
       </div>
     </div>
 {% endblock %}

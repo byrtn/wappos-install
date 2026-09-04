@@ -12,16 +12,10 @@ yellow="\033[1;33m"
 step_count=0
 
 banner() {
-    echo -e "${blue}"
-    cat <<'BANNER'
- __      __ _____  ____  ____   ____   _____
- \ \    / // ____)|  _ \|  _ \ / __ \ / ____)
-  \ \/\/ /( (___  | |_) | |_) | |  | |\___ \
-   \_/\_/  \___ \ |  __/|  __/ \___/ |____) )
-               ) )|_|   |_|            (____/
-              (_/
-BANNER
-    echo -e "${reset}"
+    echo
+    echo -e "${blue}══════════════════════════════════════════════════════════${reset}"
+    echo -e "${blue}${bold}                       W A P P O S${reset}"
+    echo -e "${blue}══════════════════════════════════════════════════════════${reset}"
 }
 
 title() {
@@ -66,11 +60,15 @@ read_with_countdown() {
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 release_dir="$script_dir/components"
 alert_box_user="cron.alerts"
+install_log="/var/log/wappos-install-detail.log"
 
 network_configured_marker="$script_dir/.network-configured"
 
+quiet() { "$@" >>"$install_log" 2>&1; }
+
 banner
 title "Installeur Wappos"
+echo "Le detail technique de chaque etape est enregistre dans $install_log"
 
 if [ ! -f "$network_configured_marker" ]; then
     step "Configuration reseau"
@@ -91,23 +89,24 @@ until getent hosts install.yunohost.org >/dev/null 2>&1; do
 done
 
 if ! command -v curl >/dev/null 2>&1 || ! command -v rsync >/dev/null 2>&1; then
-    apt-get update
-    apt-get install -y curl rsync
+    quiet apt-get update
+    quiet apt-get install -y curl rsync
 fi
 
 if ! command -v yunohost >/dev/null 2>&1; then
     step "Installation du coeur YunoHost"
     tries=0
-    until curl https://install.yunohost.org | bash -s -- -a; do
+    until { curl https://install.yunohost.org | bash -s -- -a; } >>"$install_log" 2>&1; do
         tries=$((tries + 1))
         if [ "$tries" -ge 4 ]; then
-            echo "Echec apres plusieurs tentatives, abandon."
+            error_line "Echec apres plusieurs tentatives, abandon. Dernieres lignes du journal :"
+            tail -n 40 "$install_log"
             exit 1
         fi
-        echo
-        echo "Echec, nouvelle tentative dans 10 secondes (${tries}/4)..."
+        warn_line "Echec, nouvelle tentative dans 10 secondes (${tries}/4)..."
         sleep 10
     done
+    success_line "  -> Coeur YunoHost installe"
 fi
 
 if [ ! -f /etc/yunohost/installed ]; then
@@ -134,7 +133,8 @@ step "YunoHost est installe et configure"
 
 if ! command -v docker >/dev/null 2>&1; then
     step "Installation de Docker Engine"
-    curl -fsSL https://get.docker.com | sh
+    { curl -fsSL https://get.docker.com | sh; } >>"$install_log" 2>&1
+    success_line "  -> Docker installe"
 fi
 
 if [ ! -f /etc/systemd/system/docker.service.d/nftables-resync.conf ]; then
@@ -163,14 +163,14 @@ fi
 
 step "Installation des composants Wappos"
 for component in wappos_api_ynh wappos_sso_bypass wappos_admin_ynh wappos_portal_ynh prometheus_ynh; do
-    echo -e "${bold}Installation de $component...${reset}"
-    bash "$release_dir/$component/standalone/install.sh"
-    echo
+    echo -n "  Installation de $component... "
+    quiet bash "$release_dir/$component/standalone/install.sh"
+    success_line "OK"
 done
 
 if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'rspamd' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then
     step "Installation de Rspamd (antispam)"
-    yunohost app install rspamd
+    quiet yunohost app install rspamd
 
     cat > /etc/rspamd/local.d/phishing.conf <<'RSPAMD_PHISHING_EOF'
 openphish_enabled = true;
@@ -180,8 +180,9 @@ RSPAMD_PHISHING_EOF
     rspamd_password_hash="$(rspamadm pw -p "$rspamd_password")"
     printf 'password = "%s";\n' "$rspamd_password_hash" > /etc/rspamd/local.d/worker-controller.inc
 
-    rspamadm configtest
+    quiet rspamadm configtest
     systemctl reload rspamd
+    success_line "  -> Rspamd installe"
 fi
 
 step "Finalisation de la liaison Prometheus / wappos_admin"

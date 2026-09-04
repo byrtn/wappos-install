@@ -52,7 +52,17 @@ fi
 
 if ! command -v yunohost >/dev/null 2>&1; then
     step "Installation du coeur YunoHost"
-    curl https://install.yunohost.org | bash -s -- -a
+    tries=0
+    until curl https://install.yunohost.org | bash -s -- -a; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge 4 ]; then
+            echo "Echec apres plusieurs tentatives, abandon."
+            exit 1
+        fi
+        echo
+        echo "Echec, nouvelle tentative dans 10 secondes (${tries}/4)..."
+        sleep 10
+    done
 fi
 
 if [ ! -f /etc/yunohost/installed ]; then

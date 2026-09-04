@@ -4,20 +4,47 @@ set -euo pipefail
 
 bold="\033[1m"
 reset="\033[0m"
+blue="\033[1;36m"
+green="\033[1;32m"
+red="\033[1;31m"
+yellow="\033[1;33m"
+
+step_count=0
+
+banner() {
+    echo -e "${blue}"
+    cat <<'BANNER'
+ __      __ _____  ____  ____   ____   _____
+ \ \    / // ____)|  _ \|  _ \ / __ \ / ____)
+  \ \/\/ /( (___  | |_) | |_) | |  | |\___ \
+   \_/\_/  \___ \ |  __/|  __/ \___/ |____) )
+               ) )|_|   |_|            (____/
+              (_/
+BANNER
+    echo -e "${reset}"
+}
 
 title() {
     echo
-    echo -e "${bold}================================================${reset}"
-    echo -e "${bold}$1${reset}"
-    echo -e "${bold}================================================${reset}"
+    echo -e "${blue}================================================${reset}"
+    echo -e "${blue}${bold}$1${reset}"
+    echo -e "${blue}================================================${reset}"
     echo
 }
 
 step() {
+    step_count=$((step_count + 1))
     echo
-    echo -e "${bold}--- $1 ---${reset}"
+    echo -e "${bold}--- [Etape $step_count] $1 ---${reset}"
     echo
 }
+
+success_line() { echo -e "${green}$1${reset}"; }
+warn_line() { echo -e "${yellow}$1${reset}"; }
+error_line() { echo -e "${red}$1${reset}"; }
+
+box_start() { echo -e "${blue}╔══════════════════════════════════════════════════════════╗${reset}"; }
+box_end() { echo -e "${blue}╚══════════════════════════════════════════════════════════╝${reset}"; }
 
 read_with_countdown() {
     local timeout="$1" varname="$2" i
@@ -42,6 +69,7 @@ alert_box_user="cron.alerts"
 
 network_configured_marker="$script_dir/.network-configured"
 
+banner
 title "Installeur Wappos"
 
 if [ ! -f "$network_configured_marker" ]; then
@@ -242,7 +270,11 @@ NETEOF
     fi
 fi
 
-title "Wappos est pret"
+echo
+box_start
+success_line "  Wappos est pret"
+box_end
+echo
 echo -e "${bold}L'installation est terminee.${reset} Connectez-vous avec :"
 echo
 echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}  (ou https://$final_ip/wappos-portal/)"

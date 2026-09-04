@@ -162,6 +162,7 @@ if n == 1:
     with open(path, "w", encoding="utf-8") as f:
         f.write(new_content)
 PYEOF
+    quiet systemctl restart yunoprompt.service
 fi
 
 if ! command -v docker >/dev/null 2>&1; then

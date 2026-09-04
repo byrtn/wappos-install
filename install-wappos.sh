@@ -185,18 +185,16 @@ echo -e "${bold}Nous conseillons une IP fixe pour un serveur.${reset} Souhaitez-
 echo "maintenant ? [o/N] (15 secondes, sinon N par defaut)"
 read -t 15 -rp "> " set_static_ip || set_static_ip="n"
 
+final_ip="$current_ip"
+
 if [ "$set_static_ip" = "o" ] || [ "$set_static_ip" = "O" ]; then
     echo
-    if ! read -t 60 -rp "Adresse IP fixe (ex. 192.168.1.201) : " static_ip \
-        || ! read -t 60 -rp "Masque de sous-reseau (ex. 255.255.255.0) : " static_netmask \
-        || ! read -t 60 -rp "Passerelle (ex. 192.168.1.254) : " static_gateway \
-        || ! read -t 60 -rp "Serveur DNS (ex. 192.168.1.254) : " static_dns; then
-        echo
-        echo "Pas de reponse, IP fixe non configuree. Le serveur reste en DHCP."
-        exit 0
-    fi
+    if read -t 60 -rp "Adresse IP fixe (ex. 192.168.1.201) : " static_ip \
+        && read -t 60 -rp "Masque de sous-reseau (ex. 255.255.255.0) : " static_netmask \
+        && read -t 60 -rp "Passerelle (ex. 192.168.1.254) : " static_gateway \
+        && read -t 60 -rp "Serveur DNS (ex. 192.168.1.254) : " static_dns; then
 
-    cat > /etc/network/interfaces << NETEOF
+        cat > /etc/network/interfaces << NETEOF
 source /etc/network/interfaces.d/*
 
 auto lo
@@ -212,15 +210,21 @@ iface $interface inet static
 iface $interface inet6 auto
 NETEOF
 
-    title "IMPORTANT AVANT DE CONTINUER"
-    echo -e "${bold}Cette connexion va se couper dans quelques secondes.${reset} C'est normal."
-    echo
-    echo -e "Reconnectez-vous ensuite avec : ${bold}ssh root@$static_ip${reset}"
-    echo "Aucune autre action n'est necessaire, l'installation est deja terminee."
-    echo
-    read -rp "Appuyez sur Entree pour appliquer la nouvelle adresse : " _
-
-    systemctl restart networking
-    exit 0
+        systemctl restart networking
+        final_ip="$static_ip"
+        read -t 15 -rp "Appuyez sur Entree pour continuer (15 secondes)... " _ || true
+    else
+        echo
+        echo "Pas de reponse, IP fixe non configuree. Le serveur reste en DHCP."
+    fi
 fi
+
+title "Wappos est pret"
+echo -e "${bold}L'installation est terminee.${reset} Connectez-vous avec :"
+echo
+echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}  (ou https://$final_ip/wappos-portal/)"
+echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}  (ou https://$final_ip/wappos-admin/)"
+echo
+echo -e "  Identifiant : ${bold}adminynh${reset}"
+echo -e "  Mot de passe : celui defini lors de la configuration initiale ci-dessus"
 echo

@@ -23,14 +23,22 @@ qm set "$VMID" --boot "order=scsi0;ide2"
 qm start "$VMID"
 
 echo "Installation Debian en cours (voir la console Proxmox pour suivre)..."
-echo "Attente de l'extinction automatique de la VM..."
+echo "Attente de l'extinction automatique de la VM (20 minutes maximum)..."
 
+waited=0
+max_wait=1200
 while true; do
     status="$(qm status "$VMID" | awk '{print $2}')"
     if [ "$status" = "stopped" ]; then
         break
     fi
+    if [ "$waited" -ge "$max_wait" ]; then
+        echo "La VM ne s'est pas eteinte apres 20 minutes, abandon."
+        echo "Verifier la console Proxmox : l'installation Debian a peut-etre besoin d'une reponse."
+        exit 1
+    fi
     sleep 5
+    waited=$((waited + 5))
 done
 
 echo

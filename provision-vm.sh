@@ -10,6 +10,14 @@ echo "=== Provisioning Wappos sur la VM $VMID ==="
 echo
 
 qm stop "$VMID" >/dev/null 2>&1 || true
+
+echo "Remise a zero du disque..."
+qm set "$VMID" --delete scsi0 >/dev/null 2>&1 || true
+qm set "$VMID" --scsi0 local-lvm:40,iothread=1
+qm set "$VMID" --delete unused0 >/dev/null 2>&1 || true
+qm set "$VMID" --delete unused1 >/dev/null 2>&1 || true
+qm set "$VMID" --delete unused2 >/dev/null 2>&1 || true
+
 qm set "$VMID" --ide2 "$ISO,media=cdrom"
 qm set "$VMID" --boot "order=scsi0;ide2"
 qm start "$VMID"

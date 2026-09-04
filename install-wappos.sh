@@ -13,9 +13,9 @@ step_count=0
 
 banner() {
     echo
-    echo -e "${blue}══════════════════════════════════════════════════════════${reset}"
-    echo -e "${blue}${bold}                       W A P P O S${reset}"
-    echo -e "${blue}══════════════════════════════════════════════════════════${reset}"
+    echo -e "${blue}════════════════════════════════════════════════════════════${reset}"
+    echo -e "${blue}${bold}                        W A P P O S${reset}"
+    echo -e "${blue}════════════════════════════════════════════════════════════${reset}"
 }
 
 title() {
@@ -64,7 +64,19 @@ install_log="/var/log/wappos-install-detail.log"
 
 network_configured_marker="$script_dir/.network-configured"
 
-quiet() { "$@" >>"$install_log" 2>&1; }
+quiet() {
+    "$@" >>"$install_log" 2>&1 &
+    local pid=$! spin='-\|/' i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        i=$(( (i + 1) % 4 ))
+        printf "\r  %s en cours..." "${spin:$i:1}"
+        sleep 0.2
+    done
+    wait "$pid"
+    local rc=$?
+    printf "\r%40s\r" " "
+    return $rc
+}
 
 banner
 title "Installeur Wappos"
@@ -94,9 +106,9 @@ if ! command -v curl >/dev/null 2>&1 || ! command -v rsync >/dev/null 2>&1; then
 fi
 
 if ! command -v yunohost >/dev/null 2>&1; then
-    step "Installation du coeur YunoHost"
+    step "Installation du moteur systeme Wappos"
     tries=0
-    until { curl https://install.yunohost.org | bash -s -- -a; } >>"$install_log" 2>&1; do
+    until quiet bash -c "curl https://install.yunohost.org | bash -s -- -a"; do
         tries=$((tries + 1))
         if [ "$tries" -ge 4 ]; then
             error_line "Echec apres plusieurs tentatives, abandon. Dernieres lignes du journal :"
@@ -106,7 +118,7 @@ if ! command -v yunohost >/dev/null 2>&1; then
         warn_line "Echec, nouvelle tentative dans 10 secondes (${tries}/4)..."
         sleep 10
     done
-    success_line "  -> Coeur YunoHost installe"
+    success_line "  -> Moteur systeme installe"
 fi
 
 if [ ! -f /etc/yunohost/installed ]; then
@@ -115,7 +127,7 @@ if [ ! -f /etc/yunohost/installed ]; then
     echo
     echo -e "  ${bold}- le nom de domaine${reset} de votre serveur"
     echo -e "  ${bold}- un mot de passe administrateur${reset} (robuste, evitez les mots courants)"
-    echo -e "  ${bold}- d'accepter les conditions d'utilisation${reset} de YunoHost"
+    echo -e "  ${bold}- d'accepter les conditions d'utilisation${reset} du systeme"
     echo
     echo -e "${bold}Attention si ce domaine local (.lan/.local) existe deja ailleurs sur votre"
     echo -e "reseau${reset} (une autre installation, un autre serveur) : la resolution DNS de"
@@ -129,11 +141,11 @@ if [ ! -f /etc/yunohost/installed ]; then
     done
 fi
 
-step "YunoHost est installe et configure"
+step "Systeme de base installe et configure"
 
 if ! command -v docker >/dev/null 2>&1; then
     step "Installation de Docker Engine"
-    { curl -fsSL https://get.docker.com | sh; } >>"$install_log" 2>&1
+    quiet bash -c "curl -fsSL https://get.docker.com | sh"
     success_line "  -> Docker installe"
 fi
 

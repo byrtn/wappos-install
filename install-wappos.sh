@@ -146,7 +146,7 @@ if ! command -v yunohost >/dev/null 2>&1; then
 fi
 
 if [ ! -f /etc/yunohost/installed ] && ! systemctl list-unit-files wappos_postinstall.service >/dev/null 2>&1; then
-    step "Interface graphique Wappos" "Applique l'interface graphique Wappos avant meme la configuration initiale."
+    step "Interface graphique Wappos" "Application et lancement de l'interface graphique pour la configuration initiale."
     quiet bash "$release_dir/wappos_postinstall/standalone/install.sh"
     success_line "Interface graphique Wappos appliquee"
 fi

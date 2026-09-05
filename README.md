@@ -4,9 +4,13 @@ Installeur Wappos (YunoHost + composants Wappos). Deux façons d'installer, au c
 
 ## Méthode 1 — Depuis l'ISO (bare metal ou n'importe quel hyperviseur)
 
-Construisez l'ISO à partir de `build-iso.sh` (nécessite une ISO Debian 12 netinst en entrée) et démarrez dessus. Répondez aux questions Debian standards (langue, clavier, fuseau horaire, partitionnement, nom de machine, réseau, mot de passe root) — le reste s'installe automatiquement, y compris Wappos, jusqu'à l'affichage des identifiants de connexion.
+Téléchargez l'ISO déjà construite, prête à l'emploi :
 
-À la fin de l'installation Debian, la machine s'éteint toute seule. Redémarrez-la — Wappos s'installe alors tout seul, sans autre intervention.
+**[Télécharger l'ISO Wappos](https://github.com/byrtn/wappos-install/releases/download/latest/wappos-debian-preseed.iso)**
+
+Gravez-la sur une clé USB (bare metal) ou montez-la dans votre hyperviseur, puis démarrez dessus. Répondez aux quelques questions Debian standards (langue, clavier, fuseau horaire, partitionnement, nom de machine, réseau, mot de passe root) — le reste s'installe automatiquement, y compris Wappos, jusqu'à l'affichage des identifiants de connexion.
+
+À la fin de l'installation Debian, la machine s'éteint toute seule. Retirez le support d'installation (clé USB, ou détachez l'ISO virtuelle) puis redémarrez — Wappos s'installe alors tout seul, sans autre intervention.
 
 ## Méthode 2 — Sur un Debian 12 déjà installé
 

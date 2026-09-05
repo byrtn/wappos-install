@@ -10,6 +10,7 @@ red="\033[1;31m"
 yellow="\033[1;33m"
 
 step_count=0
+TOTAL_STEPS=12
 
 banner() {
     echo
@@ -28,12 +29,22 @@ title() {
 
 step() {
     step_count=$((step_count + 1))
+    local why="${2:-}"
+    local label=" Etape ${step_count}/${TOTAL_STEPS} - $1"
+    local width=60
+    [ "${#label}" -gt "$width" ] && width=${#label}
+    local pad=$((width - ${#label}))
     echo
-    echo -e "${bold}--- [Etape $step_count] $1 ---${reset}"
+    echo -e "${blue}┌$(printf -- '─%.0s' $(seq 1 $width))┐${reset}"
+    printf "${blue}│${reset}${bold}%s%*s${reset}${blue}│${reset}\n" "$label" "$pad" ""
+    echo -e "${blue}└$(printf -- '─%.0s' $(seq 1 $width))┘${reset}"
+    if [ -n "$why" ]; then
+        echo -e "  $why"
+    fi
     echo
 }
 
-success_line() { echo -e "${green}$1${reset}"; }
+success_line() { echo -e "${green}✓ $1${reset}"; }
 warn_line() { echo -e "${yellow}$1${reset}"; }
 error_line() { echo -e "${red}$1${reset}"; }
 
@@ -99,14 +110,14 @@ echo
 echo "Le detail technique de chaque etape est enregistre dans $install_log"
 
 if [ ! -f "$network_configured_marker" ]; then
-    step "Configuration reseau"
+    step "Configuration reseau" "Verifie comment ce serveur va se connecter a Internet."
     echo "Ce serveur utilise l'adresse IP fournie automatiquement par votre routeur (DHCP)."
     echo "Aucune action requise ici. Une adresse fixe pourra etre proposee a la fin"
     echo "de cette installation, une fois Wappos en place."
     touch "$network_configured_marker"
 fi
 
-step "Attente du reseau"
+step "Attente du reseau" "S'assure que la connexion est bien active avant de continuer."
 tries=0
 until getent hosts install.yunohost.org >/dev/null 2>&1; do
     tries=$((tries + 1))
@@ -122,7 +133,7 @@ if ! command -v curl >/dev/null 2>&1 || ! command -v rsync >/dev/null 2>&1; then
 fi
 
 if ! command -v yunohost >/dev/null 2>&1; then
-    step "Installation du moteur systeme Wappos"
+    step "Installation du moteur systeme Wappos" "Installe le socle technique sur lequel Wappos s'appuie."
     echo "Cette etape peut durer plusieurs minutes, c'est normal."
     tries=0
     until quiet bash -c "curl https://install.yunohost.org | bash -s -- -a"; do
@@ -135,7 +146,7 @@ if ! command -v yunohost >/dev/null 2>&1; then
         warn_line "Echec, nouvelle tentative dans 10 secondes (${tries}/4)..."
         sleep 10
     done
-    success_line "  -> Moteur systeme installe"
+    success_line "Moteur systeme installe"
 fi
 
 if [ ! -f /etc/yunohost/installed ]; then
@@ -158,7 +169,7 @@ if [ ! -f /etc/yunohost/installed ]; then
     done
 fi
 
-step "Systeme de base installe et configure"
+step "Systeme de base installe et configure" "Le socle technique est pret, la suite installe Wappos par-dessus."
 
 if [ -f /usr/bin/yunoprompt ] && ! grep -q "W A P P O S" /usr/bin/yunoprompt; then
     python3 - <<'PYEOF'
@@ -182,14 +193,14 @@ PYEOF
 fi
 
 if ! command -v docker >/dev/null 2>&1; then
-    step "Installation de Docker Engine"
+    step "Installation de Docker Engine" "Permet a Wappos de faire tourner des applications supplementaires de facon isolee."
     echo "Cette etape peut durer une a deux minutes, c'est normal."
     quiet bash -c "curl -fsSL https://get.docker.com | sh"
-    success_line "  -> Docker installe"
+    success_line "Docker installe"
 fi
 
 if [ ! -f /etc/systemd/system/docker.service.d/nftables-resync.conf ]; then
-    step "Protection Docker contre les rechargements nftables"
+    step "Protection Docker contre les rechargements nftables" "Evite un bug connu qui pourrait couper Docker apres un redemarrage reseau."
     mkdir -p /etc/systemd/system/docker.service.d
     cat > /etc/systemd/system/docker.service.d/nftables-resync.conf <<'NFTABLES_EOF'
 [Unit]
@@ -208,11 +219,11 @@ fi
 main_domain="$(yunohost domain list --output-as json | python3 -c "import json,sys; print(json.load(sys.stdin)['main'])")"
 
 if ! yunohost user list --output-as json | python3 -c "import json,sys; sys.exit(0 if '$alert_box_user' in json.load(sys.stdin)['users'] else 1)"; then
-    step "Creation du compte technique d'alertes"
+    step "Creation du compte technique d'alertes" "Un compte interne pour les notifications systeme, pas pour vous connecter."
     yunohost user create "$alert_box_user" -F "SYSTEME - NE PAS SUPPRIMER" -d "$main_domain" -p "$(openssl rand -base64 24)"
 fi
 
-step "Installation des composants Wappos"
+step "Installation des composants Wappos" "Installe le portail, l'administration et les autres briques propres a Wappos."
 for component in wappos_api_ynh wappos_sso_bypass wappos_admin_ynh wappos_portal_ynh prometheus_ynh; do
     echo -n "  Installation de $component... "
     quiet bash "$release_dir/$component/standalone/install.sh"
@@ -220,7 +231,7 @@ for component in wappos_api_ynh wappos_sso_bypass wappos_admin_ynh wappos_portal
 done
 
 if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'rspamd' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then
-    step "Installation de Rspamd (antispam)"
+    step "Installation de Rspamd (antispam)" "Protege vos boites mail contre le spam."
     quiet yunohost app install rspamd
 
     cat > /etc/rspamd/local.d/phishing.conf <<'RSPAMD_PHISHING_EOF'
@@ -233,10 +244,10 @@ RSPAMD_PHISHING_EOF
 
     quiet rspamadm configtest
     systemctl reload rspamd
-    success_line "  -> Rspamd installe"
+    success_line "Rspamd installe"
 fi
 
-step "Finalisation de la liaison Prometheus / wappos_admin"
+step "Finalisation de la liaison Prometheus / wappos_admin" "Connecte le tableau de bord de performance a l'administration."
 (
     source "$release_dir/wappos_admin_ynh/standalone/vars.sh"
     deploy_prometheus_readonly_user
@@ -322,7 +333,7 @@ fi
 
 echo
 box_start
-success_line "  Wappos est pret"
+success_line "Wappos est pret"
 box_end
 echo
 echo -e "${bold}L'installation est terminee.${reset} Connectez-vous avec :"

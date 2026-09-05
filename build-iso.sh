@@ -55,8 +55,6 @@ if [ -f "$BRANDING_DIR/logo_debian.png" ] && [ -f "$BRANDING_DIR/logo_debian_dar
         sed -i 's/#ede9e3/#fafafa/g' "$GTKRC"
         sed -i 's/#000000/#222222/g' "$GTKRC"
         sed -i 's/#f9f7f3/#f5f5f5/g' "$GTKRC"
-        sed -i 's/^\(\s*\)base\[SELECTED\].*/\1base[SELECTED]\t\t= "#e6f2f6"/' "$GTKRC"
-        sed -i 's/^\(\s*\)text\[SELECTED\].*/\1text[SELECTED]\t\t= "#015a78"/' "$GTKRC"
     fi
 
     ( cd "$INITRD_WORK" && find . | cpio -o -H newc 2>/dev/null | gzip -9 ) > "$INITRD_GTK"

@@ -1,1 +1,2 @@
 __APP__ ALL=(root) NOPASSWD: /usr/bin/yunohost tools postinstall *
+__APP__ ALL=(root) NOPASSWD: /usr/bin/systemd-run --on-active=5s --unit=__APP__-selfdisable /bin/systemctl disable --now __APP__.service __APP__.socket

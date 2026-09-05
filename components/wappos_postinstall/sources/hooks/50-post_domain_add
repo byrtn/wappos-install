@@ -1,17 +1,13 @@
 #!/bin/bash
 set -eu
 
-# Un domaine vient d'etre cree : le postinstall est termine, ce composant n'a
-# plus de raison d'etre routable ni meme actif. Les hooks post_domain_add de
-# wappos_portal_ynh/wappos_sso_bypass ecrasent deja default.d/redirect_to_admin.conf
-# vers /wappos-portal/ - rien a faire cote nginx ici, juste s'auto-desactiver.
-#
-# ATTENTION : ce hook s'execute DANS le processus de "yunohost tools
-# postinstall", lui-meme lance par NOTRE PROPRE application (__APP__.service).
-# Faire "systemctl stop __APP__.service" ici tuerait tout le groupe de
-# processus du service, y compris la commande postinstall encore en cours
-# d'execution (meme classe de bug que Conflicts=getty@tty1, DEC-660). On
-# planifie donc l'arret de facon detachee, avec un delai, pour laisser cette
-# chaine de processus se terminer normalement d'abord.
-systemd-run --on-active=15s --unit=__APP__-selfdisable \
-    /bin/systemctl disable --now __APP__.service __APP__.socket >/dev/null 2>&1 || true
+# NE PAS auto-desactiver __APP__ ici. Ce hook se declenche des la creation du
+# domaine (domain_add), tres tot dans la sequence de "yunohost tools
+# postinstall" (creation utilisateur, changement mot de passe root, mise a
+# jour du catalogue d'apps, DEUX regen-conf complets suivent encore) - donc
+# bien avant que le postinstall soit reellement termine. Le seul endroit
+# fiable pour savoir que le postinstall a vraiment fini, c'est __APP__
+# lui-meme (sources/app.py), qui programme sa propre desactivation
+# uniquement apres avoir recu un succes confirme (returncode 0). Voir
+# DEC-669/DEC-671 dans DECISIONS.md pour l'historique de cette correction.
+exit 0

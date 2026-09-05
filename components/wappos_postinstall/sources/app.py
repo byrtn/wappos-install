@@ -47,11 +47,14 @@ def postinstall():
                 ],
                 capture_output=True,
                 text=True,
-                timeout=120,
+                timeout=300,
             )
             if result.returncode != 0:
                 output_lines = (result.stderr + "\n" + result.stdout).strip().splitlines()
-                error_lines = [l for l in output_lines if l.strip().startswith("ERROR")]
+                error_lines = [
+                    l for l in output_lines
+                    if l.strip().lower().startswith("error") or "traceback" in l.lower()
+                ]
                 if error_lines:
                     error = error_lines[-1].strip()
                 elif output_lines:
@@ -59,6 +62,22 @@ def postinstall():
                 else:
                     error = "Echec inconnu de la configuration."
             else:
+                # Postinstall reellement termine (returncode 0) : on peut
+                # desormais programmer notre propre desactivation, en toute
+                # securite puisqu'on sait que la sequence complete est finie.
+                # Voir DECISIONS.md DEC-671 : le hook post_domain_add se
+                # declenchait bien trop tot pour faire ça de façon fiable.
+                subprocess.run(
+                    [
+                        "sudo", "-n", "/usr/bin/systemd-run",
+                        "--on-active=5s", "--unit=wappos_postinstall-selfdisable",
+                        "/bin/systemctl", "disable", "--now",
+                        "wappos_postinstall.service", "wappos_postinstall.socket",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=10,
+                )
                 return render_template("postinstall.html", done=True, domain=domain)
 
     return render_template(

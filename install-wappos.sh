@@ -30,14 +30,10 @@ title() {
 step() {
     step_count=$((step_count + 1))
     local why="${2:-}"
-    local label=" Etape ${step_count}/${TOTAL_STEPS} - $1"
-    local width=60
-    [ "${#label}" -gt "$width" ] && width=${#label}
-    local pad=$((width - ${#label}))
+    local label="Etape ${step_count}/${TOTAL_STEPS} - $1"
     echo
-    echo -e "${blue}┌$(printf -- '─%.0s' $(seq 1 $width))┐${reset}"
-    printf "${blue}│${reset}${bold}%s%*s${reset}${blue}│${reset}\n" "$label" "$pad" ""
-    echo -e "${blue}└$(printf -- '─%.0s' $(seq 1 $width))┘${reset}"
+    echo -e "${blue}${bold}${label}${reset}"
+    echo -e "${blue}$(printf -- '─%.0s' $(seq 1 ${#label}))${reset}"
     if [ -n "$why" ]; then
         echo -e "  $why"
     fi

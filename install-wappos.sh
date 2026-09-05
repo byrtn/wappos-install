@@ -40,30 +40,6 @@ error_line() { echo -e "${red}$1${reset}"; }
 box_start() { echo -e "${blue}╔══════════════════════════════════════════════════════════╗${reset}"; }
 box_end() { echo -e "${blue}╚══════════════════════════════════════════════════════════╝${reset}"; }
 
-ask_yesno() {
-    local title="$1" text="$2" timeout_s="$3"
-    if command -v whiptail >/dev/null 2>&1; then
-        timeout "$timeout_s" whiptail --backtitle "Installeur Wappos" --title "$title" --yesno "$text" --defaultno 12 68
-        return $?
-    fi
-    local ans
-    read_with_countdown "$timeout_s" ans || ans="n"
-    [ "$ans" = "o" ] || [ "$ans" = "O" ]
-}
-
-ask_input() {
-    local title="$1" text="$2" timeout_s="$3" varname="$4" value
-    if command -v whiptail >/dev/null 2>&1; then
-        value="$(timeout "$timeout_s" whiptail --backtitle "Installeur Wappos" --title "$title" --inputbox "$text" 10 68 3>&1 1>&2 2>&3)"
-        local rc=$?
-        [ "$rc" -eq 0 ] && [ -n "$value" ] || return 1
-        printf -v "$varname" '%s' "$value"
-        return 0
-    fi
-    read -t "$timeout_s" -rp "$text " value || return 1
-    printf -v "$varname" '%s' "$value"
-}
-
 read_with_countdown() {
     local timeout="$1" varname="$2"
     local input="" ch remaining="$timeout" started=0
@@ -280,7 +256,11 @@ echo "des cles. Pour un serveur expose sur Internet, il est recommande de"
 echo "n'accepter que les cles SSH (plus resistant aux attaques par force brute)."
 echo
 if [ -s /root/.ssh/authorized_keys ]; then
-    if ask_yesno "Connexion SSH par mot de passe" "Une cle SSH est deja enregistree pour root.\n\nDesactiver la connexion par mot de passe maintenant ?\n(defaut : Non, applique automatiquement apres 20 secondes)" 20; then
+    echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Desactiver la connexion"
+    echo "par mot de passe maintenant ? [o/N] (20 secondes, sinon N par defaut)"
+    read_with_countdown 20 disable_ssh_password || disable_ssh_password="n"
+
+    if [ "$disable_ssh_password" = "o" ] || [ "$disable_ssh_password" = "O" ]; then
         cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
         sed -i 's/^#\?PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
         sshd -t
@@ -301,13 +281,18 @@ step "Adresse IP"
 echo -e "Votre IP est ${bold}$current_ip${reset}, definie en DHCP (attribuee automatiquement"
 echo "par votre routeur, elle peut changer a l'avenir)."
 echo
+echo -e "${bold}Nous conseillons une IP fixe pour un serveur.${reset} Souhaitez-vous la parametrer"
+echo "maintenant ? [o/N] (20 secondes, sinon N par defaut)"
+read_with_countdown 20 set_static_ip || set_static_ip="n"
+
 final_ip="$current_ip"
 
-if ask_yesno "Adresse IP" "Votre IP actuelle est $current_ip, definie en DHCP.\n\nSouhaitez-vous configurer une adresse fixe maintenant ?\n(defaut : Non, applique automatiquement apres 20 secondes)" 20; then
-    if ask_input "Adresse IP fixe" "Adresse IP fixe (ex. 192.168.1.201) :" 60 static_ip \
-        && ask_input "Masque de sous-reseau" "Masque de sous-reseau (ex. 255.255.255.0) :" 60 static_netmask \
-        && ask_input "Passerelle" "Passerelle (ex. 192.168.1.254) :" 60 static_gateway \
-        && ask_input "Serveur DNS" "Serveur DNS (ex. 192.168.1.254) :" 60 static_dns; then
+if [ "$set_static_ip" = "o" ] || [ "$set_static_ip" = "O" ]; then
+    echo
+    if read -t 60 -rp "Adresse IP fixe (ex. 192.168.1.201) : " static_ip \
+        && read -t 60 -rp "Masque de sous-reseau (ex. 255.255.255.0) : " static_netmask \
+        && read -t 60 -rp "Passerelle (ex. 192.168.1.254) : " static_gateway \
+        && read -t 60 -rp "Serveur DNS (ex. 192.168.1.254) : " static_dns; then
 
         cat > /etc/network/interfaces << NETEOF
 source /etc/network/interfaces.d/*

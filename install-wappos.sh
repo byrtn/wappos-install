@@ -330,6 +330,6 @@ echo
 echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}  (ou https://$final_ip/wappos-portal/)"
 echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}  (ou https://$final_ip/wappos-admin/)"
 echo
-echo -e "  Identifiant : ${bold}adminynh${reset}"
-echo -e "  Mot de passe : celui defini lors de la configuration initiale ci-dessus"
+echo -e "${blue}${bold}  >>> IDENTIFIANT : adminynh${reset}"
+echo -e "${blue}${bold}  >>> MOT DE PASSE : celui que vous venez de definir ci-dessus${reset}"
 echo

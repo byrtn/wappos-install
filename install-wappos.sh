@@ -41,20 +41,36 @@ box_start() { echo -e "${blue}╔═══════════════�
 box_end() { echo -e "${blue}╚══════════════════════════════════════════════════════════╝${reset}"; }
 
 read_with_countdown() {
-    local timeout="$1" varname="$2" i
-    (
-        for ((i = timeout; i > 0; i--)); do
-            printf "\r> (%2ds restantes) " "$i"
-            sleep 1
-        done
-    ) &
-    local cd_pid=$!
-    read -t "$timeout" -r "$varname"
-    local rc=$?
-    kill "$cd_pid" 2>/dev/null
-    wait "$cd_pid" 2>/dev/null
-    printf "\r%40s\r" " "
-    return $rc
+    local timeout="$1" varname="$2"
+    local input="" ch remaining="$timeout" started=0
+    while true; do
+        if [ "$started" = 0 ]; then
+            printf "\r${blue}${bold}> (%2ds restantes)${reset} " "$remaining"
+        else
+            printf "\r> %s   " "$input"
+        fi
+        if IFS= read -r -s -n1 -t 1 ch; then
+            if [ -z "$ch" ]; then
+                break
+            fi
+            started=1
+            if [ "$ch" = $'\x7f' ] || [ "$ch" = $'\b' ]; then
+                input="${input%?}"
+            else
+                input="${input}${ch}"
+            fi
+        elif [ "$started" = 0 ]; then
+            remaining=$((remaining - 1))
+            if [ "$remaining" -le 0 ]; then
+                printf "\n"
+                printf -v "$varname" '%s' ""
+                return 1
+            fi
+        fi
+    done
+    printf "\n"
+    printf -v "$varname" '%s' "$input"
+    return 0
 }
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
@@ -241,8 +257,8 @@ echo "n'accepter que les cles SSH (plus resistant aux attaques par force brute).
 echo
 if [ -s /root/.ssh/authorized_keys ]; then
     echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Desactiver la connexion"
-    echo "par mot de passe maintenant ? [o/N] (15 secondes, sinon N par defaut)"
-    read_with_countdown 15 disable_ssh_password || disable_ssh_password="n"
+    echo "par mot de passe maintenant ? [o/N] (20 secondes, sinon N par defaut)"
+    read_with_countdown 20 disable_ssh_password || disable_ssh_password="n"
 
     if [ "$disable_ssh_password" = "o" ] || [ "$disable_ssh_password" = "O" ]; then
         cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
@@ -266,8 +282,8 @@ echo -e "Votre IP est ${bold}$current_ip${reset}, definie en DHCP (attribuee aut
 echo "par votre routeur, elle peut changer a l'avenir)."
 echo
 echo -e "${bold}Nous conseillons une IP fixe pour un serveur.${reset} Souhaitez-vous la parametrer"
-echo "maintenant ? [o/N] (15 secondes, sinon N par defaut)"
-read_with_countdown 15 set_static_ip || set_static_ip="n"
+echo "maintenant ? [o/N] (20 secondes, sinon N par defaut)"
+read_with_countdown 20 set_static_ip || set_static_ip="n"
 
 final_ip="$current_ip"
 
@@ -297,7 +313,7 @@ NETEOF
         systemctl restart networking
         final_ip="$static_ip"
         echo "Appuyez sur Entree pour continuer..."
-        read_with_countdown 15 _ || true
+        read_with_countdown 20 _ || true
     else
         echo
         echo "Pas de reponse, IP fixe non configuree. Le serveur reste en DHCP."

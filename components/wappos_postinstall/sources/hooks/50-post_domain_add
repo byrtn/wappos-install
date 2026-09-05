@@ -5,4 +5,13 @@ set -eu
 # plus de raison d'etre routable ni meme actif. Les hooks post_domain_add de
 # wappos_portal_ynh/wappos_sso_bypass ecrasent deja default.d/redirect_to_admin.conf
 # vers /wappos-portal/ - rien a faire cote nginx ici, juste s'auto-desactiver.
-systemctl disable --now __APP__.service __APP__.socket 2>/dev/null || true
+#
+# ATTENTION : ce hook s'execute DANS le processus de "yunohost tools
+# postinstall", lui-meme lance par NOTRE PROPRE application (__APP__.service).
+# Faire "systemctl stop __APP__.service" ici tuerait tout le groupe de
+# processus du service, y compris la commande postinstall encore en cours
+# d'execution (meme classe de bug que Conflicts=getty@tty1, DEC-660). On
+# planifie donc l'arret de facon detachee, avec un delai, pour laisser cette
+# chaine de processus se terminer normalement d'abord.
+systemd-run --on-active=15s --unit=__APP__-selfdisable \
+    /bin/systemctl disable --now __APP__.service __APP__.socket >/dev/null 2>&1 || true

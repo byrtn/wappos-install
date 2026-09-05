@@ -3,86 +3,169 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Wappos</title>
-  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <title>Wappos — Configuration initiale</title>
+  <link rel="icon" type="image/png" href="{{ url_for('static', filename='favicon.png') }}">
+  <link rel="preload" href="{{ url_for('static', filename='fonts/Montserrat-Variable.woff2') }}" as="font" type="font/woff2" crossorigin>
+  <script>
+    (function () {
+      var saved = localStorage.getItem('wappos_admin_theme');
+      var wantDark = saved === 'dark' || (saved !== 'light' && window.matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-theme', wantDark ? 'dark' : 'light');
+    })();
+  </script>
   <style>
+    :root, html[data-theme="light"] {
+      color-scheme: light;
+      --color-bg: #fafafa;
+      --color-text: #222;
+      --color-text-muted: #666;
+      --color-border: #eee;
+      --color-border-strong: #ccc;
+      --color-input-bg: #fff;
+      --color-btn-bg: #016f93;
+      --color-btn-bg-hover: #015a78;
+      --color-btn-text: #fff;
+      --color-link: #016f93;
+      --color-error-bg: #fbe9e7;
+      --color-error-text: #7a1f00;
+      --color-success-bg: #e6f4ea;
+      --color-success-text: #1e4620;
+      --color-text-faint: #999;
+    }
+    html[data-theme="dark"] {
+      color-scheme: dark;
+      --color-bg: #14171a;
+      --color-text: #cfcfcf;
+      --color-text-muted: #b3b3b3;
+      --color-border: #2c3036;
+      --color-border-strong: #3a3f45;
+      --color-input-bg: #1e2226;
+      --color-btn-bg: #016f93;
+      --color-btn-bg-hover: #0489b8;
+      --color-btn-text: #fff;
+      --color-link: #2a9dc4;
+      --color-error-bg: #3a1f18;
+      --color-error-text: #f5b7a8;
+      --color-success-bg: #1c3324;
+      --color-success-text: #a8e6bc;
+      --color-text-faint: #969696;
+    }
+    @font-face {
+      font-family: 'Montserrat';
+      font-style: normal;
+      font-weight: 100 900;
+      font-display: swap;
+      src: url('{{ url_for('static', filename='fonts/Montserrat-Variable.woff2') }}') format('woff2');
+    }
     * { box-sizing: border-box; }
+    html, body { height: 100%; }
     body {
-      margin: 0;
-      min-height: 100vh;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      background: #14171a;
-      color: #e8e8e8;
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      font-family: 'Montserrat', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      margin: 0; letter-spacing: -0.015em;
+      background: var(--color-bg); color: var(--color-text);
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
     }
-    .page { width: 100%; max-width: 380px; padding: 1.5rem; }
-    .brand-mark { text-align: center; font-size: 1.8rem; font-weight: 700; letter-spacing: 0.06em; color: #016f93; margin-bottom: 0.25rem; }
-    .subtitle { display: flex; align-items: center; justify-content: center; gap: 0.75rem;
-      font-weight: 300; letter-spacing: 0.15em; font-size: 0.8rem; color: #a8a8a8; margin: 0 0 2rem; }
-    .subtitle-rule { flex: 0 0 28px; height: 1px; background: #3a3f45; }
-    .field { margin-bottom: 1rem; }
-    label { display: block; font-size: 0.85rem; color: #a8a8a8; margin-bottom: 0.35rem; }
-    input {
+    .login-center { flex: 1; display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 1.5rem; }
+    .login-page { width: 100%; max-width: 340px; }
+    .wappos-brand-mark { color: var(--color-btn-bg); font-weight: 700; letter-spacing: 0.06em; }
+    #login-fallback-text { text-align: center; font-size: 1.6rem; margin-bottom: 0.75rem; }
+    .login-subtitle { display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+      font-weight: 300; letter-spacing: 0.15em; font-size: 0.8rem;
+      color: var(--color-text-faint); margin: 0 0 2rem; text-transform: uppercase; }
+    .login-subtitle-rule { flex: 0 0 28px; height: 1px; background: var(--color-border-strong); }
+
+    .login-form-grid { display: grid; grid-template-columns: 1.5rem 1fr; column-gap: 0.6rem; row-gap: 1rem; align-items: start; }
+    .login-form-grid svg { color: var(--color-text-muted); margin-top: 0.6rem; }
+    .login-field-input input {
       width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px;
-      border: 1px solid #3a3f45; background: #1e2226; color: #e8e8e8; font-size: 0.95rem;
+      border: 1px solid var(--color-border-strong); background: var(--color-input-bg); color: var(--color-text);
+      font-size: 0.95rem;
     }
-    input:focus { outline: none; border-color: #016f93; }
-    .hint { font-size: 0.78rem; color: #7d848a; margin-top: 0.35rem; }
-    .submit {
-      width: 100%; margin-top: 0.5rem; padding: 0.7rem 1.25rem; border-radius: 8px; border: none;
-      background: #016f93; color: #fff; cursor: pointer; font-size: 1rem;
+    .login-field-input input:focus { outline: none; border-color: var(--color-btn-bg); }
+    .login-field-input.password { position: relative; }
+    .login-field-input.password input { padding-right: 4.5rem; }
+    .toggle-password {
+      position: absolute; right: 0.5rem; top: 0.5rem;
+      background: none; border: none; cursor: pointer; font-size: 0.8rem; padding: 0.25rem 0.4rem;
+      color: var(--color-text-faint); text-decoration: underline;
     }
-    .submit:hover { background: #0489b8; }
-    .error { background: #3a1f18; color: #f5b7a8; padding: 0.6rem 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
-    .success { background: #16321f; color: #a8e6b8; padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.95rem; text-align: center; }
-    .footer { margin-top: 2rem; text-align: center; font-size: 0.8rem; color: #7d848a; }
+    .field-hint { grid-column: 2; font-size: 0.78rem; color: var(--color-text-faint); margin-top: -0.6rem; }
+
+    .login-submit { grid-column: 2; padding: 0.65rem 1.25rem; border-radius: 8px; border: none;
+      background: var(--color-btn-bg); color: var(--color-btn-text); cursor: pointer; font-size: 0.95rem; }
+    .login-submit:hover { background: var(--color-btn-bg-hover); }
+
+    .error { background: var(--color-error-bg); color: var(--color-error-text); padding: 0.6rem 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .success { background: var(--color-success-bg); color: var(--color-success-text); padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.95rem; text-align: center; }
+
+    .login-footer { margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--color-text-faint); }
+    .login-footer a { color: var(--color-link); }
   </style>
 </head>
 <body>
-  <div class="page">
-    <div class="brand-mark">WAPPOS</div>
-    <div class="subtitle"><span class="subtitle-rule"></span>CONFIGURATION INITIALE<span class="subtitle-rule"></span></div>
+  <div class="login-center">
+    <div class="login-page">
+      <div id="login-fallback-text" class="wappos-brand-mark">WAPPOS</div>
+      <div class="login-subtitle"><span class="login-subtitle-rule"></span>Configuration initiale<span class="login-subtitle-rule"></span></div>
 
-    {% if done %}
-      <div class="success">
-        {% if domain %}
-          Wappos est configuré. Connectez-vous sur
-          <strong>https://{{ domain }}/wappos-portal/</strong>
-        {% else %}
-          Wappos est déjà configuré sur ce serveur.
-        {% endif %}
-      </div>
-    {% else %}
-      {% if error %}<div class="error">{{ error }}</div>{% endif %}
-      <form method="post">
-        <div class="field">
-          <label for="domain">Nom de domaine</label>
-          <input type="text" id="domain" name="domain" value="{{ domain or '' }}" placeholder="exemple.local" required autofocus>
+      {% if done %}
+        <div class="success">
+          {% if domain %}
+            Wappos est configuré. Connectez-vous sur<br><strong>https://{{ domain }}/wappos-portal/</strong>
+          {% else %}
+            Wappos est déjà configuré sur ce serveur.
+          {% endif %}
         </div>
-        <div class="field">
-          <label for="username">Identifiant</label>
-          <input type="text" id="username" name="username" value="{{ username or 'wappos_admin' }}" required>
-          <div class="hint">Lettres, chiffres et underscore uniquement.</div>
-        </div>
-        <div class="field">
-          <label for="fullname">Nom complet</label>
-          <input type="text" id="fullname" name="fullname" value="{{ fullname or 'Administrateur' }}" required>
-        </div>
-        <div class="field">
-          <label for="password">Mot de passe</label>
-          <input type="password" id="password" name="password" required>
-        </div>
-        <div class="field">
-          <label for="password_confirm">Confirmez le mot de passe</label>
-          <input type="password" id="password_confirm" name="password_confirm" required>
-        </div>
-        <button type="submit" class="submit">Configurer Wappos</button>
-      </form>
-    {% endif %}
+      {% else %}
+        {% if error %}<div class="error">{{ error }}</div>{% endif %}
+        <form method="post" class="login-form-grid">
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M16.36 14c.08-.66.14-1.32.14-2s-.06-1.34-.14-2h3.38c.16.64.26 1.31.26 2s-.1 1.36-.26 2m-5.15 5.56c.6-1.11 1.06-2.31 1.38-3.56h2.95a8.03 8.03 0 0 1-4.33 3.56M14.34 14H9.66c-.1-.66-.16-1.32-.16-2s.06-1.35.16-2h4.68c.09.65.16 1.32.16 2s-.07 1.34-.16 2M12 19.96c-.83-1.2-1.5-2.53-1.91-3.96h3.82c-.41 1.43-1.08 2.76-1.91 3.96M8 8H5.08A7.923 7.923 0 0 1 9.4 4.44C8.8 5.55 8.35 6.75 8 8m-2.92 8H8c.35 1.25.8 2.45 1.4 3.56A8.008 8.008 0 0 1 5.08 16m-.82-2C4.1 13.36 4 12.69 4 12s.1-1.36.26-2h3.38c-.08.66-.14 1.32-.14 2s.06 1.34.14 2M12 4.03c.83 1.2 1.5 2.54 1.91 3.97h-3.82c.41-1.43 1.08-2.77 1.91-3.97M18.92 8h-2.95a15.65 15.65 0 0 0-1.38-3.56c1.84.63 3.37 1.9 4.33 3.56M12 2C6.47 2 2 6.5 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10A10 10 0 0 0 12 2Z"/></svg>
+          <div class="login-field-input">
+            <input type="text" id="domain" name="domain" value="{{ domain or '' }}" placeholder="exemple.local" required autofocus>
+          </div>
+          <div class="field-hint">C'est l'adresse à laquelle vous accéderez à Wappos (ex. https://exemple.local). Vous pourrez gérer d'autres domaines plus tard depuis l'administration.</div>
 
-    <div class="footer">WAPPOS — © 2026 <a href="https://byrtn.fr" style="color:#0489b8;">BYRTN</a></div>
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 19.2c-2.5 0-4.71-1.28-6-3.2c.03-2 4-3.1 6-3.1s5.97 1.1 6 3.1a7.232 7.232 0 0 1-6 3.2M12 5a3 3 0 0 1 3 3a3 3 0 0 1-3 3a3 3 0 0 1-3-3a3 3 0 0 1 3-3m0-3A10 10 0 0 0 2 12a10 10 0 0 0 10 10a10 10 0 0 0 10-10c0-5.53-4.5-10-10-10Z"/></svg>
+          <div class="login-field-input">
+            <input type="text" id="username" name="username" value="{{ username or 'wappos_admin' }}" required>
+          </div>
+          <div class="field-hint">Ce sera votre compte administrateur Wappos. Lettres, chiffres et underscore uniquement.</div>
+
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 12a5 5 0 1 0-5-5a5 5 0 0 0 5 5m0 2c-4.42 0-8 1.79-8 4v2h16v-2c0-2.21-3.58-4-8-4Z"/></svg>
+          <div class="login-field-input">
+            <input type="text" id="fullname" name="fullname" value="{{ fullname or 'Administrateur' }}" required>
+          </div>
+
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 17a2 2 0 0 0 2-2a2 2 0 0 0-2-2a2 2 0 0 0-2 2a2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2h1m-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3Z"/></svg>
+          <div class="login-field-input password">
+            <input type="password" id="password" name="password" required>
+            <button type="button" class="toggle-password" data-target="password">Afficher</button>
+          </div>
+          <div class="field-hint">Un mot de passe robuste, évitez les mots courants.</div>
+
+          <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24"><path fill="currentColor" d="M12 17a2 2 0 0 0 2-2a2 2 0 0 0-2-2a2 2 0 0 0-2 2a2 2 0 0 0 2 2m6-9a2 2 0 0 1 2 2v10a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V10a2 2 0 0 1 2-2h1V6a5 5 0 0 1 5-5a5 5 0 0 1 5 5v2h1m-6-5a3 3 0 0 0-3 3v2h6V6a3 3 0 0 0-3-3Z"/></svg>
+          <div class="login-field-input password">
+            <input type="password" id="password_confirm" name="password_confirm" required>
+            <button type="button" class="toggle-password" data-target="password_confirm">Afficher</button>
+          </div>
+
+          <button type="submit" class="login-submit">Configurer Wappos</button>
+        </form>
+      {% endif %}
+
+      <div class="login-footer"><span class="wappos-brand-mark">WAPPOS</span> — © 2026 <a href="https://byrtn.fr" target="_blank" rel="noopener">BYRTN</a></div>
+    </div>
   </div>
+
+  <script>
+    document.querySelectorAll('.toggle-password').forEach((btn) => {
+      btn.addEventListener('click', () => {
+        const input = document.getElementById(btn.dataset.target);
+        const showing = input.type === 'password';
+        input.type = showing ? 'text' : 'password';
+        btn.textContent = showing ? 'Masquer' : 'Afficher';
+      });
+    });
+  </script>
 </body>
 </html>

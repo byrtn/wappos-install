@@ -50,7 +50,14 @@ def postinstall():
                 timeout=120,
             )
             if result.returncode != 0:
-                error = (result.stderr or result.stdout or "Echec inconnu").strip().splitlines()[-1]
+                output_lines = (result.stderr + "\n" + result.stdout).strip().splitlines()
+                error_lines = [l for l in output_lines if l.strip().startswith("ERROR")]
+                if error_lines:
+                    error = error_lines[-1].strip()
+                elif output_lines:
+                    error = output_lines[-1].strip()
+                else:
+                    error = "Echec inconnu de la configuration."
             else:
                 return render_template("postinstall.html", done=True, domain=domain)
 

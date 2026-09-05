@@ -364,4 +364,5 @@ if marker in content:
         f.write(content)
 PYEOF
     systemctl restart yunoprompt.service
+    systemctl restart getty@tty1.service
 fi

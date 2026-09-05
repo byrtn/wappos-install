@@ -342,3 +342,28 @@ echo
 echo -e "${blue}${bold}  >>> IDENTIFIANT : adminynh${reset}"
 echo -e "${blue}${bold}  >>> MOT DE PASSE : celui que vous venez de definir ci-dessus${reset}"
 echo
+
+if [ -f /usr/bin/yunoprompt ] && ! grep -q "Portail Wappos" /usr/bin/yunoprompt; then
+    export WAPPOS_DOMAIN="$main_domain"
+    export WAPPOS_IP="$final_ip"
+    python3 - <<'PYEOF'
+import os
+path = "/usr/bin/yunoprompt"
+domain = os.environ["WAPPOS_DOMAIN"]
+ip = os.environ["WAPPOS_IP"]
+with open(path, encoding="utf-8") as f:
+    content = f.read()
+marker = "${fingerprint[2]}"
+block = (
+    "\n"
+    f" Portail Wappos        : https://{domain}/wappos-portal/ (ou https://{ip}/wappos-portal/)\n"
+    f" Administration Wappos : https://{domain}/wappos-admin/ (ou https://{ip}/wappos-admin/)\n"
+    " Identifiant : adminynh"
+)
+if marker in content:
+    content = content.replace(marker, marker + block, 1)
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(content)
+PYEOF
+    systemctl restart yunoprompt.service
+fi

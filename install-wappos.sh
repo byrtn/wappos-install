@@ -257,6 +257,8 @@ echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}"
 echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}"
 echo
 
+chage -d 0 root
+
 step "Connexion SSH par mot de passe"
 echo "Par defaut, la connexion root en SSH accepte un mot de passe en plus"
 echo "des cles. Pour un serveur expose sur Internet, il est recommande de"

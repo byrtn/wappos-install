@@ -51,10 +51,16 @@ if [ -f "$BRANDING_DIR/logo_debian.png" ] && [ -f "$BRANDING_DIR/logo_debian_dar
     echo "Remplacement de la couleur de selection (turquoise Debian) par le bleu Wappos..."
     GTKRC="$INITRD_WORK/usr/share/themes/Clearlooks/gtk-2.0/gtkrc"
     if [ -f "$GTKRC" ]; then
-        sed -i 's/#298d85/#016f93/g' "$GTKRC"
-        sed -i 's/#ede9e3/#fafafa/g' "$GTKRC"
-        sed -i 's/#000000/#222222/g' "$GTKRC"
-        sed -i 's/#f9f7f3/#f5f5f5/g' "$GTKRC"
+        for pair in "#298d85:#016f93" "#ede9e3:#fafafa" "#000000:#222222" "#f9f7f3:#f5f5f5"; do
+            old="${pair%%:*}"
+            new="${pair##*:}"
+            if ! grep -q "$old" "$GTKRC"; then
+                echo "ERREUR : la couleur attendue $old est introuvable dans $GTKRC (l'ISO Debian a peut-etre change)."
+                echo "Le theme Wappos ne serait pas applique silencieusement, arret."
+                exit 1
+            fi
+            sed -i "s/$old/$new/g" "$GTKRC"
+        done
     fi
 
     ( cd "$INITRD_WORK" && find . | cpio -o -H newc 2>/dev/null | gzip -9 ) > "$INITRD_GTK"

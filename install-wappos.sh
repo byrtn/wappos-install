@@ -191,7 +191,17 @@ fi
 if ! command -v docker >/dev/null 2>&1; then
     step "Installation de Docker Engine" "Permet a Wappos de faire tourner des applications supplementaires de facon isolee."
     echo "Cette etape peut durer une a deux minutes, c'est normal."
-    quiet bash -c "curl -fsSL https://get.docker.com | sh"
+    tries=0
+    until quiet bash -c "curl -fsSL https://get.docker.com | sh"; do
+        tries=$((tries + 1))
+        if [ "$tries" -ge 4 ]; then
+            error_line "Echec apres plusieurs tentatives, abandon. Dernieres lignes du journal :"
+            tail -n 40 "$install_log"
+            exit 1
+        fi
+        warn_line "Echec, nouvelle tentative dans 10 secondes (${tries}/4)..."
+        sleep 10
+    done
     success_line "Docker installe"
 fi
 
@@ -257,51 +267,52 @@ echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}"
 echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}"
 echo
 
-step "Connexion SSH par mot de passe"
-echo "Par defaut, la connexion root en SSH accepte un mot de passe en plus"
-echo "des cles. Pour un serveur expose sur Internet, il est recommande de"
-echo "n'accepter que les cles SSH (plus resistant aux attaques par force brute)."
-echo
-if [ -s /root/.ssh/authorized_keys ]; then
-    echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Desactiver la connexion"
-    echo "par mot de passe maintenant ? [o/N] (20 secondes, sinon N par defaut)"
-    read_with_countdown 20 disable_ssh_password || disable_ssh_password="n"
-
-    if [ "$disable_ssh_password" = "o" ] || [ "$disable_ssh_password" = "O" ]; then
-        cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
-        sed -i 's/^#\?PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
-        sshd -t
-        systemctl reload sshd
-        echo -e "${bold}Connexion par mot de passe desactivee.${reset} Seules les cles SSH sont acceptees desormais."
-    fi
-else
-    echo -e "${bold}Aucune cle SSH enregistree pour root${reset} — desactiver le mot de passe vous"
-    echo "empecherait de vous reconnecter. Ajoutez d'abord votre cle publique a"
-    echo "/root/.ssh/authorized_keys, puis relancez cette etape plus tard si besoin."
-fi
-echo
-
 interface="$(ip route show default | awk '{print $5; exit}')"
 current_ip="$(ip -4 -o addr show dev "$interface" | awk '{print $4}' | cut -d/ -f1 | head -n1)"
-
-step "Adresse IP"
-echo -e "Votre IP est ${bold}$current_ip${reset}, definie en DHCP (attribuee automatiquement"
-echo "par votre routeur, elle peut changer a l'avenir)."
-echo
-echo -e "${bold}Nous conseillons une IP fixe pour un serveur.${reset} Souhaitez-vous la parametrer"
-echo "maintenant ? [o/N] (20 secondes, sinon N par defaut)"
-read_with_countdown 20 set_static_ip || set_static_ip="n"
-
 final_ip="$current_ip"
 
-if [ "$set_static_ip" = "o" ] || [ "$set_static_ip" = "O" ]; then
-    echo
-    if read -t 60 -rp "Adresse IP fixe (ex. 192.168.1.201) : " static_ip \
-        && read -t 60 -rp "Masque de sous-reseau (ex. 255.255.255.0) : " static_netmask \
-        && read -t 60 -rp "Passerelle (ex. 192.168.1.254) : " static_gateway \
-        && read -t 60 -rp "Serveur DNS (ex. 192.168.1.254) : " static_dns; then
+security_configured_marker="$script_dir/.security-configured"
 
-        cat > /etc/network/interfaces << NETEOF
+if [ ! -f "$security_configured_marker" ]; then
+    step "Connexion SSH par mot de passe"
+    echo "Par defaut, la connexion root en SSH accepte un mot de passe en plus"
+    echo "des cles. Pour un serveur expose sur Internet, il est recommande de"
+    echo "n'accepter que les cles SSH (plus resistant aux attaques par force brute)."
+    echo
+    if [ -s /root/.ssh/authorized_keys ]; then
+        echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Desactiver la connexion"
+        echo "par mot de passe maintenant ? [o/N] (20 secondes, sinon N par defaut)"
+        read_with_countdown 20 disable_ssh_password || disable_ssh_password="n"
+
+        if [ "$disable_ssh_password" = "o" ] || [ "$disable_ssh_password" = "O" ]; then
+            cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
+            sed -i 's/^#\?PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+            sshd -t
+            systemctl reload sshd
+            echo -e "${bold}Connexion par mot de passe desactivee.${reset} Seules les cles SSH sont acceptees desormais."
+        fi
+    else
+        echo -e "${bold}Aucune cle SSH enregistree pour root${reset} — desactiver le mot de passe vous"
+        echo "empecherait de vous reconnecter. Ajoutez d'abord votre cle publique a"
+        echo "/root/.ssh/authorized_keys, puis relancez cette etape plus tard si besoin."
+    fi
+    echo
+
+    step "Adresse IP"
+    echo -e "Votre IP actuelle est ${bold}$current_ip${reset}."
+    echo
+    echo -e "${bold}Nous conseillons une IP fixe pour un serveur.${reset} Souhaitez-vous la parametrer"
+    echo "maintenant ? [o/N] (20 secondes, sinon N par defaut)"
+    read_with_countdown 20 set_static_ip || set_static_ip="n"
+
+    if [ "$set_static_ip" = "o" ] || [ "$set_static_ip" = "O" ]; then
+        echo
+        if read -t 60 -rp "Adresse IP fixe (ex. 192.168.1.201) : " static_ip \
+            && read -t 60 -rp "Masque de sous-reseau (ex. 255.255.255.0) : " static_netmask \
+            && read -t 60 -rp "Passerelle (ex. 192.168.1.254) : " static_gateway \
+            && read -t 60 -rp "Serveur DNS (ex. 192.168.1.254) : " static_dns; then
+
+            cat > /etc/network/interfaces << NETEOF
 source /etc/network/interfaces.d/*
 
 auto lo
@@ -317,14 +328,17 @@ iface $interface inet static
 iface $interface inet6 auto
 NETEOF
 
-        systemctl restart networking
-        final_ip="$static_ip"
-        echo "Appuyez sur Entree pour continuer..."
-        read_with_countdown 20 _ || true
-    else
-        echo
-        echo "Pas de reponse, IP fixe non configuree. Le serveur reste en DHCP."
+            systemctl restart networking
+            final_ip="$static_ip"
+            echo "Appuyez sur Entree pour continuer..."
+            read_with_countdown 20 _ || true
+        else
+            echo
+            echo "Pas de reponse, IP fixe non configuree. Le serveur reste en DHCP."
+        fi
     fi
+
+    touch "$security_configured_marker"
 fi
 
 echo

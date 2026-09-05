@@ -10,7 +10,7 @@ red="\033[1;31m"
 yellow="\033[1;33m"
 
 step_count=0
-TOTAL_STEPS=11
+TOTAL_STEPS=12
 
 banner() {
     echo
@@ -145,43 +145,49 @@ if ! command -v yunohost >/dev/null 2>&1; then
     success_line "Moteur systeme installe"
 fi
 
+if [ -d /usr/share/yunohost/admin ] && ! grep -q "Wappos" /usr/share/yunohost/admin/index.html 2>/dev/null; then
+    step "Habillage Wappos de l'interface web" "Remplace la marque YunoHost par Wappos avant meme la configuration initiale."
+    for f in /usr/share/yunohost/admin/assets/logo_light-*.png; do
+        [ -f "$f" ] && cp "$script_dir/branding/logo_debian.png" "$f"
+    done
+    for f in /usr/share/yunohost/admin/assets/logo_dark-*.png; do
+        [ -f "$f" ] && cp "$script_dir/branding/logo_debian_dark.png" "$f"
+    done
+    sed -i 's/<title>YunoHost Admin<\/title>/<title>Wappos<\/title>/' /usr/share/yunohost/admin/index.html
+    success_line "Interface web habillee Wappos"
+fi
+
 if [ ! -f /etc/yunohost/installed ]; then
-    title "Configuration initiale"
-    echo "Les questions suivantes vous demandent :"
-    echo
-    echo -e "  ${bold}- le nom de domaine${reset} de votre serveur"
-    echo -e "  ${bold}- un mot de passe administrateur${reset} (robuste, evitez les mots courants)"
+    title "Finalisation via votre navigateur"
+    echo "La derniere etape (nom de domaine, identifiant, mot de passe) se termine"
+    echo "depuis un navigateur, exactement comme Wappos vous y invitera."
     echo
     echo -e "${bold}Attention si ce domaine local (.lan/.local) existe deja ailleurs sur votre"
-    echo -e "reseau${reset} (une autre installation, un autre serveur) : la resolution DNS de"
-    echo "votre reseau pourrait faire pointer ce nom vers l'autre machine plutot que"
-    echo "celle-ci. Choisissez un nom clairement distinct pour une installation de test."
+    echo -e "reseau${reset} (une autre installation, un autre serveur) : choisissez un nom"
+    echo "clairement distinct pour une installation de test."
     echo
 
-    while true; do
-        read -rp "Nom de domaine : " wappos_domain < /dev/tty
-        [ -n "$wappos_domain" ] && break
-        warn_line "Le domaine ne peut pas etre vide."
-    done
-    while true; do
-        read -rsp "Mot de passe administrateur : " wappos_password < /dev/tty
-        echo
-        read -rsp "Confirmez le mot de passe : " wappos_password_confirm < /dev/tty
-        echo
-        if [ -n "$wappos_password" ] && [ "$wappos_password" = "$wappos_password_confirm" ]; then
-            break
-        fi
-        warn_line "Les mots de passe ne correspondent pas ou sont vides, recommencez."
-    done
+    interface="$(ip route show default | awk '{print $5; exit}')"
+    current_ip="$(ip -4 -o addr show dev "$interface" | awk '{print $4}' | cut -d/ -f1 | head -n1)"
+    echo -e "${bold}Ouvrez un navigateur sur une autre machine du meme reseau et allez sur :${reset}"
+    echo
+    echo -e "  ${blue}${bold}https://${current_ip}/${reset}"
+    echo
+    echo -e "Suivez les instructions a l'ecran. Utilisez ${bold}wappos_admin${reset} comme"
+    echo "identifiant (pas de tirets ni de points acceptes par YunoHost)."
+    echo "Cette etape reprend automatiquement des que vous avez valide le formulaire,"
+    echo "sans rien taper ici."
+    echo
 
-    until yunohost tools postinstall -d "$wappos_domain" -u wappos_admin -F "Administrateur" -p "$wappos_password" --i-have-read-terms-of-services; do
-        echo
-        error_line "Echec, on recommence ces memes questions."
-        echo
-        read -rp "Nom de domaine : " wappos_domain < /dev/tty
-        read -rsp "Mot de passe administrateur : " wappos_password < /dev/tty
-        echo
+    i=0
+    spin='-\|/'
+    until [ -f /etc/yunohost/installed ]; do
+        i=$(( (i + 1) % 4 ))
+        printf "\r  %s En attente de la finalisation depuis votre navigateur..." "${spin:$i:1}"
+        sleep 2
     done
+    printf "\r%70s\r" " "
+    success_line "Configuration initiale terminee"
 fi
 
 step "Systeme de base installe et configure" "Le socle technique est pret, la suite installe Wappos par-dessus."
@@ -242,6 +248,7 @@ NFTABLES_EOF
 fi
 
 main_domain="$(yunohost domain list --output-as json | python3 -c "import json,sys; print(json.load(sys.stdin)['main'])")"
+admin_username="$(yunohost user list --output-as json | python3 -c "import json,sys; users=json.load(sys.stdin)['users']; print(next(iter(users), 'wappos_admin'))")"
 
 if ! yunohost user list --output-as json | python3 -c "import json,sys; sys.exit(0 if '$alert_box_user' in json.load(sys.stdin)['users'] else 1)"; then
     step "Creation du compte technique d'alertes" "Un compte interne pour les notifications systeme, pas pour vous connecter."
@@ -329,19 +336,21 @@ echo
 echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}  (ou https://$final_ip/wappos-portal/)"
 echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}  (ou https://$final_ip/wappos-admin/)"
 echo
-echo -e "${blue}${bold}  >>> IDENTIFIANT : wappos_admin${reset}"
+echo -e "${blue}${bold}  >>> IDENTIFIANT : ${admin_username}${reset}"
 echo -e "${blue}${bold}  >>> MOT DE PASSE : celui que vous venez de definir ci-dessus${reset}"
 echo
 
 if [ -f /usr/bin/yunoprompt ] && ! grep -q "Portail Wappos" /usr/bin/yunoprompt; then
     export WAPPOS_DOMAIN="$main_domain"
     export WAPPOS_IP="$final_ip"
+    export WAPPOS_USERNAME="$admin_username"
     python3 - <<'PYEOF'
 import os
 import re
 path = "/usr/bin/yunoprompt"
 domain = os.environ["WAPPOS_DOMAIN"]
 ip = os.environ["WAPPOS_IP"]
+username = os.environ["WAPPOS_USERNAME"]
 with open(path, encoding="utf-8") as f:
     content = f.read()
 
@@ -358,7 +367,7 @@ block = (
     "\n"
     f" Portail Wappos        : https://{domain}/wappos-portal/ (ou https://{ip}/wappos-portal/)\n"
     f" Administration Wappos : https://{domain}/wappos-admin/ (ou https://{ip}/wappos-admin/)\n"
-    " Identifiant : wappos_admin"
+    f" Identifiant : {username}"
 )
 if anchor in content:
     content = content.replace(anchor, anchor + block, 1)

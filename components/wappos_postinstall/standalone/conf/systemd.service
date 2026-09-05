@@ -1,0 +1,20 @@
+[Unit]
+Description=Wappos Postinstall
+After=network.target __APP__.socket
+Requires=__APP__.socket
+ConditionPathExists=!/etc/yunohost/installed
+
+[Service]
+Type=simple
+User=__APP__
+Group=__APP__
+WorkingDirectory=__INSTALL_DIR__
+Environment="PATH=__INSTALL_DIR__/venv/bin:/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin"
+ExecStart=__INSTALL_DIR__/venv/bin/gunicorn --workers 1 --bind 127.0.0.1:__PORT__ --no-control-socket app:app
+Restart=on-failure
+RestartSec=5
+
+PrivateTmp=true
+
+[Install]
+WantedBy=multi-user.target

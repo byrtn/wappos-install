@@ -1,0 +1,8 @@
+#!/bin/bash
+set -eu
+
+# Un domaine vient d'etre cree : le postinstall est termine, ce composant n'a
+# plus de raison d'etre routable ni meme actif. Les hooks post_domain_add de
+# wappos_portal_ynh/wappos_sso_bypass ecrasent deja default.d/redirect_to_admin.conf
+# vers /wappos-portal/ - rien a faire cote nginx ici, juste s'auto-desactiver.
+systemctl disable --now __APP__.service __APP__.socket 2>/dev/null || true

@@ -145,15 +145,9 @@ if ! command -v yunohost >/dev/null 2>&1; then
     success_line "Moteur systeme installe"
 fi
 
-if [ -d /usr/share/yunohost/admin ] && ! grep -q "Wappos" /usr/share/yunohost/admin/index.html 2>/dev/null; then
+if [ ! -f /etc/yunohost/installed ] && ! systemctl list-unit-files wappos_postinstall.service >/dev/null 2>&1; then
     step "Interface graphique Wappos" "Applique l'interface graphique Wappos avant meme la configuration initiale."
-    for f in /usr/share/yunohost/admin/assets/logo_light-*.png; do
-        [ -f "$f" ] && cp "$script_dir/branding/logo_debian.png" "$f"
-    done
-    for f in /usr/share/yunohost/admin/assets/logo_dark-*.png; do
-        [ -f "$f" ] && cp "$script_dir/branding/logo_debian_dark.png" "$f"
-    done
-    sed -i 's/<title>YunoHost Admin<\/title>/<title>Wappos<\/title>/' /usr/share/yunohost/admin/index.html
+    quiet bash "$release_dir/wappos_postinstall/standalone/install.sh"
     success_line "Interface graphique Wappos appliquee"
 fi
 
@@ -173,10 +167,8 @@ if [ ! -f /etc/yunohost/installed ]; then
     echo
     echo -e "  ${blue}${bold}https://${current_ip}/${reset}"
     echo
-    echo -e "Suivez les instructions a l'ecran. Utilisez ${bold}wappos_admin${reset} comme"
-    echo "identifiant (pas de tirets ni de points acceptes)."
-    echo "Cette etape reprend automatiquement des que vous avez valide le formulaire,"
-    echo "sans rien taper ici."
+    echo "Suivez les instructions a l'ecran. Cette etape reprend automatiquement"
+    echo "des que vous avez valide le formulaire, sans rien taper ici."
     echo
 
     i=0

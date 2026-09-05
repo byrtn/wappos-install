@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="fr">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Wappos</title>
+  <link rel="icon" type="image/png" href="/static/favicon.png">
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: #14171a;
+      color: #e8e8e8;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+    }
+    .page { width: 100%; max-width: 380px; padding: 1.5rem; }
+    .brand-mark { text-align: center; font-size: 1.8rem; font-weight: 700; letter-spacing: 0.06em; color: #016f93; margin-bottom: 0.25rem; }
+    .subtitle { display: flex; align-items: center; justify-content: center; gap: 0.75rem;
+      font-weight: 300; letter-spacing: 0.15em; font-size: 0.8rem; color: #a8a8a8; margin: 0 0 2rem; }
+    .subtitle-rule { flex: 0 0 28px; height: 1px; background: #3a3f45; }
+    .field { margin-bottom: 1rem; }
+    label { display: block; font-size: 0.85rem; color: #a8a8a8; margin-bottom: 0.35rem; }
+    input {
+      width: 100%; padding: 0.6rem 0.75rem; border-radius: 8px;
+      border: 1px solid #3a3f45; background: #1e2226; color: #e8e8e8; font-size: 0.95rem;
+    }
+    input:focus { outline: none; border-color: #016f93; }
+    .hint { font-size: 0.78rem; color: #7d848a; margin-top: 0.35rem; }
+    .submit {
+      width: 100%; margin-top: 0.5rem; padding: 0.7rem 1.25rem; border-radius: 8px; border: none;
+      background: #016f93; color: #fff; cursor: pointer; font-size: 1rem;
+    }
+    .submit:hover { background: #0489b8; }
+    .error { background: #3a1f18; color: #f5b7a8; padding: 0.6rem 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
+    .success { background: #16321f; color: #a8e6b8; padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.95rem; text-align: center; }
+    .footer { margin-top: 2rem; text-align: center; font-size: 0.8rem; color: #7d848a; }
+  </style>
+</head>
+<body>
+  <div class="page">
+    <div class="brand-mark">WAPPOS</div>
+    <div class="subtitle"><span class="subtitle-rule"></span>CONFIGURATION INITIALE<span class="subtitle-rule"></span></div>
+
+    {% if done %}
+      <div class="success">
+        {% if domain %}
+          Wappos est configuré. Connectez-vous sur
+          <strong>https://{{ domain }}/wappos-portal/</strong>
+        {% else %}
+          Wappos est déjà configuré sur ce serveur.
+        {% endif %}
+      </div>
+    {% else %}
+      {% if error %}<div class="error">{{ error }}</div>{% endif %}
+      <form method="post">
+        <div class="field">
+          <label for="domain">Nom de domaine</label>
+          <input type="text" id="domain" name="domain" value="{{ domain or '' }}" placeholder="exemple.local" required autofocus>
+        </div>
+        <div class="field">
+          <label for="username">Identifiant</label>
+          <input type="text" id="username" name="username" value="{{ username or 'wappos_admin' }}" required>
+          <div class="hint">Lettres, chiffres et underscore uniquement.</div>
+        </div>
+        <div class="field">
+          <label for="fullname">Nom complet</label>
+          <input type="text" id="fullname" name="fullname" value="{{ fullname or 'Administrateur' }}" required>
+        </div>
+        <div class="field">
+          <label for="password">Mot de passe</label>
+          <input type="password" id="password" name="password" required>
+        </div>
+        <div class="field">
+          <label for="password_confirm">Confirmez le mot de passe</label>
+          <input type="password" id="password_confirm" name="password_confirm" required>
+        </div>
+        <button type="submit" class="submit">Configurer Wappos</button>
+      </form>
+    {% endif %}
+
+    <div class="footer">WAPPOS — © 2026 <a href="https://byrtn.fr" style="color:#0489b8;">BYRTN</a></div>
+  </div>
+</body>
+</html>

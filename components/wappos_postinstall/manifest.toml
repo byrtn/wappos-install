@@ -1,0 +1,18 @@
+packaging_format = 2
+
+id = "wappos_postinstall"
+name = "Wappos Postinstall"
+description.fr = "Page de configuration initiale Wappos (domaine, identifiant, mot de passe)"
+version = "1.0.0~ynh1"
+
+maintainers = ["Patrick Ritaine"]
+
+[integration]
+yunohost = ">= 12.0"
+architectures = "all"
+multi_instance = false
+ldap = false
+sso = false
+disk = "10M"
+ram.build = "50M"
+ram.runtime = "50M"

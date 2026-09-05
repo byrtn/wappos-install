@@ -231,9 +231,9 @@ fi
 
 step "Installation des composants Wappos" "Installe le portail, l'administration et les autres briques propres a Wappos."
 for component in wappos_api_ynh wappos_sso_bypass wappos_admin_ynh wappos_portal_ynh prometheus_ynh; do
-    echo -n "  Installation de $component... "
+    echo "  Installation de $component..."
     quiet bash "$release_dir/$component/standalone/install.sh"
-    success_line "OK"
+    success_line "  $component installe"
 done
 
 if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'rspamd' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then

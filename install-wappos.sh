@@ -174,7 +174,7 @@ if [ ! -f /etc/yunohost/installed ]; then
         warn_line "Les mots de passe ne correspondent pas ou sont vides, recommencez."
     done
 
-    until yunohost tools postinstall -d "$wappos_domain" -u adminynh -F "Administrateur" -p "$wappos_password" --i-have-read-terms-of-services; do
+    until yunohost tools postinstall -d "$wappos_domain" -u wappos_admin -F "Administrateur" -p "$wappos_password" --i-have-read-terms-of-services; do
         echo
         error_line "Echec, on recommence ces memes questions."
         echo
@@ -329,7 +329,7 @@ echo
 echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}  (ou https://$final_ip/wappos-portal/)"
 echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}  (ou https://$final_ip/wappos-admin/)"
 echo
-echo -e "${blue}${bold}  >>> IDENTIFIANT : adminynh${reset}"
+echo -e "${blue}${bold}  >>> IDENTIFIANT : wappos_admin${reset}"
 echo -e "${blue}${bold}  >>> MOT DE PASSE : celui que vous venez de definir ci-dessus${reset}"
 echo
 
@@ -338,20 +338,30 @@ if [ -f /usr/bin/yunoprompt ] && ! grep -q "Portail Wappos" /usr/bin/yunoprompt;
     export WAPPOS_IP="$final_ip"
     python3 - <<'PYEOF'
 import os
+import re
 path = "/usr/bin/yunoprompt"
 domain = os.environ["WAPPOS_DOMAIN"]
 ip = os.environ["WAPPOS_IP"]
 with open(path, encoding="utf-8") as f:
     content = f.read()
-marker = "${fingerprint[2]}"
+
+# Retire le bloc empreintes SSL/SSH par defaut (bruit inutile qui pousse
+# le rappel important hors de l'ecran visible sur une console physique).
+noise_pattern = re.compile(
+    r" Local SSL CA X509 fingerprint:\n.*?\$\{fingerprint\[2\]\}\n",
+    re.S,
+)
+content = noise_pattern.sub("", content, count=1)
+
+anchor = "Local IP: ${local_ip:-(no ip detected?)}"
 block = (
     "\n"
     f" Portail Wappos        : https://{domain}/wappos-portal/ (ou https://{ip}/wappos-portal/)\n"
     f" Administration Wappos : https://{domain}/wappos-admin/ (ou https://{ip}/wappos-admin/)\n"
-    " Identifiant : adminynh"
+    " Identifiant : wappos_admin"
 )
-if marker in content:
-    content = content.replace(marker, marker + block, 1)
+if anchor in content:
+    content = content.replace(anchor, anchor + block, 1)
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
 PYEOF

@@ -146,7 +146,7 @@ if ! command -v yunohost >/dev/null 2>&1; then
 fi
 
 if [ -d /usr/share/yunohost/admin ] && ! grep -q "Wappos" /usr/share/yunohost/admin/index.html 2>/dev/null; then
-    step "Habillage Wappos de l'interface web" "Remplace la marque YunoHost par Wappos avant meme la configuration initiale."
+    step "Interface graphique Wappos" "Applique l'interface graphique Wappos avant meme la configuration initiale."
     for f in /usr/share/yunohost/admin/assets/logo_light-*.png; do
         [ -f "$f" ] && cp "$script_dir/branding/logo_debian.png" "$f"
     done
@@ -154,7 +154,7 @@ if [ -d /usr/share/yunohost/admin ] && ! grep -q "Wappos" /usr/share/yunohost/ad
         [ -f "$f" ] && cp "$script_dir/branding/logo_debian_dark.png" "$f"
     done
     sed -i 's/<title>YunoHost Admin<\/title>/<title>Wappos<\/title>/' /usr/share/yunohost/admin/index.html
-    success_line "Interface web habillee Wappos"
+    success_line "Interface graphique Wappos appliquee"
 fi
 
 if [ ! -f /etc/yunohost/installed ]; then
@@ -174,7 +174,7 @@ if [ ! -f /etc/yunohost/installed ]; then
     echo -e "  ${blue}${bold}https://${current_ip}/${reset}"
     echo
     echo -e "Suivez les instructions a l'ecran. Utilisez ${bold}wappos_admin${reset} comme"
-    echo "identifiant (pas de tirets ni de points acceptes par YunoHost)."
+    echo "identifiant (pas de tirets ni de points acceptes)."
     echo "Cette etape reprend automatiquement des que vous avez valide le formulaire,"
     echo "sans rien taper ici."
     echo

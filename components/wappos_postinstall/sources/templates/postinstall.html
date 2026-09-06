@@ -112,7 +112,11 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     .loading-text { font-size: 0.95rem; color: var(--color-text); }
-    .loading-subtext { font-size: 0.8rem; color: var(--color-text-faint); }
+    .loading-subtext {
+      background: var(--color-input-bg); border: 1px solid var(--color-border-strong);
+      color: var(--color-text-faint); padding: 0.75rem 1rem; border-radius: 8px;
+      font-size: 0.8rem;
+    }
   </style>
 </head>
 <body>

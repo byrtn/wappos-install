@@ -97,6 +97,7 @@
 
     .error { background: var(--color-error-bg); color: var(--color-error-text); padding: 0.6rem 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
     .success { background: var(--color-success-bg); color: var(--color-success-text); padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.95rem; text-align: center; }
+    .success a { color: inherit; }
 
     .login-footer { margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--color-text-faint); }
     .login-footer a { color: var(--color-link); }
@@ -123,7 +124,8 @@
       {% if done %}
         <div class="success">
           {% if domain %}
-            Wappos est configuré. Connectez-vous sur<br><strong>https://{{ domain }}/wappos-portal/</strong>
+            Wappos est configuré. Connectez-vous sur<br>
+            <strong><a href="https://{{ domain }}/wappos-portal/">https://{{ domain }}/wappos-portal/</a></strong>
           {% else %}
             Wappos est déjà configuré sur ce serveur.
           {% endif %}

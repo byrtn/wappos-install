@@ -100,6 +100,39 @@ quiet() {
     return $rc
 }
 
+quiet_with_progress() {
+    local seen_line=0 phase="Demarrage..."
+    "$@" >>"$install_log" 2>&1 &
+    local pid=$! spin='-\|/' i=0
+    while kill -0 "$pid" 2>/dev/null; do
+        i=$(( (i + 1) % 4 ))
+        local total_lines
+        total_lines=$(wc -l < "$install_log" 2>/dev/null || echo 0)
+        if [ "$total_lines" -gt "$seen_line" ]; then
+            local new_content
+            new_content="$(tail -n "+$((seen_line + 1))" "$install_log" 2>/dev/null)"
+            seen_line=$total_lines
+            if echo "$new_content" | grep -q "1/5"; then
+                phase="Mise a jour du systeme de base..."
+            elif echo "$new_content" | grep -q "2/5"; then
+                phase="Installation des dependances necessaires..."
+            elif echo "$new_content" | grep -q "3/5"; then
+                phase="Preparation de l'installation..."
+            elif echo "$new_content" | grep -q "4/5"; then
+                phase="Ajout des sources logicielles..."
+            elif echo "$new_content" | grep -q "5/5"; then
+                phase="Installation du coeur du systeme..."
+            fi
+        fi
+        printf "\r  %s %-45s" "${spin:$i:1}" "$phase"
+        sleep 0.3
+    done
+    wait "$pid"
+    local rc=$?
+    printf "\r%60s\r" " "
+    return $rc
+}
+
 banner
 echo
 echo "Le detail technique de chaque etape est enregistre dans $install_log"
@@ -131,7 +164,7 @@ if ! command -v yunohost >/dev/null 2>&1; then
     step "Installation du moteur systeme Wappos" "Installe le socle technique sur lequel Wappos s'appuie."
     echo "Cette etape peut durer plusieurs minutes, c'est normal."
     tries=0
-    until quiet bash -c "curl https://install.yunohost.org | bash -s -- -a"; do
+    until quiet_with_progress bash -c "curl https://install.yunohost.org | bash -s -- -a"; do
         tries=$((tries + 1))
         if [ "$tries" -ge 4 ]; then
             error_line "Echec apres plusieurs tentatives, abandon. Dernieres lignes du journal :"

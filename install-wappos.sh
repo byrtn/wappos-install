@@ -329,26 +329,27 @@ security_configured_marker="$script_dir/.security-configured"
 
 if [ ! -f "$security_configured_marker" ]; then
     step "Connexion SSH par mot de passe"
-    echo "Par defaut, la connexion root en SSH accepte un mot de passe en plus"
-    echo "des cles. Pour un serveur expose sur Internet, il est recommande de"
-    echo "n'accepter que les cles SSH (plus resistant aux attaques par force brute)."
+    echo "Par defaut, seules les cles SSH sont acceptees pour la connexion root"
+    echo "(la connexion par mot de passe reste desactivee depuis le premier"
+    echo "demarrage, pour ne pas exposer ce serveur avant sa configuration)."
     echo
     if [ -s /root/.ssh/authorized_keys ]; then
-        echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Desactiver la connexion"
-        echo "par mot de passe maintenant ? [o/N] (20 secondes, sinon N par defaut)"
-        read_with_countdown 20 disable_ssh_password || disable_ssh_password="n"
+        echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Rien a faire, vous pouvez"
+        echo "vous connecter normalement."
+    else
+        echo -e "${bold}Aucune cle SSH enregistree pour root.${reset} Activer la connexion par mot"
+        echo "de passe le temps d'en ajouter une ? [o/N] (20 secondes, sinon N par defaut)"
+        read_with_countdown 20 enable_ssh_password || enable_ssh_password="n"
 
-        if [ "$disable_ssh_password" = "o" ] || [ "$disable_ssh_password" = "O" ]; then
+        if [ "$enable_ssh_password" = "o" ] || [ "$enable_ssh_password" = "O" ]; then
             cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
-            sed -i 's/^#\?PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config
+            sed -i 's/^#\?PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
             sshd -t
             systemctl reload sshd
-            echo -e "${bold}Connexion par mot de passe desactivee.${reset} Seules les cles SSH sont acceptees desormais."
+            echo -e "${bold}Connexion par mot de passe activee.${reset} Le mot de passe root est celui"
+            echo "que vous venez de choisir pour l'administrateur Wappos ci-dessus."
+            echo "Pensez a la desactiver a nouveau une fois votre cle ajoutee."
         fi
-    else
-        echo -e "${bold}Aucune cle SSH enregistree pour root${reset} — desactiver le mot de passe vous"
-        echo "empecherait de vous reconnecter. Ajoutez d'abord votre cle publique a"
-        echo "/root/.ssh/authorized_keys, puis relancez cette etape plus tard si besoin."
     fi
     echo
 

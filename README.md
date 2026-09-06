@@ -24,12 +24,13 @@ cd wappos-install
 
 ## Important — pendant l'installation
 
-Le temps que l'installation se termine (configuration réseau, puis formulaire de
-configuration initiale dans le navigateur), la connexion root en SSH avec mot de passe
-est active par défaut, avec un mot de passe root temporaire fixe (`wapposinstall`,
-visible dans `preseed.cfg`). Il est automatiquement remplacé par le mot de passe que
-vous choisissez pour votre compte administrateur dès la fin du formulaire de
-configuration initiale. **Gardez cette machine sur un réseau privé/de confiance
-pendant toute la durée de l'installation** — ne l'exposez pas directement sur
-Internet avant d'avoir terminé et, si besoin, désactivé la connexion par mot de passe
-(proposé en fin d'installation).
+La connexion SSH par mot de passe est **désactivée dès le premier démarrage** (seules
+les clés SSH sont acceptées) : l'installation se pilote entièrement depuis la console
+et le navigateur, sans jamais avoir besoin de SSH. Le mot de passe root est temporaire
+et fixe (`wapposinstall`, visible dans `preseed.cfg`) — il ne sert qu'à une éventuelle
+connexion console, et est de toute façon remplacé automatiquement par le mot de passe
+de votre compte administrateur dès la fin du formulaire de configuration initiale.
+
+Si vous avez besoin d'un accès SSH avant la fin de l'installation, l'étape dédiée en
+fin de script permet d'activer temporairement la connexion par mot de passe le temps
+d'ajouter votre clé publique.

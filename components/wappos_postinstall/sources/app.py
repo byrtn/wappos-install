@@ -47,7 +47,7 @@ def postinstall():
                 ],
                 capture_output=True,
                 text=True,
-                timeout=300,
+                timeout=3600,
             )
             if result.returncode != 0:
                 output_lines = (result.stderr + "\n" + result.stdout).strip().splitlines()

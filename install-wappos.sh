@@ -10,7 +10,6 @@ red="\033[1;31m"
 yellow="\033[1;33m"
 
 step_count=0
-TOTAL_STEPS=12
 
 banner() {
     echo
@@ -30,7 +29,7 @@ title() {
 step() {
     step_count=$((step_count + 1))
     local why="${2:-}"
-    local label="Etape ${step_count}/${TOTAL_STEPS} - $1"
+    local label="Etape ${step_count} - $1"
     echo
     echo -e "${blue}${bold}${label}${reset}"
     echo -e "${blue}$(printf -- '─%.0s' $(seq 1 ${#label}))${reset}"
@@ -278,12 +277,7 @@ step "Finalisation de la liaison Prometheus / wappos_admin" "Connecte le tableau
 )
 systemctl restart wappos_admin
 
-title "Installation terminee"
-echo -e "${bold}Wappos est installe et pret a l'usage.${reset}"
-echo
-echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}"
-echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}"
-echo
+success_line "Composants Wappos installes."
 
 interface="$(ip route show default | awk '{print $5; exit}')"
 final_ip="$(ip -4 -o addr show dev "$interface" | awk '{print $4}' | cut -d/ -f1 | head -n1)"

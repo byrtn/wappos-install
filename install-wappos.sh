@@ -122,6 +122,16 @@ quiet_with_progress() {
                 phase="Ajout des sources logicielles..."
             elif echo "$new_content" | grep -q "5/5"; then
                 phase="Installation du coeur du systeme..."
+            elif echo "$new_content" | grep -q "Setting up slapd ("; then
+                phase="Configuration de l'annuaire utilisateurs..."
+            elif echo "$new_content" | grep -q "Setting up postfix ("; then
+                phase="Configuration du service de messagerie..."
+            elif echo "$new_content" | grep -q "Setting up nginx"; then
+                phase="Configuration du serveur web..."
+            elif echo "$new_content" | grep -q "Setting up fail2ban ("; then
+                phase="Configuration de la protection contre les intrusions..."
+            elif echo "$new_content" | grep -q "Setting up yunohost ("; then
+                phase="Finalisation de la configuration..."
             fi
         fi
         printf "\r  %s %-45s" "${spin:$i:1}" "$phase"

@@ -26,10 +26,11 @@ cd wappos-install
 
 La connexion SSH par mot de passe est **désactivée dès le premier démarrage** (seules
 les clés SSH sont acceptées) : l'installation se pilote entièrement depuis la console
-et le navigateur, sans jamais avoir besoin de SSH. Le mot de passe root est temporaire
-et fixe (`wapposinstall`, visible dans `preseed.cfg`) — il ne sert qu'à une éventuelle
-connexion console, et est de toute façon remplacé automatiquement par le mot de passe
-de votre compte administrateur dès la fin du formulaire de configuration initiale.
+et le navigateur, sans jamais avoir besoin de SSH. Le mot de passe root est temporaire,
+généré aléatoirement et unique à chaque machine dès l'installation Debian (mis en
+cache dans `/root/.wappos-boot-password`, lisible depuis la console si besoin) — il
+est de toute façon remplacé automatiquement par le mot de passe de votre compte
+administrateur dès la fin du formulaire de configuration initiale.
 
 Si vous avez besoin d'un accès SSH avant la fin de l'installation, l'étape dédiée en
 fin de script permet d'activer temporairement la connexion par mot de passe le temps

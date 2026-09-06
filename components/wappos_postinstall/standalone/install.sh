@@ -43,7 +43,10 @@ mkdir -p /etc/nginx/conf.d/default.d
 sed "s/__PORT__/$port/g" "$pkg_dir/standalone/conf/redirect_to_admin.conf" > /etc/nginx/conf.d/default.d/redirect_to_admin.conf
 nginx -t && systemctl reload nginx
 
-# S'auto-desactive des qu'un domaine est cree (voir sources/hooks/50-post_domain_add).
+# Le hook post_domain_add lui-meme ne fait plus rien (voir DEC-671) : il se
+# declenche trop tot dans la sequence de "yunohost tools postinstall" pour
+# savoir si le postinstall est vraiment termine. L'auto-desactivation reelle
+# est programmee par sources/app.py, uniquement apres un succes confirme.
 mkdir -p /etc/yunohost/hooks.d/post_domain_add
 sed "s/__APP__/$app/g" "$pkg_dir/sources/hooks/50-post_domain_add" > "/etc/yunohost/hooks.d/post_domain_add/50-$app"
 chmod 755 "/etc/yunohost/hooks.d/post_domain_add/50-$app"

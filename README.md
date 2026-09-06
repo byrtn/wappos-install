@@ -21,3 +21,12 @@ cd wappos-install
 ```
 
 À exécuter en tant que root. Le script installe le socle système, Docker, les composants Wappos, et affiche à la fin l'adresse et les identifiants de connexion.
+
+## Important — pendant l'installation
+
+Le temps que l'installation se termine (configuration réseau, puis formulaire de
+configuration initiale dans le navigateur), la connexion root en SSH avec mot de passe
+est active par défaut. Gardez cette machine sur un réseau privé/de confiance pendant
+toute la durée de l'installation — ne l'exposez pas directement sur Internet avant
+d'avoir terminé et, si besoin, désactivé la connexion par mot de passe (proposé en fin
+d'installation).

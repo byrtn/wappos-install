@@ -134,12 +134,12 @@ quiet_with_progress() {
                 phase="Finalisation de la configuration..."
             fi
         fi
-        printf "\r  %s %-45s" "${spin:$i:1}" "$phase"
+        printf "\r\033[K  %s %s" "${spin:$i:1}" "$phase"
         sleep 0.3
     done
     wait "$pid"
     local rc=$?
-    printf "\r%60s\r" " "
+    printf "\r\033[K"
     return $rc
 }
 

@@ -309,7 +309,7 @@ RSPAMD_PHISHING_EOF
 
     rspamd_password="$(openssl rand -base64 24)"
     rspamd_password_hash="$(rspamadm pw -p "$rspamd_password")"
-    printf 'password = "%s";\n' "$rspamd_password_hash" > /etc/rspamd/local.d/worker-controller.inc
+    printf 'password = "%s";\nsecure_ip = "127.0.0.1";\n' "$rspamd_password_hash" > /etc/rspamd/local.d/worker-controller.inc
     install -m 600 /dev/null /root/.wappos-rspamd-password
     printf '%s' "$rspamd_password" > /root/.wappos-rspamd-password
 

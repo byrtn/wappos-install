@@ -1,0 +1,36 @@
+:root {
+  --bs-primary: #016f93;
+  --bs-primary-rgb: 1, 111, 147;
+  --bs-link-color: #016f93;
+  --bs-link-color-rgb: 1, 111, 147;
+  --bs-link-hover-color: #015a78;
+  --bs-link-hover-color-rgb: 1, 90, 120;
+}
+
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('../fonts/Montserrat-Variable.woff2') format('woff2');
+}
+body {
+  font-family: 'Montserrat', "Helvetica Neue", Helvetica, Arial, sans-serif;
+}
+
+.btn-primary {
+  --bs-btn-bg: #016f93;
+  --bs-btn-border-color: #016f93;
+  --bs-btn-hover-bg: #015a78;
+  --bs-btn-hover-border-color: #015a78;
+  --bs-btn-active-bg: #015a78;
+  --bs-btn-active-border-color: #015a78;
+}
+
+.nav-pills .nav-link.active {
+  background-color: #016f93;
+}
+
+.navbar-brand > img {
+  height: 42px;
+}

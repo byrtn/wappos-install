@@ -153,8 +153,8 @@ if [ ! -f "$network_configured_marker" ]; then
     echo "sauf si une configuration manuelle a ete choisie pendant l'installation Debian qui"
     echo "vient de se terminer. Aucune action requise ici."
     echo
-    echo "Pour une adresse IP fixe : ce choix se fait au moment de l'installation Debian"
-    echo "elle-meme (etape reseau), pas depuis cet ecran."
+    echo "Pour une adresse IP fixe : debranchez le reseau (ou coupez le Wi-Fi) avant de"
+    echo "demarrer l'installateur Debian - il proposera alors la configuration manuelle."
     touch "$network_configured_marker"
 fi
 

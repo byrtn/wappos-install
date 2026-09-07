@@ -149,9 +149,12 @@ echo "Le detail technique de chaque etape est enregistre dans $install_log"
 
 if [ ! -f "$network_configured_marker" ]; then
     step "Configuration reseau" "Verifie comment ce serveur va se connecter a Internet."
-    echo "Ce serveur utilise l'adresse IP fournie automatiquement par votre routeur (DHCP)."
-    echo "Aucune action requise ici. Une adresse fixe pourra etre proposee a la fin"
-    echo "de cette installation, une fois Wappos en place."
+    echo "Ce serveur utilise l'adresse IP fournie automatiquement par votre routeur (DHCP),"
+    echo "sauf si une configuration manuelle a ete choisie pendant l'installation Debian qui"
+    echo "vient de se terminer. Aucune action requise ici."
+    echo
+    echo "Pour une adresse IP fixe : ce choix se fait au moment de l'installation Debian"
+    echo "elle-meme (etape reseau), pas depuis cet ecran."
     touch "$network_configured_marker"
 fi
 

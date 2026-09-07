@@ -310,9 +310,47 @@ RSPAMD_PHISHING_EOF
     rspamd_password="$(openssl rand -base64 24)"
     rspamd_password_hash="$(rspamadm pw -p "$rspamd_password")"
     printf 'password = "%s";\n' "$rspamd_password_hash" > /etc/rspamd/local.d/worker-controller.inc
+    install -m 600 /dev/null /root/.wappos-rspamd-password
+    printf '%s' "$rspamd_password" > /root/.wappos-rspamd-password
 
     quiet rspamadm configtest
     systemctl reload rspamd
+
+    bash "$script_dir/branding/rspamd/apply-branding.sh"
+    cat > /etc/cron.d/wappos-rspamd-branding <<CRON_EOF
+@daily root bash $script_dir/branding/rspamd/apply-branding.sh >/dev/null 2>&1
+CRON_EOF
+
+    # Le paquet rspamd_ynh ne definit aucune ressource domaine/chemin dans
+    # son manifeste (verifie DEC-690/691) : il ne cree jamais de route
+    # nginx ni d'enregistrement de permission lui-meme. On enregistre le
+    # domaine/chemin a la main (comme le ferait le systeme de ressources
+    # d'une app normale) pour que Rspamd apparaisse correctement, avec un
+    # lien fonctionnel, dans "Applications systeme" - sans aucun code
+    # specifique cote wappos_admin. L'acces reste protege par le mot de
+    # passe natif de Rspamd (worker-controller.inc ci-dessus) en plus du
+    # SSO YunoHost. Le "url" donne a permission_url() est relatif au chemin
+    # deja enregistre pour l'app (path=/rspamd ci-dessous) - "/" et non
+    # "/rspamd", sinon le chemin final se retrouve double (DEC-692).
+    yunohost app setting rspamd domain -v "$main_domain"
+    yunohost app setting rspamd path -v /rspamd
+    python3 -c "from yunohost.permission import permission_url; permission_url('rspamd.main', url='/', sync_perm=True)" 2>/dev/null || true
+    quiet yunohost app ssowatconf
+
+    mkdir -p "/etc/nginx/conf.d/$main_domain.d"
+    cp "$script_dir/branding/rspamd/nginx-rspamd.conf.template" "/etc/nginx/conf.d/$main_domain.d/rspamd.conf"
+    nginx -t && systemctl reload nginx
+
+    # Sans ceci, Rspamd tourne mais ne recoit jamais aucun message : Postfix
+    # n'envoie par defaut son courrier qu'au milter OpenDKIM (port 8891),
+    # jamais a celui de Rspamd (port 11332, deja actif cote Rspamd par
+    # defaut) tant qu'il n'est pas ajoute explicitement (DEC-693).
+    current_milters="$(postconf -h smtpd_milters)"
+    if ! echo "$current_milters" | grep -q "11332"; then
+        postconf -e "smtpd_milters = ${current_milters:+$current_milters }inet:localhost:11332"
+        systemctl reload postfix
+    fi
+
     success_line "Rspamd installe"
 fi
 

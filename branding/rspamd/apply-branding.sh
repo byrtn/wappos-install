@@ -1,9 +1,5 @@
 #!/bin/bash
 # Auteur : Patrick Ritaine
-# Applique l'habillage Wappos sur l'interface web native de Rspamd (logo,
-# titre, couleurs). Idempotent - reexecutable a chaque fois sans effet de
-# bord, y compris apres une mise a jour du paquet rspamd qui restaurerait
-# les fichiers d'origine.
 set -euo pipefail
 
 WWW="/usr/share/rspamd/www"

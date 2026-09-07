@@ -28,7 +28,7 @@
       <div class="card create-card">
         <div class="card-header app-detail-header">
           {% if detail.logo %}
-            <img src="https://{{ request.host }}/yunohost/sso/applogos/{{ detail.logo }}.png" alt="" class="app-detail-logo">
+            <img src="{{ url_for('app_logo_asset', filename=detail.logo ~ '.png') }}" alt="" class="app-detail-logo">
           {% endif %}
           <div>
             <h1 style="margin: 0; font-size: 1.05rem;">{{ detail.label }}</h1>

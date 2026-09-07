@@ -43,6 +43,43 @@ location ~ ^/yunohost/sso/(css|assets|fonts)/(.*)$ {{
 
 _ROOT_REWRITE = "rewrite ^/$ /wappos-portal/ redirect;\n"
 
+_HEADER_FILTER = """header_filter_by_lua_block {
+  local loc = ngx.header["Location"]
+  if loc then
+    local new_loc = loc:gsub("/yunohost/sso", "/wappos-portal")
+    if new_loc ~= loc then
+      ngx.header["Location"] = new_loc
+    end
+  end
+
+  local sc = ngx.header["Set-Cookie"]
+  if sc then
+    if type(sc) == "table" then
+      for i, v in ipairs(sc) do
+        sc[i] = v:gsub("^yunohost%.portal=", "wappos.portal=")
+      end
+      ngx.header["Set-Cookie"] = sc
+    else
+      local new_sc = sc:gsub("^yunohost%.portal=", "wappos.portal=")
+      if new_sc ~= sc then
+        ngx.header["Set-Cookie"] = new_sc
+      end
+    end
+  end
+}
+"""
+
+_COOKIE_REWRITE = """rewrite_by_lua_block {
+  local cookie = ngx.var.http_cookie
+  if cookie then
+    local new_cookie = cookie:gsub("wappos%.portal=", "yunohost.portal=")
+    if new_cookie ~= cookie then
+      ngx.req.set_header("Cookie", new_cookie)
+    end
+  end
+}
+"""
+
 
 def _yunohost_json(*args):
     out = subprocess.run(
@@ -69,7 +106,7 @@ def _domains_with_root_app():
 def write_fragment(domain: str, has_root_app: bool) -> None:
     conf_dir = f"/etc/nginx/conf.d/{domain}.d"
     subprocess.run(["mkdir", "-p", conf_dir], check=True)
-    content = ("" if has_root_app else _ROOT_REWRITE) + _SSO_REWRITES
+    content = _COOKIE_REWRITE + _HEADER_FILTER + ("" if has_root_app else _ROOT_REWRITE) + _SSO_REWRITES
     with open(f"{conf_dir}/wappos_sso_bypass.conf", "w") as f:
         f.write(content)
 

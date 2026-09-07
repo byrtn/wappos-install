@@ -67,12 +67,12 @@
 {% endblock %}
 
 {% block extra_script %}
-    fetch('/yunohost/portalapi/public')
+    fetch('{{ request.script_root }}/api/public-branding')
       .then((r) => r.ok ? r.json() : null)
       .then((data) => {
         if (data && data.portal_logo) {
           const img = document.getElementById('login-logo');
-          img.src = '/yunohost/sso/customassets/' + data.portal_logo;
+          img.src = '{{ request.script_root }}/assets/logo/' + data.portal_logo;
           img.hidden = false;
           document.getElementById('login-fallback-text').hidden = true;
         }

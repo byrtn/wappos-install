@@ -411,9 +411,35 @@ def _load_branding():
 
     logo = public.get("portal_logo")
     g.branding = {
-        "logo_url": f"/yunohost/sso/customassets/{logo}" if logo else None,
+        "logo_url": url_for("portal_logo_asset", filename=logo) if logo else None,
         "default_theme": public.get("portal_theme", "system"),
     }
+
+
+_CUSTOMASSETS_DIR = Path("/usr/share/yunohost/portal/customassets")
+_SAFE_ASSET_NAME = re.compile(r"^[a-zA-Z0-9_.-]+$")
+
+
+def _asset_not_found() -> Response:
+    resp = Response("Not found", status=404)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+@app.route("/assets/logo/<path:filename>")
+def portal_logo_asset(filename: str):
+    if not _SAFE_ASSET_NAME.match(filename) or ".." in filename:
+        return _asset_not_found()
+    asset_path = _CUSTOMASSETS_DIR / filename
+    try:
+        asset_path = asset_path.resolve(strict=True)
+    except OSError:
+        return _asset_not_found()
+    if _CUSTOMASSETS_DIR.resolve() not in asset_path.parents:
+        return _asset_not_found()
+    resp = Response(asset_path.read_bytes(), mimetype="image/png")
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return resp
 
 
 @app.context_processor

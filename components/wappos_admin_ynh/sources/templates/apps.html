@@ -14,7 +14,7 @@
         <li class="app-item" data-search="{{ (a.name ~ ' ' ~ a.id ~ ' ' ~ (a.description or ''))|lower }}">
           <div class="app-item-main">
             {% if a.logo_hash %}
-              <img src="https://{{ request.host }}/yunohost/sso/applogos/{{ a.logo_hash }}.png" alt="" class="app-item-logo">
+              <img src="{{ url_for('app_logo_asset', filename=a.logo_hash ~ '.png') }}" alt="" class="app-item-logo">
             {% else %}
               <span class="app-item-logo app-item-logo-placeholder">{{ a.name[:1]|upper }}</span>
             {% endif %}

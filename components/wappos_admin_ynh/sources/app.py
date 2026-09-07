@@ -252,6 +252,60 @@ def _colorize_log_line(line: str):
 
 WAPPOS_API_BASE = "http://127.0.0.1:9400"
 
+_CUSTOMASSETS_DIR = Path("/usr/share/yunohost/portal/customassets")
+_APPLOGOS_DIR = Path("/usr/share/yunohost/applogos")
+_SAFE_ASSET_NAME = re.compile(r"^[a-zA-Z0-9_.-]+$")
+
+
+def _asset_not_found() -> Response:
+    resp = Response("Not found", status=404)
+    resp.headers["Cache-Control"] = "no-store"
+    return resp
+
+
+def _serve_asset(directory: Path, filename: str, mimetype: str) -> Response:
+    if not _SAFE_ASSET_NAME.match(filename) or ".." in filename:
+        return _asset_not_found()
+    asset_path = directory / filename
+    try:
+        asset_path = asset_path.resolve(strict=True)
+    except OSError:
+        return _asset_not_found()
+    if directory.resolve() not in asset_path.parents:
+        return _asset_not_found()
+    resp = Response(asset_path.read_bytes(), mimetype=mimetype)
+    resp.headers["Cache-Control"] = "public, max-age=31536000, immutable"
+    return resp
+
+
+@app.route("/assets/logo/<path:filename>")
+def portal_logo_asset(filename: str):
+    return _serve_asset(_CUSTOMASSETS_DIR, filename, "image/png")
+
+
+@app.route("/assets/applogo/<path:filename>")
+def app_logo_asset(filename: str):
+    return _serve_asset(_APPLOGOS_DIR, filename, "image/png")
+
+
+@app.route("/api/public-branding")
+def public_branding_route():
+    return jsonify(_public_branding())
+
+
+def _public_branding() -> dict:
+    try:
+        resp = requests.get(
+            f"{WAPPOS_API_BASE}/portal/public",
+            headers={"X-Portal-Host": request.host},
+            timeout=10,
+        )
+        resp.raise_for_status()
+        return resp.json()
+    except requests.exceptions.RequestException as e:
+        app.logger.warning("Failed to fetch public portal settings: %s", e)
+        return {}
+
 _MANIFEST = tomllib.loads((Path(__file__).parent / ".package" / "manifest.toml").read_text())
 APP_VERSION = _MANIFEST["version"]
 
@@ -270,7 +324,7 @@ def _clean_firewall_rules(rules: dict) -> dict:
 
 @app.before_request
 def _require_login():
-    if request.path.startswith("/static") or request.path in ("/login", "/metrics"):
+    if request.path.startswith(("/static", "/assets/")) or request.path in ("/login", "/metrics", "/api/public-branding"):
         return None
     if _current_user():
         return None

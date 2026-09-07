@@ -52,8 +52,8 @@
     <div class="card">
       <h2 style="margin: 0; padding: 1.25rem 1.5rem;">Journal</h2>
       <form method="post" action="{{ url_for('share_log', name=detail.name) }}" style="padding: 0 1.5rem 1rem;"
-            onsubmit="return confirm('Ce journal sera envoyé à paste.yunohost.org (service tiers) pour obtenir un lien partageable. Continuer ?');">
-        <button type="submit" class="btn">Partager (yunopaste)</button>
+            onsubmit="return confirm('Ce journal sera envoyé a un service de partage externe pour obtenir un lien partageable. Continuer ?');">
+        <button type="submit" class="btn">Partager en ligne</button>
       </form>
       {% if detail.more_logs_available %}
         <a href="{{ url_for('log_detail', name=detail.name, n=number * 10) }}" class="btn log-more-btn">Afficher plus de lignes</a>

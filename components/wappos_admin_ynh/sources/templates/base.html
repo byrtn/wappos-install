@@ -322,11 +322,11 @@
     (function () {
       var logo = document.getElementById('header-logo');
       if (!logo) return;
-      fetch('/yunohost/portalapi/public')
+      fetch('{{ request.script_root }}/api/public-branding')
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           if (data && data.portal_logo) {
-            logo.src = '/yunohost/sso/customassets/' + data.portal_logo;
+            logo.src = '{{ request.script_root }}/assets/logo/' + data.portal_logo;
             logo.hidden = false;
             document.getElementById('header-fallback-text').hidden = true;
             document.getElementById('header-subtitle').hidden = false;

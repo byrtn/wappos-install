@@ -51,7 +51,7 @@
             <div class="card app-card">
               <div class="app-card-header">
                 {% if a.logo_hash %}
-                  <img src="https://{{ request.host }}/yunohost/sso/applogos/{{ a.logo_hash }}.png" alt="" class="app-card-logo">
+                  <img src="{{ url_for('app_logo_asset', filename=a.logo_hash ~ '.png') }}" alt="" class="app-card-logo">
                 {% else %}
                   <div class="app-card-logo app-card-logo-placeholder">{{ a.name[:1]|upper }}</div>
                 {% endif %}

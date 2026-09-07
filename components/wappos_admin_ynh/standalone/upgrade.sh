@@ -37,6 +37,11 @@ chmod 440 /etc/sudoers.d/wappos_admin_security_monitor
 chown root:root /etc/sudoers.d/wappos_admin_security_monitor
 visudo -c -f /etc/sudoers.d/wappos_admin_security_monitor
 
+for shm_dir in wappos_api_prometheus_multiproc wappos_admin_prometheus_multiproc wappos_portal_prometheus_multiproc wappos_api_cache; do
+    line="ALLOWDEVFILE=/dev/shm/${shm_dir}/*"
+    grep -qxF "$line" /etc/rkhunter.conf || echo "$line" >> /etc/rkhunter.conf
+done
+
 sed -e "s/__APP__/$app/g" -e "s#__INSTALL_DIR__#$install_dir#g" -e "s/__PORT__/$port/g" \
     "$pkg_dir/standalone/conf/systemd.service" > "/etc/systemd/system/$app.service"
 sed -e "s/__APP__/$app/g" -e "s/__PORT__/$port/g" \

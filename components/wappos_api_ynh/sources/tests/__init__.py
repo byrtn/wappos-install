@@ -1,1 +1,0 @@
-# Auteur : Patrick Ritaine

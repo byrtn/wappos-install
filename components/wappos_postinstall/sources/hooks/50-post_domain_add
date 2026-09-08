@@ -1,13 +1,4 @@
 #!/bin/bash
 set -eu
 
-# NE PAS auto-desactiver __APP__ ici. Ce hook se declenche des la creation du
-# domaine (domain_add), tres tot dans la sequence de "yunohost tools
-# postinstall" (creation utilisateur, changement mot de passe root, mise a
-# jour du catalogue d'apps, DEUX regen-conf complets suivent encore) - donc
-# bien avant que le postinstall soit reellement termine. Le seul endroit
-# fiable pour savoir que le postinstall a vraiment fini, c'est __APP__
-# lui-meme (sources/app.py), qui programme sa propre desactivation
-# uniquement apres avoir recu un succes confirme (returncode 0). Voir
-# DEC-669/DEC-671 dans DECISIONS.md pour l'historique de cette correction.
 exit 0

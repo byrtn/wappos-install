@@ -62,11 +62,6 @@ def postinstall():
                 else:
                     error = "Echec inconnu de la configuration."
             else:
-                # Postinstall reellement termine (returncode 0) : on peut
-                # desormais programmer notre propre desactivation, en toute
-                # securite puisqu'on sait que la sequence complete est finie.
-                # Voir DECISIONS.md DEC-671 : le hook post_domain_add se
-                # declenchait bien trop tot pour faire ça de façon fiable.
                 subprocess.run(
                     [
                         "sudo", "-n", "/usr/bin/systemd-run",

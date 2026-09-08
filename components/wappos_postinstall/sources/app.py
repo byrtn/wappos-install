@@ -35,6 +35,10 @@ def postinstall():
             error = "L'identifiant ne peut contenir que des lettres, chiffres et underscore."
         elif not password or password != password_confirm:
             error = "Les mots de passe ne correspondent pas ou sont vides."
+        elif len(password) < 8:
+            error = "Le mot de passe doit contenir au moins 8 caracteres."
+        elif password.lower() in (username.lower(), fullname.lower(), domain.lower()):
+            error = "Le mot de passe ne peut pas etre identique a l'identifiant, au nom ou au domaine."
         else:
             result = subprocess.run(
                 [

@@ -76,6 +76,36 @@ label auto
   append vga=788 initrd=/install.amd/gtk/initrd.gz preseed/file=/cdrom/preseed.cfg debian-installer/exit/poweroff=true ---
 EOF
 
+GRUB_CFG="$WORKDIR/iso/boot/grub/grub.cfg"
+if [ ! -f "$GRUB_CFG" ]; then
+    echo "boot/grub/grub.cfg introuvable sur cette ISO."
+    exit 1
+fi
+if ! grep -q "menuentry --hotkey=g 'Graphical install'" "$GRUB_CFG"; then
+    echo "ERREUR : l'entree de menu GRUB attendue est introuvable (l'ISO Debian a peut-etre change)."
+    exit 1
+fi
+python3 - "$GRUB_CFG" << 'PYEOF'
+import sys
+
+path = sys.argv[1]
+with open(path) as f:
+    content = f.read()
+
+marker = "menuentry --hotkey=g 'Graphical install'"
+auto_entry = """set default=0
+set timeout=1
+menuentry 'Wappos automated install' {
+    set background_color=black
+    linux    /install.amd/vmlinuz auto=true priority=critical vga=788 preseed/file=/cdrom/preseed.cfg debian-installer/exit/poweroff=true --- quiet
+    initrd   /install.amd/gtk/initrd.gz
+}
+"""
+content = content.replace(marker, auto_entry + marker, 1)
+with open(path, "w") as f:
+    f.write(content)
+PYEOF
+
 cd "$WORKDIR/iso"
 find . -type f ! -name md5sum.txt -exec md5sum {} \; > md5sum.txt
 

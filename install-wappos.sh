@@ -177,7 +177,7 @@ if ! command -v yunohost >/dev/null 2>&1; then
     step "Installation du moteur systeme Wappos" "Installe le socle technique sur lequel Wappos s'appuie."
     echo "Cette etape peut durer plusieurs minutes, c'est normal."
     tries=0
-    until quiet_with_progress bash -c "curl https://install.yunohost.org | bash -s -- -a"; do
+    until quiet_with_progress bash -c "curl --ipv4 https://install.yunohost.org | bash -s -- -a"; do
         tries=$((tries + 1))
         if [ "$tries" -ge 4 ]; then
             error_line "Echec apres plusieurs tentatives, abandon. Dernieres lignes du journal :"
@@ -254,7 +254,7 @@ if ! command -v docker >/dev/null 2>&1; then
     step "Installation de Docker Engine" "Permet a Wappos de faire tourner des applications supplementaires de facon isolee."
     echo "Cette etape peut durer une a deux minutes, c'est normal."
     tries=0
-    until quiet bash -c "curl -fsSL https://get.docker.com | sh"; do
+    until quiet bash -c "curl --ipv4 -fsSL https://get.docker.com | sh"; do
         tries=$((tries + 1))
         if [ "$tries" -ge 4 ]; then
             error_line "Echec apres plusieurs tentatives, abandon. Dernieres lignes du journal :"

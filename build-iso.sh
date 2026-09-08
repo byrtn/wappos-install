@@ -73,7 +73,7 @@ timeout 1
 
 label auto
   kernel /install.amd/gtk/vmlinuz
-  append vga=788 initrd=/install.amd/gtk/initrd.gz preseed/file=/cdrom/preseed.cfg debian-installer/exit/poweroff=true ---
+  append vga=788 initrd=/install.amd/gtk/initrd.gz preseed/file=/cdrom/preseed.cfg ipv6.disable=1 ---
 EOF
 
 GRUB_CFG="$WORKDIR/iso/boot/grub/grub.cfg"
@@ -97,7 +97,7 @@ auto_entry = """set default=0
 set timeout=1
 menuentry 'Wappos automated install' {
     set background_color=black
-    linux    /install.amd/vmlinuz auto=true priority=critical vga=788 preseed/file=/cdrom/preseed.cfg debian-installer/exit/poweroff=true --- quiet
+    linux    /install.amd/vmlinuz auto=true priority=critical vga=788 preseed/file=/cdrom/preseed.cfg ipv6.disable=1 --- quiet
     initrd   /install.amd/gtk/initrd.gz
 }
 """

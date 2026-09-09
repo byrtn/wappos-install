@@ -277,18 +277,23 @@
                     margin-bottom: 1rem; text-align: center; }
     .footer-links a:hover { opacity: 0.75; }
 
-    .pwa-install-banner[hidden] { display: none; }
-    .pwa-install-banner { position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 1000;
-            background: var(--color-card-bg); color: var(--color-text); border-radius: 12px;
-            box-shadow: 0 2px 12px rgba(0,0,0,0.25); padding: 0.9rem 1.1rem; display: flex;
-            flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem;
-            max-width: 480px; margin: 0 auto; }
-    .pwa-install-row[hidden] { display: none; }
-    .pwa-install-row { display: flex; align-items: center; justify-content: center; gap: 0.75rem;
-            padding: 0 0 1rem; font-size: 0.85rem; }
-    .pwa-install-row a { color: var(--color-link); }
-    .pwa-install-row-dismiss { background: none; border: none; padding: 0; margin: 0;
-            font: inherit; color: var(--color-text-muted); text-decoration: underline; cursor: pointer; }
+    .pwa-install-banner[hidden], .pwa-install-row[hidden] { display: none; }
+    .pwa-install-banner, .pwa-install-row { position: fixed; left: 1rem; right: 1rem; bottom: 1rem; z-index: 1000;
+            background: var(--color-btn-bg); color: #fff; border-radius: 14px;
+            box-shadow: 0 8px 24px rgba(0,0,0,0.35); padding: 0.85rem 1rem; display: flex;
+            align-items: center; gap: 0.75rem; max-width: 420px; margin: 0 auto; font-size: 0.85rem; }
+    .pwa-install-copy { flex: 1; min-width: 0; }
+    .pwa-install-title { margin: 0; font-weight: 500; font-size: 0.9rem; }
+    .pwa-install-icon { flex-shrink: 0; width: 36px; height: 36px; border-radius: 10px;
+            background: rgba(255,255,255,0.15); display: flex; align-items: center; justify-content: center; }
+    .pwa-install-row a { flex-shrink: 0; background: #fff; color: var(--color-btn-bg); border: none;
+            border-radius: 8px; padding: 0.4rem 0.85rem; font-weight: 500; font-size: 0.82rem;
+            text-decoration: none; }
+    .pwa-install-dismiss-x { background: none; border: none; padding: 0.25rem;
+            margin: 0; font-size: 1.1rem; line-height: 1; color: rgba(255,255,255,0.7); cursor: pointer;
+            flex-shrink: 0; }
+    #pwa-install-dismiss { flex-shrink: 0; background: #fff; color: var(--color-btn-bg); border: none;
+            border-radius: 8px; padding: 0.4rem 0.85rem; font-weight: 500; font-size: 0.82rem; cursor: pointer; }
 
                 .page { width: 100%; max-width: 1200px; margin: 0 auto; }
 
@@ -351,13 +356,21 @@
  </div>
 
   <div id="pwa-install-row" class="pwa-install-row" hidden>
-    <a href="#" id="pwa-install-link">{{ t('pwa_install_link') }}</a>
-    <button type="button" id="pwa-install-hide" class="pwa-install-row-dismiss">{{ t('pwa_install_dismiss') }}</button>
+    <span class="pwa-install-icon" aria-hidden="true">
+      <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v12"/><path d="M7 10l5 5 5-5"/><path d="M4 19h16"/></svg>
+    </span>
+    <div class="pwa-install-copy">
+      <p class="pwa-install-title">{{ t('pwa_install_link') }}</p>
+    </div>
+    <a href="#" id="pwa-install-link">{{ t('pwa_install_action') }}</a>
+    <button type="button" id="pwa-install-hide" class="pwa-install-dismiss-x" aria-label="{{ t('pwa_install_dismiss') }}">&times;</button>
   </div>
 
   <div id="pwa-install-banner" class="pwa-install-banner" hidden>
-    <span id="pwa-install-text"></span>
-    <button type="button" id="pwa-install-dismiss" class="btn">{{ t('pwa_install_dismiss') }}</button>
+    <div class="pwa-install-copy">
+      <p class="pwa-install-title" id="pwa-install-text"></p>
+    </div>
+    <button type="button" id="pwa-install-dismiss" aria-label="{{ t('pwa_install_dismiss') }}">&times;</button>
   </div>
 
   <script>

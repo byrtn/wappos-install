@@ -208,6 +208,17 @@ def test_upgrade_app_calls_put(admin_apps_url: str) -> None:
 
 
 @respx.mock
+def test_upgrade_app_clears_available_updates_cache(admin_apps_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    respx.put(f"{admin_apps_url}/roundcube/upgrade").mock(return_value=Response(200, json={}))
+    called = []
+    monkeypatch.setattr(admin.get_available_updates, "cache_clear", lambda: called.append(True))
+
+    admin.upgrade_app("fake-session-token", "roundcube")
+
+    assert called, "upgrade_app doit invalider le cache de get_available_updates (sinon la liste des mises a jour reste perimee apres une mise a jour d'app individuelle)"
+
+
+@respx.mock
 def test_change_app_url_calls_put(admin_apps_url: str) -> None:
     route = respx.put(f"{admin_apps_url}/roundcube/changeurl").mock(return_value=Response(200))
 

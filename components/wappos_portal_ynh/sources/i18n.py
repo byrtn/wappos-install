@@ -18,6 +18,7 @@ STRINGS = {
     "no_app_available": {"fr": "Aucune application accessible.", "en": "No app available."},
 
     "pwa_install_link": {"fr": "Installer l'application", "en": "Install the app"},
+    "pwa_install_action": {"fr": "Installer", "en": "Install"},
     "pwa_install_ios_prompt": {"fr": "Installer Wappos : appuyez sur Partager puis « Sur l'écran d'accueil ».", "en": "Install Wappos: tap Share, then \"Add to Home Screen\"."},
     "pwa_install_unsupported": {"fr": "Ce navigateur ne propose pas l'installation automatique. Ouvrez son menu et cherchez « Ajouter à l'écran d'accueil », ou essayez avec Chrome/Edge.", "en": "This browser doesn't offer automatic installation. Open its menu and look for \"Add to Home Screen\", or try Chrome/Edge."},
     "pwa_install_dismiss": {"fr": "Fermer", "en": "Close"},

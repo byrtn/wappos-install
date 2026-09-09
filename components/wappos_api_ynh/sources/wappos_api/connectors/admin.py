@@ -704,6 +704,7 @@ def upgrade_app(session_token: str, app_id: str, force: bool = False) -> dict:
         raise UpstreamUnavailableError(f"YunoHost API PUT /apps/{app_id}/upgrade unreachable") from exc
 
     _raise_for_admin_error(response, f"YunoHost API PUT /apps/{app_id}/upgrade")
+    get_available_updates.cache_clear()
     try:
         return response.json() or {}
     except ValueError:

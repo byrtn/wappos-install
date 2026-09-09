@@ -10,7 +10,7 @@ Téléchargez l'ISO déjà construite, prête à l'emploi :
 
 Gravez-la sur une clé USB (bare metal) ou montez-la dans votre hyperviseur, puis démarrez dessus. Répondez aux quelques questions Debian standards (langue, clavier, fuseau horaire, partitionnement, nom de machine, réseau) — le reste s'installe automatiquement, y compris YunoHost et Wappos, jusqu'à l'affichage des identifiants de connexion.
 
-À la fin de l'installation Debian, la machine **redémarre automatiquement** (elle ne s'éteint plus). Si vous installez depuis une clé USB, retirez-la pendant ce redémarrage pour éviter de relancer l'installateur. Sur un hyperviseur configuré pour démarrer sur le disque en priorité (ordre de démarrage standard), aucune action n'est nécessaire — l'ISO virtuelle peut rester montée. Une fois redémarré, Wappos s'installe alors tout seul, sans autre intervention, jusqu'à l'affichage des identifiants de connexion.
+À la fin de l'installation Debian, la machine **redémarre automatiquement**. Si vous installez depuis une clé USB, retirez-la pendant ce redémarrage pour éviter de relancer l'installateur. Sur un hyperviseur configuré pour démarrer sur le disque en priorité (ordre de démarrage standard), aucune action n'est nécessaire — l'ISO virtuelle peut rester montée. Une fois redémarré, Wappos s'installe alors tout seul, sans autre intervention, jusqu'à l'affichage des identifiants de connexion.
 
 ## Méthode 2 — Sur un Debian 12 déjà installé
 
@@ -32,6 +32,11 @@ cache dans `/root/.wappos-boot-password`, lisible depuis la console si besoin) �
 est de toute façon remplacé automatiquement par le mot de passe de votre compte
 administrateur dès la fin du formulaire de configuration initiale.
 
-Si vous avez besoin d'un accès SSH avant la fin de l'installation, l'étape dédiée en
-fin de script permet d'activer temporairement la connexion par mot de passe le temps
-d'ajouter votre clé publique.
+Si vous avez besoin d'un accès SSH avant la fin de l'installation, une question dédiée
+apparaît dans la console tout à la fin du script (juste avant l'affichage des
+identifiants) et propose d'activer temporairement la connexion par mot de passe le
+temps d'ajouter votre clé publique — elle attend 20 secondes puis passe automatiquement
+si vous ne répondez pas, sans rien bloquer. Comme elle survient après le retour du
+formulaire du navigateur, il est facile de ne pas la voir défiler si votre attention
+est encore sur le navigateur à ce moment-là — ce n'est pas grave, aucune action n'est
+requise si vous n'avez pas besoin de SSH.

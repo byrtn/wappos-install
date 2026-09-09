@@ -396,10 +396,22 @@ echo -e "${blue}${bold}  >>> IDENTIFIANT : ${admin_username}${reset}"
 echo -e "${blue}${bold}  >>> MOT DE PASSE : celui que vous venez de definir ci-dessus${reset}"
 echo
 
+if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config 2>/dev/null; then
+    echo -e "${bold}Acces SSH desactive par defaut.${reset} Si vous en avez besoin plus tard,"
+    echo "connectez-vous en console (identifiant/mot de passe ci-dessus) puis executez :"
+    echo
+    echo -e "  ${bold}sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && systemctl reload ssh${reset}"
+    echo
+    echo "Pensez a la desactiver a nouveau une fois votre cle SSH ajoutee :"
+    echo -e "  ${bold}sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && systemctl reload ssh${reset}"
+    echo
+fi
+
 if [ -f /usr/bin/yunoprompt ] && ! grep -q "Portail Wappos" /usr/bin/yunoprompt; then
     export WAPPOS_DOMAIN="$main_domain"
     export WAPPOS_IP="$final_ip"
     export WAPPOS_USERNAME="$admin_username"
+    export WAPPOS_SSH_DISABLED="$(grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config 2>/dev/null && echo 1 || echo 0)"
     python3 - <<'PYEOF'
 import os
 import re
@@ -407,6 +419,7 @@ path = "/usr/bin/yunoprompt"
 domain = os.environ["WAPPOS_DOMAIN"]
 ip = os.environ["WAPPOS_IP"]
 username = os.environ["WAPPOS_USERNAME"]
+ssh_disabled = os.environ["WAPPOS_SSH_DISABLED"] == "1"
 with open(path, encoding="utf-8") as f:
     content = f.read()
 
@@ -423,6 +436,12 @@ block = (
     f" Administration Wappos : https://{domain}/wappos-admin/ (ou https://{ip}/wappos-admin/)\n"
     f" Identifiant : {username}"
 )
+if ssh_disabled:
+    block += (
+        "\n\n"
+        " Acces SSH desactive - pour l'activer, executez :\n"
+        " sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && systemctl reload ssh"
+    )
 if anchor in content:
     content = content.replace(anchor, anchor + block, 1)
     with open(path, "w", encoding="utf-8") as f:

@@ -38,5 +38,9 @@ identifiants) et propose d'activer temporairement la connexion par mot de passe 
 temps d'ajouter votre clé publique — elle attend 20 secondes puis passe automatiquement
 si vous ne répondez pas, sans rien bloquer. Comme elle survient après le retour du
 formulaire du navigateur, il est facile de ne pas la voir défiler si votre attention
-est encore sur le navigateur à ce moment-là — ce n'est pas grave, aucune action n'est
-requise si vous n'avez pas besoin de SSH.
+est encore sur le navigateur à ce moment-là.
+
+Si vous la manquez (ou si vous en avez besoin bien plus tard), pas de souci : la
+commande pour activer l'accès SSH reste **affichée en permanence** à chaque connexion
+en console (dans le même bandeau que le portail/l'administration/l'identifiant), tant
+que vous ne l'avez pas activé vous-même.

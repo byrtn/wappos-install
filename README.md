@@ -1,6 +1,6 @@
 # wappos-install
 
-Installeur Wappos (YunoHost + composants Wappos). Deux façons d'installer, au choix.
+Installeur Wappos (Debian + composants Wappos). Deux façons d'installer, au choix.
 
 ## Méthode 1 — Depuis l'ISO (bare metal ou n'importe quel hyperviseur)
 
@@ -8,9 +8,9 @@ Téléchargez l'ISO déjà construite, prête à l'emploi :
 
 **[Télécharger l'ISO Wappos](https://github.com/byrtn/wappos-install/releases/download/latest/wappos-debian-preseed.iso)**
 
-Gravez-la sur une clé USB (bare metal) ou montez-la dans votre hyperviseur, puis démarrez dessus. Répondez aux quelques questions Debian standards (langue, clavier, fuseau horaire, partitionnement, nom de machine, réseau) — le reste s'installe automatiquement, y compris Wappos, jusqu'à l'affichage des identifiants de connexion.
+Gravez-la sur une clé USB (bare metal) ou montez-la dans votre hyperviseur, puis démarrez dessus. Répondez aux quelques questions Debian standards (langue, clavier, fuseau horaire, partitionnement, nom de machine, réseau) — le reste s'installe automatiquement, y compris YunoHost et Wappos, jusqu'à l'affichage des identifiants de connexion.
 
-À la fin de l'installation Debian, la machine s'éteint toute seule. Retirez le support d'installation (clé USB, ou détachez l'ISO virtuelle) puis redémarrez — Wappos s'installe alors tout seul, sans autre intervention.
+À la fin de l'installation Debian, la machine **redémarre automatiquement** (elle ne s'éteint plus). Si vous installez depuis une clé USB, retirez-la pendant ce redémarrage pour éviter de relancer l'installateur. Sur un hyperviseur configuré pour démarrer sur le disque en priorité (ordre de démarrage standard), aucune action n'est nécessaire — l'ISO virtuelle peut rester montée. Une fois redémarré, Wappos s'installe alors tout seul, sans autre intervention, jusqu'à l'affichage des identifiants de connexion.
 
 ## Méthode 2 — Sur un Debian 12 déjà installé
 

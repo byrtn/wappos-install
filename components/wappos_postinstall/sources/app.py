@@ -19,7 +19,7 @@ SENTINEL_COMPLETE = "===WAPPOS_INSTALL_COMPLETE==="
 SENTINEL_FAILED = "===WAPPOS_INSTALL_FAILED==="
 
 _ANSI_CODE_RE = re.compile(r"\033\[([0-9;]*)m")
-_CLEAR_EOL_RE = re.compile(r"\033\[K")
+_CSI_NON_SGR_RE = re.compile(r"\033\[[0-9;]*[^0-9;m]")
 _ANSI_COLORS = {
     "31": "#e5534b",
     "32": "#3fb950",
@@ -42,6 +42,8 @@ def get_lang() -> str:
 
 _NOISE_LINE_RE = re.compile(r"^[-\\|/]\s")
 _RETRY_LINE_RE = re.compile(r"nouvelle tentative dans|retrying in", re.I)
+_COUNTDOWN_LINE_RE = re.compile(r"^>\s*\(\s*\d+s (restantes|remaining)\)\s*$")
+_COUNTDOWN_TEMPLATE_RE = re.compile(r"\d+s (restantes|remaining)")
 
 
 def _is_noise_line(ansi_line: str) -> bool:
@@ -55,15 +57,38 @@ def _is_noise_line(ansi_line: str) -> bool:
     return False
 
 
+_PROMPT_LINE_RE = re.compile(r"^>\s")
+
+
+def _dedupe_countdown_runs(lines: list) -> list:
+    out = []
+    for line in lines:
+        plain = _ANSI_CODE_RE.sub("", line).strip()
+        if out and _PROMPT_LINE_RE.match(plain):
+            prev_plain = _ANSI_CODE_RE.sub("", out[-1]).strip()
+            if _PROMPT_LINE_RE.match(prev_plain):
+                same_countdown = (
+                    _COUNTDOWN_LINE_RE.match(plain)
+                    and _COUNTDOWN_LINE_RE.match(prev_plain)
+                    and _COUNTDOWN_TEMPLATE_RE.sub("", plain) == _COUNTDOWN_TEMPLATE_RE.sub("", prev_plain)
+                )
+                if same_countdown or plain == prev_plain:
+                    out[-1] = line
+                    continue
+        out.append(line)
+    return out
+
+
 def _collapse_carriage_returns(raw: str) -> str:
     lines = []
     for line in raw.split("\n"):
         if "\r" in line:
             line = line.split("\r")[-1]
-        line = _CLEAR_EOL_RE.sub("", line)
+        line = _CSI_NON_SGR_RE.sub("", line)
         if _is_noise_line(line):
             continue
         lines.append(line)
+    lines = _dedupe_countdown_runs(lines)
     return "\n".join(lines)
 
 

@@ -705,3 +705,5 @@ fi
 echo "===WAPPOS_INSTALL_COMPLETE==="
 sleep 20
 systemctl disable --now wappos_postinstall.service wappos_postinstall.socket >/dev/null 2>&1 || true
+rm -f /etc/nginx/conf.d/default.d/wappos_postinstall_progress.conf
+nginx -t && systemctl reload nginx || true

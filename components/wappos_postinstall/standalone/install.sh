@@ -37,6 +37,7 @@ systemctl restart "$app"
 
 mkdir -p /etc/nginx/conf.d/default.d
 sed "s/__PORT__/$port/g" "$pkg_dir/standalone/conf/redirect_to_admin.conf" > /etc/nginx/conf.d/default.d/redirect_to_admin.conf
+sed "s/__PORT__/$port/g" "$pkg_dir/standalone/conf/progress.conf" > /etc/nginx/conf.d/default.d/wappos_postinstall_progress.conf
 nginx -t && systemctl reload nginx
 
 mkdir -p /etc/yunohost/hooks.d/post_domain_add

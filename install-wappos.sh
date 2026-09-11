@@ -592,6 +592,11 @@ if [ ! -f "$security_configured_marker" ]; then
     touch "$security_configured_marker"
 fi
 
+portal_label="$(t final_portal_label)"
+admin_label="$(t final_admin_label)"
+label_width=${#admin_label}
+[ ${#portal_label} -gt "$label_width" ] && label_width=${#portal_label}
+
 echo
 box_start
 success_line "$(t final_ready)"
@@ -599,8 +604,8 @@ box_end
 echo
 echo -e "${bold}$(t final_done)${reset} $(t final_connect)"
 echo
-echo -e "  $(t final_portal_label)        : ${bold}https://$main_domain/wappos-portal/${reset}  ($(t final_or) https://$final_ip/wappos-portal/)"
-echo -e "  $(t final_admin_label) : ${bold}https://$main_domain/wappos-admin/${reset}  ($(t final_or) https://$final_ip/wappos-admin/)"
+printf "  %-${label_width}s : ${bold}https://%s/wappos-portal/${reset}  (%s https://%s/wappos-portal/)\n" "$portal_label" "$main_domain" "$(t final_or)" "$final_ip"
+printf "  %-${label_width}s : ${bold}https://%s/wappos-admin/${reset}  (%s https://%s/wappos-admin/)\n" "$admin_label" "$main_domain" "$(t final_or)" "$final_ip"
 echo
 echo -e "${blue}${bold}  $(t final_username_label) ${admin_username}${reset}"
 echo -e "${blue}${bold}  $(t final_password_label)${reset}"

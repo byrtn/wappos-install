@@ -18,7 +18,7 @@ _KNOWN_NOISE_PATTERNS = [
 
 def _decode_subject(raw: str | None) -> str:
     if not raw:
-        return "(sans sujet)"
+        return "(no subject)"
     try:
         return str(make_header(decode_header(raw)))
     except (ValueError, UnicodeDecodeError):
@@ -54,7 +54,7 @@ def _read_messages() -> list[dict]:
     try:
         box.lock()
     except (mailbox.ExternalClashError, OSError) as e:
-        print(f"Boite {ALERT_MBOX} verrouillee, report au prochain passage : {e}", file=sys.stderr)
+        print(f"Mailbox {ALERT_MBOX} locked, deferring to next run: {e}", file=sys.stderr)
         return []
     try:
         return [
@@ -71,7 +71,7 @@ def _empty_mbox() -> None:
         with open(ALERT_MBOX, "r+") as handle:
             handle.truncate(0)
     except OSError as e:
-        print(f"Vidage de {ALERT_MBOX} impossible : {e}", file=sys.stderr)
+        print(f"Cannot empty {ALERT_MBOX}: {e}", file=sys.stderr)
         raise
 
 
@@ -99,10 +99,10 @@ def _classify(message: dict) -> dict:
     text = message.get("text", "")
     is_error_exit = "run-parts" in text and "exit status" in text and "exit status 0" not in text
     if is_error_exit:
-        return {"silence": False, "reason": "code de sortie non nul"}
+        return {"silence": False, "reason": "non-zero exit status"}
     if _is_pure_noise(text):
-        return {"silence": True, "reason": "faux positif connu, sans action requise"}
-    return {"silence": False, "reason": "contenu non reconnu comme bénin"}
+        return {"silence": True, "reason": "known false positive, no action required"}
+    return {"silence": False, "reason": "content not recognized as benign"}
 
 
 def _send_summary(kept: list[dict]) -> None:
@@ -112,19 +112,19 @@ def _send_summary(kept: list[dict]) -> None:
     msg["From"] = "wappos-admin-mail-filter@localhost"
     msg["To"] = ALERT_TO
     count = len(kept)
-    msg["Subject"] = f"[wappos-admin] {count} alerte(s) système à vérifier"
+    msg["Subject"] = f"[wappos-admin] {count} system alert(s) to review"
 
     sections = []
     for item in kept:
         sections.append(
             f"=== {item['message']['subject']} ===\n"
-            f"Raison : {item['reason']}\n\n"
+            f"Reason: {item['reason']}\n\n"
             f"{item['message']['text']}"
         )
 
     body = (
-        f"{count} message(s) technique(s) reçu(s) sur la boîte de surveillance, "
-        "jugé(s) suffisamment inhabituel(s) pour être transmis tels quels :\n\n"
+        f"{count} technical message(s) received on the monitoring mailbox, "
+        "deemed unusual enough to be forwarded as-is:\n\n"
         + "\n\n".join(sections)
     )
     msg.set_content(body, charset="utf-8")
@@ -135,8 +135,8 @@ def _send_summary(kept: list[dict]) -> None:
     )
     if result.returncode != 0:
         detail = result.stderr.decode("utf-8", errors="replace").strip()
-        print(f"Depot du resume dans la boite de {ALERT_TO} impossible : {detail}", file=sys.stderr)
-        raise RuntimeError(detail or "doveadm save a echoue")
+        print(f"Could not deposit the summary in {ALERT_TO}'s mailbox: {detail}", file=sys.stderr)
+        raise RuntimeError(detail or "doveadm save failed")
 
 
 def main() -> None:

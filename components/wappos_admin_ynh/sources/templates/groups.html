@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set active_tab = "groups" %}
-{% block title %}Groupes{% endblock %}
+{% block title %}{{ t('nav_groups') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Groupes et autorisations</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('breadcrumb_groups_perms') }}</span>{% endblock %}
 
 {% block content %}
         {% for g in primary_groups %}
@@ -10,32 +10,32 @@
         <summary class="group-summary">
           <span class="group-title">
             {% if g.is_special %}
-              {{ {"admins": "Comptes administrateurs", "all_users": "Tous les comptes", "visitors": "Visiteurs"}[g.name] }}
+              {{ {"admins": t('group_admins_label'), "all_users": t('group_all_users_label'), "visitors": t('group_visitors_label')}[g.name] }}
             {% else %}
-              Groupe '{{ g.name }}'
+              {{ t('group_named', name=g.name) }}
             {% endif %}
           </span>
           {% if not g.is_special %}
             <form method="post" action="{{ url_for('delete_group', groupname=g.name) }}"
-                  onsubmit="return confirm('Voulez-vous vraiment supprimer {{ g.name }} ?');" class="group-delete-form">
-              <button type="submit" class="btn btn-danger">Supprimer</button>
+                  onsubmit="return confirm({{ t('confirm_delete_group', name=g.name)|tojson }});" class="group-delete-form">
+              <button type="submit" class="btn btn-danger">{{ t('btn_delete_short') }}</button>
             </form>
           {% endif %}
         </summary>
 
         <div class="group-body">
           <div class="group-row">
-            <strong class="group-row-label">Comptes</strong>
+            <strong class="group-row-label">{{ t('label_accounts') }}</strong>
             <div class="group-row-content">
               {% if g.is_special %}
                 <p class="diag-item-details group-explain">
                   {% if g.name == "admins" %}
-                    Les comptes affectés à ce groupe ont tous les droits sur le serveur (modification, création, ajout et suppression). Ils peuvent donc accéder à toutes les fonctionnalités, se connecter au serveur avec SSH et utiliser la commande sudo. N'ajoutez dans ce groupe que des comptes de personnes en qui vous avez absolument confiance !
+                    {{ t('group_explain_admins') }}
                   {% elif g.name == "all_users" %}
-                    Groupe contenant tous les comptes des personnes inscrites/enregistrées sur le serveur.
+                    {{ t('group_explain_all_users') }}
                   {% else %}
-                    Permissions des visiteurs anonymes (non enregistrés).
-                    <em>Veillez à ce que certaines applications soient autorisées pour les visiteurs si vous avez l'intention de les utiliser avec des clients externes.</em>
+                    {{ t('group_explain_visitors') }}
+                    <em>{{ t('group_explain_visitors_note') }}</em>
                   {% endif %}
                 </p>
               {% endif %}
@@ -50,7 +50,7 @@
                       </label>
                     {% endfor %}
                   </div>
-                  <button type="submit" class="btn">Enregistrer les comptes</button>
+                  <button type="submit" class="btn">{{ t('btn_save_accounts') }}</button>
                 </form>
               {% endif %}
             </div>
@@ -59,14 +59,14 @@
           <hr>
 
           <div class="group-row">
-            <strong class="group-row-label">Permissions</strong>
+            <strong class="group-row-label">{{ t('label_permissions') }}</strong>
             <div class="group-row-content">
               <form method="post" action="{{ url_for('update_group_permissions', groupname=g.name) }}"
                     onsubmit="return wappasConfirmGroupPermissions(this, {{ g.name|tojson }});">
                 <div class="tag-checklist">
                   {% for p in permission_options %}
                                         {% set forbidden = (g.name == 'visitors' and p.protected) or (g.name in ('all_users', 'admins') and p.id in ('ssh.main', 'sftp.main')) %}
-                    <label class="tag-checkbox" {% if forbidden %}title="Non autorisé pour ce groupe côté Wappos"{% endif %}>
+                    <label class="tag-checkbox" {% if forbidden %}title="{{ t('forbidden_for_group_title') }}"{% endif %}>
                       {% if forbidden %}
                                                 <input type="hidden" name="locked" value="{{ p.id }}">
                       {% endif %}
@@ -75,7 +75,7 @@
                     </label>
                   {% endfor %}
                 </div>
-                <button type="submit" class="btn">Enregistrer les permissions</button>
+                <button type="submit" class="btn">{{ t('btn_save_permissions') }}</button>
               </form>
             </div>
           </div>
@@ -85,19 +85,19 @@
 
     {% if user_groups %}
       <div class="card create-card">
-        <div class="card-header"><h3>Autorisations pour des comptes individuels</h3></div>
+        <div class="card-header"><h3>{{ t('h3_individual_account_perms') }}</h3></div>
         <div class="card-body">
         <div class="field individual-account-picker">
-          <label for="individual-account-select">Ajouter un compte</label>
+          <label for="individual-account-select">{{ t('label_add_account') }}</label>
           <select id="individual-account-select" onchange="showIndividualAccountPerms(this.value)">
-            <option value="">-- Sélectionner un compte --</option>
+            <option value="">{{ t('select_account_placeholder') }}</option>
             {% for g in user_groups %}
               <option value="{{ g.name }}">{{ g.name }}</option>
             {% endfor %}
           </select>
         </div>
 
-        <p id="individual-account-empty" class="diag-item-details">Sélectionnez un compte ci-dessus pour gérer ses permissions individuelles.</p>
+        <p id="individual-account-empty" class="diag-item-details">{{ t('select_account_to_manage') }}</p>
 
         {% for g in user_groups %}
           <div class="group-row user-group-row individual-account-perms" id="individual-perms-{{ g.name }}" style="display: none;">
@@ -108,7 +108,7 @@
                 <div class="tag-checklist">
                   {% for p in permission_options %}
                                         {% set forbidden = (g.name == 'visitors' and p.protected) or (g.name in ('all_users', 'admins') and p.id in ('ssh.main', 'sftp.main')) %}
-                    <label class="tag-checkbox" {% if forbidden %}title="Non autorisé pour ce groupe côté Wappos"{% endif %}>
+                    <label class="tag-checkbox" {% if forbidden %}title="{{ t('forbidden_for_group_title') }}"{% endif %}>
                       {% if forbidden %}
                                                 <input type="hidden" name="locked" value="{{ p.id }}">
                       {% endif %}
@@ -117,7 +117,7 @@
                     </label>
                   {% endfor %}
                 </div>
-                <button type="submit" class="btn">Enregistrer les permissions</button>
+                <button type="submit" class="btn">{{ t('btn_save_permissions') }}</button>
               </form>
             </div>
           </div>
@@ -127,42 +127,42 @@
     {% endif %}
 
     <div class="card create-card">
-      <div class="card-header"><h3 id="add-group">Ajouter un groupe</h3></div>
+      <div class="card-header"><h3 id="add-group">{{ t('h3_add_group') }}</h3></div>
       <div class="card-body">
-        <p class="diag-item-details" style="margin: 0 0 1.25rem;">Uniquement des minuscules, des chiffres et des tirets bas (ex. <code>equipe_support</code>).</p>
+        <p class="diag-item-details" style="margin: 0 0 1.25rem;">{{ t('group_name_desc', example='<code>equipe_support</code>') | safe }}</p>
         <form method="post" action="{{ url_for('create_group') }}">
           <div class="fields">
             <div class="field">
-              <label for="groupname">Nom du groupe</label>
+              <label for="groupname">{{ t('label_group_name') }}</label>
               <input type="text" id="groupname" name="groupname" required
                      pattern="[a-z0-9_]+"
-                     title="Minuscules, chiffres et tirets bas uniquement (pas d'espace ni de majuscule)">
+                     title="{{ t('group_name_pattern_title') }}">
             </div>
           </div>
-          <button type="submit" class="btn">Ajouter un groupe</button>
+          <button type="submit" class="btn">{{ t('btn_add_group') }}</button>
         </form>
       </div>
     </div>
 
     <div class="card create-card">
-      <div class="card-header"><h3>Détail des permissions</h3></div>
+      <div class="card-header"><h3>{{ t('h3_permission_detail') }}</h3></div>
       <div class="card-body">
         <table class="permission-detail-table">
           <thead>
             <tr>
-              <th>Permission</th>
-              <th>URL</th>
-              <th>URLs additionnelles</th>
-              <th>Utilisateurs effectifs</th>
+              <th>{{ t('th_permission') }}</th>
+              <th>{{ t('th_url') }}</th>
+              <th>{{ t('th_additional_urls') }}</th>
+              <th>{{ t('th_effective_users') }}</th>
             </tr>
           </thead>
           <tbody>
             {% for p in permission_options %}
               <tr>
-                <td data-label="Permission">{{ p.label }}</td>
-                <td data-label="URL">{{ p.url or "—" }}</td>
-                <td data-label="URLs additionnelles">{{ p.additional_urls|join(", ") if p.additional_urls else "—" }}</td>
-                <td data-label="Utilisateurs effectifs">{{ p.corresponding_users|join(", ") if p.corresponding_users else "—" }}</td>
+                <td data-label="{{ t('th_permission') }}">{{ p.label }}</td>
+                <td data-label="{{ t('th_url') }}">{{ p.url or "—" }}</td>
+                <td data-label="{{ t('th_additional_urls') }}">{{ p.additional_urls|join(", ") if p.additional_urls else "—" }}</td>
+                <td data-label="{{ t('th_effective_users') }}">{{ p.corresponding_users|join(", ") if p.corresponding_users else "—" }}</td>
               </tr>
             {% endfor %}
           </tbody>
@@ -215,6 +215,15 @@
 {% block extra_script %}
     var WAPPOS_CURRENT_USER = {{ user|tojson }};
     var WAPPOS_DANGEROUS_PERMS = ['ssh.main', 'sftp.main'];
+    var GROUPS_I18N = {
+      confirmGrantDangerous: {{ t('confirm_grant_dangerous_perm', perms='%s', group='%s')|tojson }},
+      confirmRemoveSelfAdmins: {{ t('confirm_remove_self_from_admins')|tojson }},
+    };
+    function wappasFormat(template) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      var i = 0;
+      return template.replace(/%s/g, function () { return args[i++]; });
+    }
     function wappasConfirmGroupPermissions(form, groupName) {
       var newlyChecked = [];
       form.querySelectorAll('input[name="permissions"]').forEach(function (cb) {
@@ -223,10 +232,7 @@
         }
       });
       if (newlyChecked.length) {
-        return confirm(
-          'Voulez-vous vraiment accorder l\'accès à ' + newlyChecked.join(', ') + ' à « ' + groupName + ' » ? ' +
-          'Un tel accès augmente considérablement la surface d\'attaque si ' + groupName + ' se trouve être une personne ou un groupe malveillant.'
-        );
+        return confirm(wappasFormat(GROUPS_I18N.confirmGrantDangerous, newlyChecked.join(', '), groupName));
       }
       return true;
     }
@@ -240,7 +246,7 @@
         }
       });
       if (wasChecked && !stillChecked) {
-        return confirm('Êtes-vous sûr de vouloir vous retirer du groupe « admins » ?');
+        return confirm(GROUPS_I18N.confirmRemoveSelfAdmins);
       }
       return true;
     }

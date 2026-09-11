@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 {% set active_tab = "system" %}
-{% block title %}Système{% endblock %}
+{% block title %}{{ t('title_system') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Système</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_system') }}</span>{% endblock %}
 
 {% block content %}
         <div class="nav-list">
-      <a class="nav-list-item" href="{{ url_for('settings_page') }}"><span>Réglages</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('system_page') }}"><span>Mises à jour</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('migrations_page') }}"><span>Migrations</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('firewall') }}"><span>Pare-feu</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('services') }}"><span>Services</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('performance_page') }}"><span>Performances</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('storage') }}"><span>Stockage</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('logs') }}"><span>Journaux</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('app_map_page') }}"><span>Correspondance URL &harr; app</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('settings_page') }}"><span>{{ t('nav_settings') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('system_page') }}"><span>{{ t('nav_updates') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('migrations_page') }}"><span>{{ t('nav_migrations') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('firewall') }}"><span>{{ t('nav_firewall') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('services') }}"><span>{{ t('nav_services') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('performance_page') }}"><span>{{ t('nav_performance') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('storage') }}"><span>{{ t('nav_storage') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('logs') }}"><span>{{ t('nav_logs') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('app_map_page') }}"><span>{{ t('nav_app_map')|safe }}</span><span class="chevron">&rsaquo;</span></a>
     </div>
 
 {% endblock %}

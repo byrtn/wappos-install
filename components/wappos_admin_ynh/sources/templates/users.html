@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set active_tab = "users" %}
-{% block title %}Utilisateurs{% endblock %}
+{% block title %}{{ t('nav_users') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Utilisateurs</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('nav_users') }}</span>{% endblock %}
 
 {% block content %}
         <div class="link-list">
@@ -15,23 +15,23 @@
           <span class="chevron">&rsaquo;</span>
         </a>
       {% else %}
-        <p class="field-info" style="margin: 0; padding: 1rem 1.5rem;">Aucun utilisateur.</p>
+        <p class="field-info" style="margin: 0; padding: 1rem 1.5rem;">{{ t('no_user') }}</p>
       {% endfor %}
     </div>
 
         <div class="card create-card">
-      <div class="card-header"><h3 id="add-account">Ajouter un compte</h3></div>
+      <div class="card-header"><h3 id="add-account">{{ t('h3_add_account') }}</h3></div>
       <div class="card-body">
-      <p class="field-info" style="margin: 0 0 1.25rem;">Les comptes sont créés avec une adresse email au format username@domain.tld. Des alias d'email et des transferts d'emails supplémentaires peuvent être ajoutés ultérieurement par un administrateur ou l'utilisateur du compte lui même.</p>
+      <p class="field-info" style="margin: 0 0 1.25rem;">{{ t('add_account_desc') }}</p>
       <form method="post" action="{{ url_for('create_user') }}">
         <div class="fields">
           <div class="field">
-            <label for="username">Nom du compte</label>
+            <label for="username">{{ t('label_account_name') }}</label>
                         <input type="text" id="username" name="username" required pattern="[a-z0-9_.]+"
-                   title="Lettres minuscules, chiffres, _ et . uniquement">
+                   title="{{ t('account_name_pattern_title') }}">
           </div>
           <div class="field">
-            <label for="domain">Domaine</label>
+            <label for="domain">{{ t('label_domain') }}</label>
             <select id="domain" name="domain" required>
               {% for d in domains %}
                 <option value="{{ d }}">{{ d }}</option>
@@ -39,57 +39,57 @@
             </select>
           </div>
           <div class="field">
-            <label for="fullname">Nom complet</label>
+            <label for="fullname">{{ t('label_full_name') }}</label>
             <input type="text" id="fullname" name="fullname" required>
           </div>
         </div>
         <div class="fields">
           <div class="field">
-            <label for="new_password">Mot de passe</label>
+            <label for="new_password">{{ t('label_password') }}</label>
             <span class="pw-field" style="display: flex;">
               <input type="password" id="new_password" name="new_password" required minlength="8" style="flex: 1;">
-              <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
+              <button type="button" class="pw-toggle" aria-label="{{ t('aria_show_password_generic') }}">{{ t('toggle_password_show') }}</button>
             </span>
-                        <span class="field-info" style="margin: 0.25rem 0 0;">8 caractères minimum. Robustesse exacte requise selon le réglage du serveur.</span>
+                        <span class="field-info" style="margin: 0.25rem 0 0;">{{ t('password_requirements_generic') }}</span>
           </div>
           <div class="field">
-            <label for="new_password_confirm">Confirmer le mot de passe</label>
+            <label for="new_password_confirm">{{ t('label_confirm_password') }}</label>
             <span class="pw-field" style="display: flex;">
               <input type="password" id="new_password_confirm" name="new_password_confirm" required minlength="8" style="flex: 1;">
-              <button type="button" class="pw-toggle" aria-label="Afficher le mot de passe">Afficher</button>
+              <button type="button" class="pw-toggle" aria-label="{{ t('aria_show_password_generic') }}">{{ t('toggle_password_show') }}</button>
             </span>
-            <span id="new-password-mismatch" class="field-error" style="display: none;">Les mots de passe ne correspondent pas.</span>
+            <span id="new-password-mismatch" class="field-error" style="display: none;">{{ t('passwords_mismatch_inline') }}</span>
           </div>
         </div>
-        <button type="submit" class="btn" id="create-user-submit">Ajouter un compte</button>
+        <button type="submit" class="btn" id="create-user-submit">{{ t('btn_add_account') }}</button>
       </form>
       </div>
     </div>
 
     <div class="card create-card">
-      <div class="card-header"><h3>Export / import CSV</h3></div>
+      <div class="card-header"><h3>{{ t('h3_export_import_csv') }}</h3></div>
       <div class="card-body">
       <div class="fields" style="align-items: flex-end;">
         <div class="field" style="flex: 0;">
-          <a class="btn" href="{{ url_for('export_users') }}">Exporter en CSV</a>
+          <a class="btn" href="{{ url_for('export_users') }}">{{ t('btn_export_csv') }}</a>
         </div>
       </div>
       <form method="post" action="{{ url_for('import_users') }}" enctype="multipart/form-data" style="margin-top: 1rem;"
             onsubmit="return wappasConfirmImportUsers(this);">
         <div class="fields">
           <div class="field">
-            <label for="csvfile">Fichier CSV</label>
+            <label for="csvfile">{{ t('label_csv_file') }}</label>
             <input type="file" id="csvfile" name="csvfile" accept=".csv" required>
           </div>
         </div>
         <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin-right: 1rem; margin-bottom: 0.5rem; font-size: 0.85rem;">
-          <input type="checkbox" name="update"> Mettre à jour les comptes existants présents dans le fichier
+          <input type="checkbox" name="update"> {{ t('checkbox_update_existing_accounts') }}
         </label>
         <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; font-size: 0.85rem;">
-          <input type="checkbox" name="delete"> Supprimer les comptes absents du fichier
+          <input type="checkbox" name="delete"> {{ t('checkbox_delete_missing_accounts') }}
         </label>
         <div style="margin-top: 1rem;">
-          <button type="submit" class="btn">Importer</button>
+          <button type="submit" class="btn">{{ t('btn_import') }}</button>
         </div>
       </form>
       </div>
@@ -104,13 +104,11 @@
 {% endblock %}
 
 {% block extra_script %}
+    var USERS_I18N = { confirmImportDelete: {{ t('confirm_import_delete_accounts')|tojson }} };
     function wappasConfirmImportUsers(form) {
       var del = form.querySelector('input[name="delete"]');
       if (del && del.checked) {
-        return confirm(
-          'Tous les comptes absents de ce fichier CSV vont être supprimés définitivement. ' +
-          'Cette action est irréversible. Continuer ?'
-        );
+        return confirm(USERS_I18N.confirmImportDelete);
       }
       return true;
     }

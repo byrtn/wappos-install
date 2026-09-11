@@ -53,7 +53,7 @@ def test_domains_page_shows_certificate_validity(logged_in_client):
          patch.object(app, "_wappos_api_certificates_status", return_value=certs):
         resp = logged_in_client.get("/domains")
     assert resp.status_code == 200
-    assert b"42 jours" in resp.data
+    assert b"42 days" in resp.data
 
 
 def test_domain_add_success_redirects_to_detail(logged_in_client):

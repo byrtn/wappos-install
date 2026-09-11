@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% set active_tab = "storage" %}
-{% block title %}Stockage{% endblock %}
+{% block title %}{{ t('title_storage') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Stockage</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_storage') }}</span>{% endblock %}
 
 {% block content %}
         {% if mounts %}
-      <h3 class="storage-section-title">Occupation</h3>
+      <h3 class="storage-section-title">{{ t('h3_disk_usage') }}</h3>
       <div class="mount-grid">
         {% for m in mounts %}
           <div class="card mount-card">
@@ -19,8 +19,8 @@
                    style="width: {{ m.used_percent }}%;"></div>
             </div>
             <div class="mount-card-figures">
-              <span>{{ m.used_human }} utilisés sur {{ m.total_human }} ({{ m.used_percent }}%)</span>
-              <span>{{ m.free_human }} libres</span>
+              <span>{{ t('storage_used_of_total', used=m.used_human, total=m.total_human, percent=m.used_percent) }}</span>
+              <span>{{ t('storage_free', free=m.free_human) }}</span>
             </div>
             {% if m.top_consumers %}
               <ul class="mount-consumers">
@@ -39,23 +39,23 @@
     {% endif %}
 
     {% if disks %}
-      <h3 class="storage-section-title">Disques physiques</h3>
+      <h3 class="storage-section-title">{{ t('h3_physical_disks') }}</h3>
             <div class="disk-grid">
         {% for d in disks %}
           <div class="card disk-card">
             <div class="disk-card-header">
               <span class="disk-status disk-status-{{ 'sane' if d.smart_status == 'SANE' else ('critical' if d.smart_status == 'CRITICAL' else 'unknown') }}"
-                    title="{% if d.smart_status == 'SANE' %}Ce périphérique est sain{% elif d.smart_status == 'CRITICAL' %}Cet appareil est dans un état critique{% else %}L'état de cet appareil est inconnu{% endif %}"></span>
+                    title="{% if d.smart_status == 'SANE' %}{{ t('disk_status_sane_title') }}{% elif d.smart_status == 'CRITICAL' %}{{ t('disk_status_critical_title') }}{% else %}{{ t('disk_status_unknown_title') }}{% endif %}"></span>
               <strong>{{ d.model or d.name }}</strong>
-              {% if d.connection_bus == 'usb' %}<span title="Cet appareil est connecté en USB">🔌</span>{% endif %}
-              {% if d.removable %}<span title="Cet appareil est éjectable">⏏</span>{% endif %}
+              {% if d.connection_bus == 'usb' %}<span title="{{ t('disk_usb_title') }}">🔌</span>{% endif %}
+              {% if d.removable %}<span title="{{ t('disk_removable_title') }}">⏏</span>{% endif %}
             </div>
             <ul class="disk-card-infos">
-              <li>Périphérique : <code>{{ d.name }}</code></li>
-              <li>Numéro de série : {{ d.serial or 'Inconnu' }}</li>
-              <li>Taille : {{ d.size }}</li>
+              <li>{{ t('disk_label_device') }} : <code>{{ d.name }}</code></li>
+              <li>{{ t('disk_label_serial') }} : {{ d.serial or t('disk_serial_unknown') }}</li>
+              <li>{{ t('disk_label_size') }} : {{ d.size }}</li>
               <li>
-                Type : {{ d.type }}{% if d.type == 'HDD' and d.rpm and d.rpm != 'Unknown' %} ({{ d.rpm }} RPM){% endif %}
+                {{ t('disk_label_type') }} : {{ d.type }}{% if d.type == 'HDD' and d.rpm and d.rpm != 'Unknown' %} ({{ d.rpm }} RPM){% endif %}
               </li>
             </ul>
             {% set smart = smart_reports.get(d.name) %}
@@ -64,21 +64,21 @@
                 {% if smart.available %}
                   <div class="smart-summary">
                     <span class="smart-passed-{{ 'yes' if smart.passed else ('no' if smart.passed == false else 'unknown') }}">
-                      {% if smart.passed == true %}Test SMART global : réussi{% elif smart.passed == false %}Test SMART global : échoué{% else %}Test SMART global : indisponible{% endif %}
+                      {% if smart.passed == true %}{{ t('smart_global_passed') }}{% elif smart.passed == false %}{{ t('smart_global_failed') }}{% else %}{{ t('smart_global_unavailable') }}{% endif %}
                     </span>
                   </div>
                   <ul class="smart-facts">
-                    {% if smart.temperature_celsius is not none %}<li>Température : {{ smart.temperature_celsius }} °C</li>{% endif %}
-                    {% if smart.power_on_hours is not none %}<li>Heures de fonctionnement : {{ smart.power_on_hours }} h</li>{% endif %}
-                    {% if smart.power_cycle_count is not none %}<li>Cycles d'alimentation : {{ smart.power_cycle_count }}</li>{% endif %}
-                    {% if smart.nvme_percentage_used is not none %}<li>Usure NVMe : {{ smart.nvme_percentage_used }}%</li>{% endif %}
-                    {% if smart.nvme_media_errors is not none %}<li>Erreurs média NVMe : {{ smart.nvme_media_errors }}</li>{% endif %}
-                    {% if smart.nvme_unsafe_shutdowns is not none %}<li>Arrêts non propres : {{ smart.nvme_unsafe_shutdowns }}</li>{% endif %}
+                    {% if smart.temperature_celsius is not none %}<li>{{ t('smart_fact_temperature', value=smart.temperature_celsius) }}</li>{% endif %}
+                    {% if smart.power_on_hours is not none %}<li>{{ t('smart_fact_power_on_hours', value=smart.power_on_hours) }}</li>{% endif %}
+                    {% if smart.power_cycle_count is not none %}<li>{{ t('smart_fact_power_cycle_count', value=smart.power_cycle_count) }}</li>{% endif %}
+                    {% if smart.nvme_percentage_used is not none %}<li>{{ t('smart_fact_nvme_percentage_used', value=smart.nvme_percentage_used) }}</li>{% endif %}
+                    {% if smart.nvme_media_errors is not none %}<li>{{ t('smart_fact_nvme_media_errors', value=smart.nvme_media_errors) }}</li>{% endif %}
+                    {% if smart.nvme_unsafe_shutdowns is not none %}<li>{{ t('smart_fact_nvme_unsafe_shutdowns', value=smart.nvme_unsafe_shutdowns) }}</li>{% endif %}
                   </ul>
                   {% if smart.attributes %}
                     <table class="smart-attr-table">
                       <thead>
-                        <tr><th>ID</th><th>Attribut</th><th>Valeur</th><th>Pire</th><th>Seuil</th><th>Brut</th></tr>
+                        <tr><th>{{ t('smart_attr_table_id') }}</th><th>{{ t('smart_attr_table_name') }}</th><th>{{ t('smart_attr_table_value') }}</th><th>{{ t('smart_attr_table_worst') }}</th><th>{{ t('smart_attr_table_threshold') }}</th><th>{{ t('smart_attr_table_raw') }}</th></tr>
                       </thead>
                       <tbody>
                         {% for a in smart.attributes %}
@@ -95,7 +95,7 @@
                     </table>
                   {% endif %}
                 {% else %}
-                  <div class="smart-unavailable">SMART indisponible sur ce disque{% if smart.unavailable_reason %} — {{ smart.unavailable_reason }}{% endif %}</div>
+                  <div class="smart-unavailable">{{ t('smart_unavailable_on_disk') }}{% if smart.unavailable_reason %} — {{ smart.unavailable_reason }}{% endif %}</div>
                 {% endif %}
               </div>
             {% endif %}
@@ -104,7 +104,7 @@
       </div>
     {% else %}
       <div class="error">
-        Aucun disque trouvé sur le système. Peut-être êtes-vous dans un contexte particulier, tel qu'un conteneur LXC ?
+        {{ t('err_no_disk_found') }}
       </div>
     {% endif %}
 {% endblock %}

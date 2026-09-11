@@ -19,6 +19,7 @@ from pathlib import Path
 
 import httpx
 
+from wappos_api import locale_context
 from wappos_api.config import settings
 from wappos_api.errors import (
     InvalidCredentialsError,
@@ -59,7 +60,8 @@ _SPECIAL_GROUPS = {"visitors", "all_users", "admins"}
 
 logger = logging.getLogger("wappos_api")
 
-_YUNOHOST_API_HEADERS = {"X-Requested-With": "customscript", "locale": "fr"}
+def _yunohost_api_headers() -> dict[str, str]:
+    return {"X-Requested-With": "customscript", "locale": locale_context.get_locale()}
 
 _SESSION_COOKIE_NAME = "yunohost.admin"
 
@@ -90,7 +92,7 @@ def _ttl_cache(ttl_seconds: float):
 
         @functools.wraps(func)
         def wrapper(session_token: str, *args, **kwargs):
-            key = (args, tuple(sorted(kwargs.items())))
+            key = (locale_context.get_locale(), args, tuple(sorted(kwargs.items())))
             now = time.time()
             cache_file = _cache_file()
             with lock:
@@ -181,7 +183,7 @@ def ping() -> None:
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/login",
             json={},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -199,7 +201,7 @@ def login(username: str, password: str) -> str:
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/login",
             json={"credentials": f"{username}:{password}"},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -220,7 +222,7 @@ def list_users(session_token: str) -> list[User]:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -245,7 +247,7 @@ def get_user(session_token: str, username: str) -> UserDetail:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users/{username}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -274,7 +276,7 @@ def list_domain_names(session_token: str, full: bool = False) -> list[str]:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domains",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -297,7 +299,7 @@ def get_domain_detail(session_token: str, domain: str) -> DomainDetail:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domains/{domain}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -333,7 +335,7 @@ def get_domain_config(session_token: str, domain: str) -> dict:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domains/{domain}/config",
             params={"full": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -351,7 +353,7 @@ def get_domain_dns_suggestion(session_token: str, domain: str) -> str:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domains/{domain}/dns/suggest",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -372,7 +374,7 @@ def set_domain_config(session_token: str, domain: str, panel_key: str, args: str
             f"{settings.yunohost_api_base_url}/domains/{domain}/config/{panel_key}",
             data={"args": args},
             files=_FORCE_MULTIPART,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -391,7 +393,7 @@ def set_main_domain(session_token: str, domain: str) -> None:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/domains/{domain}/main",
             json={"new_main_domain": domain},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_HEAVY_DOMAIN_OP_TIMEOUT_SECONDS,
         )
@@ -420,7 +422,7 @@ def install_domain_certificate(
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/domains/{domain}/cert",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_CERTIFICATE_TIMEOUT_SECONDS,
         )
@@ -434,7 +436,7 @@ def get_certificates_status(session_token: str) -> dict:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domains/*/cert",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -463,7 +465,7 @@ def renew_domain_certificate(
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/domains/{domain}/cert/renew",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_CERTIFICATE_TIMEOUT_SECONDS,
         )
@@ -488,7 +490,7 @@ def add_domain(
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/domains",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_CERTIFICATE_TIMEOUT_SECONDS if install_letsencrypt_cert else _HEAVY_DOMAIN_OP_TIMEOUT_SECONDS,
         )
@@ -518,7 +520,7 @@ def remove_domain(
             "DELETE",
             f"{settings.yunohost_api_base_url}/domains/{domain}",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_HEAVY_DOMAIN_OP_TIMEOUT_SECONDS,
         )
@@ -539,7 +541,7 @@ def push_domain_dns(session_token: str, domain: str, dry_run: bool = True, force
         response = httpx.post(
             url,
             json={"domain": domain},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -558,7 +560,7 @@ def list_apps(session_token: str) -> list[AppInfo]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps",
             params={"full": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -593,7 +595,13 @@ def list_apps(session_token: str) -> list[AppInfo]:
 def _pick_locale_text(content_per_lang: dict[str, str] | None) -> str | None:
     if not content_per_lang:
         return None
-    return content_per_lang.get("fr") or content_per_lang.get("en") or next(iter(content_per_lang.values()), None)
+    locale = locale_context.get_locale()
+    fallback = "fr" if locale == "en" else "en"
+    return (
+        content_per_lang.get(locale)
+        or content_per_lang.get(fallback)
+        or next(iter(content_per_lang.values()), None)
+    )
 
 
 def get_app_detail(session_token: str, app_id: str) -> AppDetail:
@@ -601,7 +609,7 @@ def get_app_detail(session_token: str, app_id: str) -> AppDetail:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/{app_id}",
             params={"full": "", "with_pre_upgrade_notifications": "true"},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -660,7 +668,7 @@ def install_app(
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/apps",
             json={"app": app_id, "label": label, "args": args, "force": force},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
@@ -681,7 +689,7 @@ def remove_app(session_token: str, app_id: str, purge: bool = False) -> None:
             f"{settings.yunohost_api_base_url}/apps/{app_id}",
             json={"app": app_id},
             params={"purge": "1"} if purge else None,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
@@ -696,7 +704,7 @@ def upgrade_app(session_token: str, app_id: str, force: bool = False) -> dict:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/upgrade",
             params={"force": ""} if force else None,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
@@ -716,7 +724,7 @@ def change_app_url(session_token: str, app_id: str, domain: str, path: str) -> N
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/changeurl",
             json={"app": app_id, "domain": domain, "path": path},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -731,7 +739,7 @@ def change_app_label(session_token: str, app_id: str, new_label: str) -> None:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/label",
             json={"app": app_id, "new_label": new_label},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -746,7 +754,7 @@ def dismiss_app_notification(session_token: str, app_id: str, name: str) -> None
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/dismiss_notification/{name}",
             json={"app": app_id, "name": name},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -763,7 +771,7 @@ def get_app_catalog(session_token: str) -> AppCatalog:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/catalog",
             params={"full": "", "with_categories": "", "with_antifeatures": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -826,7 +834,7 @@ def get_app_manifest(session_token: str, app_id: str) -> AppManifest:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/manifest",
             params={"app": app_id},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -864,7 +872,7 @@ def list_app_actions(session_token: str, app_id: str) -> dict:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/actions",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -886,7 +894,7 @@ def run_app_action(session_token: str, app_id: str, action_id: str, args: str | 
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/actions/{action_id}",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
@@ -905,7 +913,7 @@ def get_app_config(session_token: str, app_id: str) -> dict:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/config",
             params={"full": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -925,7 +933,7 @@ def set_app_config(session_token: str, app_id: str, panel_key: str, args: str) -
             f"{settings.yunohost_api_base_url}/apps/{app_id}/config/{panel_key}",
             data={"args": args},
             files=_FORCE_MULTIPART,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
@@ -944,7 +952,7 @@ def list_permissions(session_token: str) -> dict[str, PermissionInfo]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users/permissions",
             params={"full": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -994,7 +1002,7 @@ def _update_permission_group(session_token: str, permission: str, action: str, g
     try:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/users/permissions/{permission}/{action}/{group}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1011,7 +1019,7 @@ def list_groups_full(session_token: str) -> list[GroupInfo]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users/groups",
             params={"full": "", "include_primary_groups": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1046,7 +1054,7 @@ def create_group(session_token: str, groupname: str) -> None:
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/users/groups",
             json={"groupname": groupname},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1060,7 +1068,7 @@ def delete_group(session_token: str, groupname: str) -> None:
     try:
         response = httpx.delete(
             f"{settings.yunohost_api_base_url}/users/groups/{groupname}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1083,7 +1091,7 @@ def _update_group_member(session_token: str, group: str, action: str, user: str)
     try:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/users/groups/{group}/{action}/{user}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1104,7 +1112,7 @@ def run_diagnosis(session_token: str, category: str | None = None) -> None:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/diagnosis/run" + ("?force" if category else ""),
             json={"categories": [category]} if category else {},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_DIAGNOSIS_RUN_TIMEOUT_SECONDS,
         )
@@ -1127,7 +1135,7 @@ def get_diagnosis(session_token: str) -> list[DiagnosisReport]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/diagnosis",
             params={"full": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1186,7 +1194,7 @@ def share_diagnosis_yunopaste(session_token: str) -> str:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/diagnosis",
             params={"share": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=30.0,
         )
@@ -1215,7 +1223,7 @@ def _set_diagnosis_item_ignored(session_token: str, action: str, category: str, 
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/diagnosis/{action}",
             json={"filter": filter_},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1267,7 +1275,7 @@ def create_user(
                 "fullname": fullname,
                 "mailbox_quota": mailbox_quota,
             },
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1282,7 +1290,7 @@ def update_user(session_token: str, username: str, **fields: object) -> None:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/users/{username}",
             json={**fields, "username": username},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1298,7 +1306,7 @@ def delete_user(session_token: str, username: str, purge: bool = False) -> None:
             "DELETE",
             f"{settings.yunohost_api_base_url}/users/{username}",
             json={"username": username, "purge": purge},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1313,7 +1321,7 @@ def list_user_ssh_keys(session_token: str, username: str) -> list[dict[str, str]
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users/ssh/keys",
             params={"username": username},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1335,7 +1343,7 @@ def add_user_ssh_key(session_token: str, username: str, key: str, comment: str |
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/users/ssh/key",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1351,7 +1359,7 @@ def remove_user_ssh_key(session_token: str, username: str, key: str) -> None:
             "DELETE",
             f"{settings.yunohost_api_base_url}/users/ssh/key",
             json={"username": username, "key": key},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1365,7 +1373,7 @@ def export_users_csv(session_token: str) -> str:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users/export",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1389,7 +1397,7 @@ def import_users_csv(
             f"{settings.yunohost_api_base_url}/users/import",
             data=data,
             files={"csvfile": (filename, content, "text/csv")},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1407,7 +1415,7 @@ def get_group_mail_aliases(session_token: str, groupname: str) -> list[str]:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users/groups/{groupname}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1447,7 +1455,7 @@ def _update_group_mailalias(
             response = httpx.put(
                 f"{settings.yunohost_api_base_url}/users/groups/{groupname}/aliases/{alias}",
                 json=body,
-                headers=_YUNOHOST_API_HEADERS,
+                headers=_yunohost_api_headers(),
                 cookies={_SESSION_COOKIE_NAME: session_token},
                 timeout=settings.upstream_timeout_seconds,
             )
@@ -1456,7 +1464,7 @@ def _update_group_mailalias(
                 "DELETE",
                 f"{settings.yunohost_api_base_url}/users/groups/{groupname}/aliases/{alias}",
                 json=body,
-                headers=_YUNOHOST_API_HEADERS,
+                headers=_yunohost_api_headers(),
                 cookies={_SESSION_COOKIE_NAME: session_token},
                 timeout=settings.upstream_timeout_seconds,
             )
@@ -1478,7 +1486,7 @@ def update_permission_properties(session_token: str, permission: str, **fields: 
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/users/permissions/{permission}",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1493,7 +1501,7 @@ def update_permission_logo(session_token: str, permission: str, filename: str, c
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/users/permissions/{permission}",
             files={"logo": (filename, content, "image/png")},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1508,7 +1516,7 @@ def list_services(session_token: str) -> list[ServiceInfo]:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/services",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1553,7 +1561,7 @@ def get_service(session_token: str, name: str) -> ServiceInfo:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/services/{name}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1582,7 +1590,7 @@ def _service_state_matches(session_token: str, name: str, action: str) -> bool:
     try:
         check = httpx.get(
             f"{settings.yunohost_api_base_url}/services/{name}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1595,7 +1603,7 @@ def _service_action(session_token: str, name: str, action: str) -> None:
     try:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/services/{name}/{action}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_SERVICE_ACTION_TIMEOUT_SECONDS,
         )
@@ -1648,7 +1656,7 @@ def get_service_log(session_token: str, name: str, number: int = 50) -> dict[str
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/services/{name}/log",
             params={"number": number},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1668,7 +1676,7 @@ def list_logs(session_token: str, limit: int = 50) -> list[LogEntry]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/logs",
             params={"limit": limit, "with_details": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1698,7 +1706,7 @@ def get_log(session_token: str, name: str, number: int = 50) -> LogDetail:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/logs/{name}",
             params={"filter_irrelevant": "", "with_suboperations": "", "number": number},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1739,7 +1747,7 @@ def share_log(session_token: str, name: str) -> str:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/logs/{name}/share",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_LOG_SHARE_TIMEOUT_SECONDS,
         )
@@ -1759,7 +1767,7 @@ def list_firewall(session_token: str) -> FirewallRules:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/firewall",
             params={"raw": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1796,7 +1804,7 @@ def open_firewall_port(session_token: str, protocol: str, port: int | str, comme
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/open/{port}",
             params=params,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_UPNP_TIMEOUT_SECONDS if upnp else settings.upstream_timeout_seconds,
         )
@@ -1814,7 +1822,7 @@ def close_firewall_port(session_token: str, protocol: str, port: int | str, upnp
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/close/{port}",
             params=params,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1828,7 +1836,7 @@ def delete_firewall_port(session_token: str, protocol: str, port: int | str) -> 
     try:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/delete/{port}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1843,7 +1851,7 @@ def set_upnp(session_token: str, enabled: bool) -> None:
     try:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/firewall/upnp/{action}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_UPNP_TIMEOUT_SECONDS,
         )
@@ -1869,7 +1877,7 @@ def list_diagnosis_categories(session_token: str) -> list[str]:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/diagnosis/categories",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1891,7 +1899,7 @@ def list_disks(session_token: str) -> list[DiskInfo]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/storage/disk/list",
             params={"with_info": "", "human_readable_size": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -1936,14 +1944,17 @@ def get_disk_smart(session_token: str, name: str) -> SmartReport:
         )
         data = json.loads(result.stdout)
     except (subprocess.SubprocessError, ValueError, OSError):
-        return SmartReport(name=name, available=False, unavailable_reason="lecture SMART impossible")
+        reason = "impossible de lire les données SMART" if locale_context.get_locale() == "fr" else "unable to read SMART data"
+        return SmartReport(name=name, available=False, unavailable_reason=reason)
 
     smart_support = data.get("smart_support", {})
     if not smart_support.get("available", False):
-        return SmartReport(
-            name=name, available=False,
-            unavailable_reason="le disque ne prend pas en charge SMART (fréquent sur disque virtuel)",
+        reason = (
+            "ce disque ne supporte pas SMART (courant sur les disques virtuels)"
+            if locale_context.get_locale() == "fr"
+            else "the disk does not support SMART (common on virtual disks)"
         )
+        return SmartReport(name=name, available=False, unavailable_reason=reason)
 
     smart_status = data.get("smart_status", {})
     power_on_time = data.get("power_on_time", {})
@@ -1996,38 +2007,49 @@ _MOUNT_FSTYPE_DENYLIST = {
 }
 
 _MOUNTPOINT_LABELS = {
-    "/": "Disque système",
-    "/boot": "Démarrage",
-    "/boot/efi": "Démarrage (EFI)",
-    "/home": "Dossiers utilisateurs",
-    "/var": "Données applicatives",
-    "/opt": "Applications installées",
-    "/srv": "Données de service",
-    "/tmp": "Fichiers temporaires",
+    "/": {"fr": "Disque système", "en": "System disk"},
+    "/boot": {"fr": "Démarrage", "en": "Boot"},
+    "/boot/efi": {"fr": "Démarrage (EFI)", "en": "Boot (EFI)"},
+    "/home": {"fr": "Répertoires personnels", "en": "User home directories"},
+    "/var": {"fr": "Données applicatives", "en": "Application data"},
+    "/opt": {"fr": "Applications installées", "en": "Installed applications"},
+    "/srv": {"fr": "Données de service", "en": "Service data"},
+    "/tmp": {"fr": "Fichiers temporaires", "en": "Temporary files"},
 }
 
 _CONSUMER_CANDIDATES = {
-    "/var/www": "Sites web et fichiers d'apps",
-    "/home": "Dossiers utilisateurs",
-    "/var/lib/docker": "Conteneurs Docker",
-    "/var/log": "Journaux système",
-    "/opt/yunohost": "Applications Wappos",
-    "/var/mail": "Boîtes mail (stockage local)",
-    "/var/lib/mysql": "Base de données MySQL/MariaDB",
-    "/var/backups": "Sauvegardes",
-    "/root": "Fichiers de l'administrateur",
+    "/var/www": {"fr": "Sites web et fichiers d'app", "en": "Websites and app files"},
+    "/home": {"fr": "Répertoires personnels", "en": "User home directories"},
+    "/var/lib/docker": {"fr": "Conteneurs Docker", "en": "Docker containers"},
+    "/var/log": {"fr": "Journaux système", "en": "System logs"},
+    "/opt/yunohost": {"fr": "Applications Wappos", "en": "Wappos applications"},
+    "/var/mail": {"fr": "Boîtes mail (stockage local)", "en": "Mailboxes (local storage)"},
+    "/var/lib/mysql": {"fr": "Base de données MySQL/MariaDB", "en": "MySQL/MariaDB database"},
+    "/var/backups": {"fr": "Sauvegardes", "en": "Backups"},
+    "/root": {"fr": "Fichiers de l'administrateur", "en": "Administrator's files"},
 }
 
 _DU_TIMEOUT_SECONDS = 5
 
 
+def _localized(labels: dict[str, dict[str, str]], key: str, default: str) -> str:
+    entry = labels.get(key)
+    if entry is None:
+        return default
+    lang = locale_context.get_locale()
+    return entry.get(lang) or entry.get("en") or default
+
+
 def _human_bytes(n: int) -> str:
     size = float(n)
-    for unit in ("o", "Ko", "Mo", "Go", "To", "Po"):
-        if size < 1024 or unit == "Po":
-            return f"{size:.1f} {unit}" if unit != "o" else f"{int(size)} {unit}"
+    units_fr = ("o", "Ko", "Mo", "Go", "To", "Po")
+    units_en = ("B", "KB", "MB", "GB", "TB", "PB")
+    units = units_fr if locale_context.get_locale() == "fr" else units_en
+    for unit in units:
+        if size < 1024 or unit in (units_fr[-1], units_en[-1]):
+            return f"{size:.1f} {unit}" if unit not in (units_fr[0], units_en[0]) else f"{int(size)} {unit}"
         size /= 1024
-    return f"{size:.1f} Po"
+    return f"{size:.1f} {units[-1]}"
 
 
 def _human_uptime(seconds: int) -> str:
@@ -2063,7 +2085,7 @@ def get_system_health(session_token: str) -> SystemHealth:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/versions",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2152,7 +2174,7 @@ def list_wappos_component_versions(session_token: str) -> list[WapposComponentVe
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/versions",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2176,7 +2198,7 @@ def list_wappos_component_versions(session_token: str) -> list[WapposComponentVe
 
 
 def _mountpoint_label(mountpoint: str) -> str:
-    return _MOUNTPOINT_LABELS.get(mountpoint, mountpoint)
+    return _localized(_MOUNTPOINT_LABELS, mountpoint, mountpoint)
 
 
 def _dir_size_bytes(path: str) -> int | None:
@@ -2201,7 +2223,7 @@ _CONSUMER_SIZES_CACHE_FILE = Path(__file__).parent.parent.parent / ".package" / 
 _CONSUMER_SIZES_CACHE_TTL_SECONDS = 300
 
 
-def _read_consumer_sizes_cache() -> list[tuple[str, str, int | None]] | None:
+def _read_consumer_sizes_cache() -> list[tuple[str, int | None]] | None:
     try:
         cached = json.loads(_CONSUMER_SIZES_CACHE_FILE.read_text())
     except (OSError, ValueError):
@@ -2211,7 +2233,7 @@ def _read_consumer_sizes_cache() -> list[tuple[str, str, int | None]] | None:
     return [tuple(entry) for entry in cached.get("sizes", [])]
 
 
-def _write_consumer_sizes_cache(result: list[tuple[str, str, int | None]]) -> None:
+def _write_consumer_sizes_cache(result: list[tuple[str, int | None]]) -> None:
     try:
         _CONSUMER_SIZES_CACHE_FILE.parent.mkdir(parents=True, exist_ok=True)
         tmp_path = _CONSUMER_SIZES_CACHE_FILE.with_suffix(".tmp")
@@ -2221,17 +2243,15 @@ def _write_consumer_sizes_cache(result: list[tuple[str, str, int | None]]) -> No
         pass
 
 
-def _cached_consumer_sizes(force: bool = False) -> list[tuple[str, str, int | None]]:
+def _cached_consumer_sizes(force: bool = False) -> list[tuple[str, int | None]]:
     if not force:
         cached = _read_consumer_sizes_cache()
         if cached is not None:
             return cached
-    candidates = [
-        (path, label) for path, label in _CONSUMER_CANDIDATES.items() if os.path.isdir(path)
-    ]
-    with ThreadPoolExecutor(max_workers=max(1, len(candidates))) as pool:
-        sizes = list(pool.map(lambda pl: _dir_size_bytes(pl[0]), candidates))
-    result = [(path, label, size) for (path, label), size in zip(candidates, sizes)]
+    paths = [path for path in _CONSUMER_CANDIDATES if os.path.isdir(path)]
+    with ThreadPoolExecutor(max_workers=max(1, len(paths))) as pool:
+        sizes = list(pool.map(_dir_size_bytes, paths))
+    result = list(zip(paths, sizes))
     _write_consumer_sizes_cache(result)
     return result
 
@@ -2250,7 +2270,7 @@ def list_mounts(session_token: str) -> list[MountInfo]:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/storage/disk/list",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2303,12 +2323,13 @@ def list_mounts(session_token: str) -> list[MountInfo]:
     consumer_sizes = _cached_consumer_sizes()
 
     consumers_by_mount: dict[str, list[MountConsumer]] = {mp: [] for mp in mountpoints}
-    for path, label, size in consumer_sizes:
+    for path, size in consumer_sizes:
         if not size:
             continue
         target_mount = _best_matching_mountpoint(path, mountpoints)
         if target_mount is None:
             continue
+        label = _localized(_CONSUMER_CANDIDATES, path, path)
         consumers_by_mount[target_mount].append(
             MountConsumer(path=path, label=label, size_bytes=size, size_human=_human_bytes(size))
         )
@@ -2326,7 +2347,7 @@ def get_global_settings(session_token: str) -> dict:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/settings",
             params={"full": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2346,7 +2367,7 @@ def set_global_settings(session_token: str, panel_key: str, args: str) -> dict:
             f"{settings.yunohost_api_base_url}/settings/{panel_key}",
             data={"args": args},
             files=_FORCE_MULTIPART,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2364,7 +2385,7 @@ def reset_global_setting(session_token: str, key: str) -> None:
     try:
         response = httpx.delete(
             f"{settings.yunohost_api_base_url}/settings/{key}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2378,7 +2399,7 @@ def reset_all_global_settings(session_token: str) -> None:
     try:
         response = httpx.delete(
             f"{settings.yunohost_api_base_url}/settings",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2393,7 +2414,7 @@ def get_global_setting(session_token: str, key: str) -> dict:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/settings/{key}",
             params={"full": ""},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2419,7 +2440,7 @@ def get_app_map(session_token: str, app_id: str | None = None, raw: bool = False
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/map",
             params=params,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2445,7 +2466,7 @@ def app_setting(
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/settings",
             params=params,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2471,7 +2492,7 @@ def app_makedefault(
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/default",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2488,7 +2509,7 @@ def get_app_shell_info(session_token: str, app_id: str) -> str:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/shell",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_APP_SHELL_TIMEOUT_SECONDS,
         )
@@ -2504,7 +2525,7 @@ def check_domain_url_available(session_token: str, domain: str, path: str) -> bo
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domain/{domain}/urlavailable",
             params={"path": path},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2526,7 +2547,7 @@ def run_domain_action(session_token: str, domain: str, action_id: str, args: str
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/domain/{domain}/actions/{action_id}",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2561,7 +2582,7 @@ def allow_firewall(
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/allow/{port}",
             params=params,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2590,7 +2611,7 @@ def disallow_firewall(
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/disallow/{port}",
             params=params,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2604,7 +2625,7 @@ def get_disk_info(session_token: str, name: str) -> dict:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/storage/disk/info/{name}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2622,7 +2643,7 @@ def list_hooks(session_token: str, action: str) -> list[str]:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/hooks/{action}",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2651,7 +2672,7 @@ def list_backups(session_token: str, with_info: bool = True, human_readable: boo
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/backups",
             params=params,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2675,7 +2696,7 @@ def get_backup_info(session_token: str, name: str, with_details: bool = True, hu
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/backups/{name}",
             params=params,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2709,7 +2730,7 @@ def create_backup(
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/backups",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_BACKUP_TIMEOUT_SECONDS,
         )
@@ -2745,7 +2766,7 @@ def restore_backup(
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/backups/{name}/restore",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_BACKUP_TIMEOUT_SECONDS,
         )
@@ -2765,7 +2786,7 @@ def delete_backup(session_token: str, name: str) -> None:
             "DELETE",
             f"{settings.yunohost_api_base_url}/backups/{name}",
             json={"name": name},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2782,7 +2803,7 @@ def stream_backup_download(session_token: str, name: str):
         request_ = client.build_request(
             "GET",
             f"{settings.yunohost_api_base_url}/backups/{name}/download",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
         )
         response = client.send(request_, stream=True)
@@ -2817,7 +2838,7 @@ def get_versions(session_token: str) -> dict:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/versions",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2836,7 +2857,7 @@ def get_available_updates(session_token: str) -> dict:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/update",
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2858,7 +2879,7 @@ def refresh_updates(session_token: str, target: str = "all", no_refresh: bool = 
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/update/{target}",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )
@@ -2879,7 +2900,7 @@ def run_upgrade(session_token: str, target: str) -> dict:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/upgrade/{target}",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )
@@ -2904,7 +2925,7 @@ def list_migrations(session_token: str, pending: bool = False, done: bool = Fals
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/migrations",
             params=params,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -2943,7 +2964,7 @@ def run_migrations(
         response = httpx.put(
             url,
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )
@@ -2982,7 +3003,7 @@ def regen_conf(
         response = httpx.put(
             url,
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )
@@ -3001,7 +3022,7 @@ def change_root_password(session_token: str, new_password: str) -> None:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/rootpw",
             json={"new_password": new_password},
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -3019,7 +3040,7 @@ def reboot_server(session_token: str, force: bool = False) -> None:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/reboot",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -3037,7 +3058,7 @@ def shutdown_server(session_token: str, force: bool = False) -> None:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/shutdown",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=settings.upstream_timeout_seconds,
         )
@@ -3073,7 +3094,7 @@ def run_postinstall(
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/postinstall",
             json=body,
-            headers=_YUNOHOST_API_HEADERS,
+            headers=_yunohost_api_headers(),
             cookies={_SESSION_COOKIE_NAME: session_token},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )

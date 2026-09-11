@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% set active_tab = "system" %}
-{% block title %}Migrations{% endblock %}
+{% block title %}{{ t('title_migrations') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Migrations</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_migrations') }}</span>{% endblock %}
 
 {% block content %}
     {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
     {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
 
     <div class="alert alert-info">
-      Les migrations système modifient en profondeur la configuration du serveur (montées de version majeures, restructuration de composants). Les migrations <strong>automatiques</strong> s'exécutent déjà seules lors d'une mise à jour système normale. Les migrations <strong>manuelles</strong> nécessitent une action explicite ici, après lecture de leur avertissement.
+      {{ t('migrations_intro')|safe }}
     </div>
 
     {% set pending = migrations | selectattr('state', 'equalto', 'pending') | list %}
@@ -17,9 +17,9 @@
 
     {% if pending %}
       <form method="post" action="{{ url_for('run_migrations') }}" style="margin-bottom: 1.25rem;"
-            onsubmit="return confirm('Exécuter toutes les migrations automatiques en attente ? Les migrations manuelles doivent être lancées individuellement ci-dessous.');">
+            onsubmit="return confirm({{ t('confirm_run_pending_migrations')|tojson }});">
         <input type="hidden" name="auto" value="1">
-        <button type="submit" class="btn">Exécuter les migrations automatiques en attente</button>
+        <button type="submit" class="btn">{{ t('btn_run_pending_migrations') }}</button>
       </form>
     {% endif %}
 
@@ -27,35 +27,35 @@
       <div class="card migration-card">
         <div class="card-header">
           <h3>{{ m.description }}</h3>
-          <span class="migration-badge migration-badge-{{ m.mode }}">{{ 'Manuelle' if m.mode == 'manual' else 'Automatique' }}</span>
+          <span class="migration-badge migration-badge-{{ m.mode }}">{{ t('migration_mode_manual') if m.mode == 'manual' else t('migration_mode_auto') }}</span>
         </div>
         <div class="card-body">
           {% if m.disclaimer %}
             <div class="alert alert-warning migration-disclaimer">{{ m.disclaimer }}</div>
             <form method="post" action="{{ url_for('run_migrations') }}" class="migration-run-form"
-                  onsubmit="return confirm('Exécuter la migration « ' + {{ m.description|tojson }} + ' » ? Cette action peut être longue et modifier significativement le serveur.');">
+                  onsubmit="return confirm({{ t('confirm_run_migration_disclaimer', name=m.description)|tojson }});">
               <input type="hidden" name="target" value="{{ m.id }}">
               <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; margin-bottom: 0.75rem;">
-                <input type="checkbox" name="accept_disclaimer" value="1" required> J'ai lu et j'accepte l'avertissement ci-dessus.
+                <input type="checkbox" name="accept_disclaimer" value="1" required> {{ t('label_accept_disclaimer') }}
               </label>
-              <button type="submit" class="btn btn-danger">Exécuter cette migration</button>
+              <button type="submit" class="btn btn-danger">{{ t('btn_run_migration') }}</button>
             </form>
           {% else %}
             <form method="post" action="{{ url_for('run_migrations') }}" class="migration-run-form"
-                  onsubmit="return confirm('Exécuter la migration « ' + {{ m.description|tojson }} + ' » ?');">
+                  onsubmit="return confirm({{ t('confirm_run_migration', name=m.description)|tojson }});">
               <input type="hidden" name="target" value="{{ m.id }}">
-              <button type="submit" class="btn">Exécuter cette migration</button>
+              <button type="submit" class="btn">{{ t('btn_run_migration') }}</button>
             </form>
           {% endif %}
         </div>
       </div>
     {% else %}
-      <p class="field-info">Aucune migration en attente.</p>
+      <p class="field-info">{{ t('no_pending_migration') }}</p>
     {% endfor %}
 
     {% if done %}
       <details class="card migration-done-details">
-        <summary class="card-header">Migrations déjà effectuées ({{ done | length }})</summary>
+        <summary class="card-header">{{ t('migrations_already_done', count=(done | length)) }}</summary>
         <div class="card-body">
           <ul class="migration-done-list">
             {% for m in done %}

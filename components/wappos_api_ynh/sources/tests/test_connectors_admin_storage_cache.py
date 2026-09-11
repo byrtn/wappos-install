@@ -36,7 +36,7 @@ def test_cached_consumer_sizes_is_shared_across_processes_via_file(_isolate_cons
         result = admin._cached_consumer_sizes()
 
     mocked_second_worker.assert_not_called()
-    assert all(size == 1024 for _, _, size in result)
+    assert all(size == 1024 for _, size in result)
 
 
 def test_cached_consumer_sizes_recomputes_after_ttl_expiry(_isolate_consumer_sizes_cache):
@@ -54,4 +54,4 @@ def test_cached_consumer_sizes_recomputes_after_ttl_expiry(_isolate_consumer_siz
         result = admin._cached_consumer_sizes()
 
     assert mocked_again.call_count == len(admin._CONSUMER_CANDIDATES)
-    assert all(size == 2048 for _, _, size in result)
+    assert all(size == 2048 for _, size in result)

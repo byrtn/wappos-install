@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set active_tab = "tools" %}
-{% block title %}Correspondance URL &harr; app{% endblock %}
+{% block title %}{{ t('title_url_app_map') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Correspondance URL &harr; app</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_url_app_map') }}</span>{% endblock %}
 
 {% block content %}
     {% if app_map %}
@@ -11,7 +11,7 @@
           <div class="card-header"><h3>{{ domain }}</h3></div>
           <div class="card-body">
             <table>
-              <tr><th>Chemin</th><th>App</th><th>Étiquette</th></tr>
+              <tr><th>{{ t('th_path') }}</th><th>{{ t('th_app') }}</th><th>{{ t('th_label') }}</th></tr>
               {% for path, info in paths.items() %}
                 <tr>
                   <td><code>{{ path }}</code></td>
@@ -25,7 +25,7 @@
       {% endfor %}
     {% else %}
       <div class="card create-card">
-        <div class="card-body"><p class="field-info">Aucune application installée sur un domaine web.</p></div>
+        <div class="card-body"><p class="field-info">{{ t('no_app_on_web_domain') }}</p></div>
       </div>
     {% endif %}
 {% endblock %}

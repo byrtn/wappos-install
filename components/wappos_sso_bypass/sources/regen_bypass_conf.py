@@ -103,10 +103,23 @@ def _domains_with_root_app():
     return result
 
 
-def write_fragment(domain: str, has_root_app: bool) -> None:
+def _domain_has_custom_default_app(domain: str) -> bool:
+    try:
+        out = subprocess.run(
+            ["yunohost", "domain", "config", "get", domain,
+             "feature.app.default_app", "--output-as", "json"],
+            capture_output=True, text=True, check=True,
+        ).stdout
+        value = json.loads(out)
+    except (subprocess.CalledProcessError, json.JSONDecodeError):
+        return False
+    return value not in (None, "", "_none")
+
+
+def write_fragment(domain: str, skip_root_rewrite: bool) -> None:
     conf_dir = f"/etc/nginx/conf.d/{domain}.d"
     subprocess.run(["mkdir", "-p", conf_dir], check=True)
-    content = _COOKIE_REWRITE + _HEADER_FILTER + ("" if has_root_app else _ROOT_REWRITE) + _SSO_REWRITES
+    content = _COOKIE_REWRITE + _HEADER_FILTER + ("" if skip_root_rewrite else _ROOT_REWRITE) + _SSO_REWRITES
     with open(f"{conf_dir}/wappos_sso_bypass.conf", "w") as f:
         f.write(content)
 
@@ -115,7 +128,8 @@ def regenerate_all() -> None:
     domains = _yunohost_json("domain", "list").get("domains", [])
     root_app_domains = _domains_with_root_app()
     for domain in domains:
-        write_fragment(domain, domain in root_app_domains)
+        skip = domain in root_app_domains or _domain_has_custom_default_app(domain)
+        write_fragment(domain, skip)
 
 
 if __name__ == "__main__":

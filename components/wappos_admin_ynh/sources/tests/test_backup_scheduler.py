@@ -54,7 +54,7 @@ def test_run_backup_reports_error_when_no_matching_archive_found():
         result = bs._run_backup({"scope": "full"})
 
     assert result["status"] == "ERROR"
-    assert "sortie JSON illisible" in result["detail"]
+    assert "unreadable JSON output" in result["detail"]
 
 
 def test_find_archive_created_after_returns_none_when_list_unparseable():

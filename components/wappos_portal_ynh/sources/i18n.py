@@ -1,6 +1,6 @@
 # Auteur : Patrick Ritaine
 
-DEFAULT_LANG = "fr"
+DEFAULT_LANG = "en"
 LANGS = ("fr", "en")
 
 STRINGS = {

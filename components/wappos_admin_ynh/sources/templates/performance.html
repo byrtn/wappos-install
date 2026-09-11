@@ -1,15 +1,15 @@
 {% extends "base.html" %}
 {% set active_tab = "performance" %}
-{% block title %}Performances{% endblock %}
+{% block title %}{{ t('title_performance') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Performances</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_performance') }}</span>{% endblock %}
 
 {% block content %}
     {% if not available %}
-      <div class="error">Prometheus n'est pas accessible pour l'instant — vérifie que le service tourne et que l'identifiant de lecture (<code>{{ "wappos_admin_ro" }}</code>) est bien configuré côté Prometheus.</div>
+      <div class="error">{{ t('err_prometheus_unavailable', name='wappos_admin_ro') }}</div>
     {% else %}
       <p class="field-info" style="margin: 0 0 1.25rem;">
-        Les 4 indicateurs qui comptent réellement pour surveiller une app, mesurés sur les 5 dernières minutes (graphiques : 6 dernières heures).
+        {{ t('perf_intro') }}
       </p>
       <div class="perf-grid">
         {% for a in apps %}
@@ -18,23 +18,23 @@
             <div class="card-body">
               <div class="perf-row">
                 <div class="perf-metric">
-                  <div class="perf-metric-label">Requêtes / seconde</div>
+                  <div class="perf-metric-label">{{ t('perf_label_req_rate') }}</div>
                   <div class="perf-metric-value">{{ a.req_rate }}</div>
                   <div class="perf-sparkline">{{ a.req_sparkline|safe }}</div>
                 </div>
                 <div class="perf-metric">
-                  <div class="perf-metric-label">Taux d'erreur</div>
+                  <div class="perf-metric-label">{{ t('perf_label_error_rate') }}</div>
                   <div class="perf-metric-value perf-metric-{{ 'critical' if a.error_rate > 1 else 'ok' }}">{{ a.error_rate }}%</div>
                 </div>
               </div>
               <div class="perf-row">
                 <div class="perf-metric">
-                  <div class="perf-metric-label">Temps de réponse (p95)</div>
+                  <div class="perf-metric-label">{{ t('perf_label_p95') }}</div>
                   <div class="perf-metric-value">{{ a.p95_ms if a.p95_ms is not none else '?' }}{{ ' ms' if a.p95_ms is not none }}</div>
                 </div>
                 <div class="perf-metric">
-                  <div class="perf-metric-label">Mémoire</div>
-                  <div class="perf-metric-value">{{ a.mem_mb if a.mem_mb is not none else '?' }}{{ ' Mo' if a.mem_mb is not none }}</div>
+                  <div class="perf-metric-label">{{ t('perf_label_memory') }}</div>
+                  <div class="perf-metric-value">{{ a.mem_mb if a.mem_mb is not none else '?' }}{{ ' ' + t('unit_mb') if a.mem_mb is not none }}</div>
                   <div class="perf-sparkline">{{ a.mem_sparkline|safe }}</div>
                 </div>
               </div>

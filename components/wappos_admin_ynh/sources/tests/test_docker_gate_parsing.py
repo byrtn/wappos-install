@@ -46,15 +46,15 @@ def test_looks_like_spa_false_for_none():
 
 def test_build_create_steps_subdomain_mode_includes_domain_steps():
     steps = dg.build_create_steps("subdomain")
-    assert "Création du domaine" in steps
-    assert "Obtention du certificat" in steps
+    assert "Creating domain" in steps
+    assert "Getting certificate" in steps
 
 
 def test_build_create_steps_path_mode_excludes_domain_steps():
     steps = dg.build_create_steps("path")
-    assert "Création du domaine" not in steps
-    assert steps[0] == "Vérification des paramètres"
-    assert steps[-1] == "Exposition de l'app"
+    assert "Creating domain" not in steps
+    assert steps[0] == "Checking parameters"
+    assert steps[-1] == "Exposing app"
 
 
 def test_substitute_compose_vars_unresolved_left_as_is():

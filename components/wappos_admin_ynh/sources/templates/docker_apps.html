@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set active_tab = "docker" %}
-{% block title %}Applications Docker{% endblock %}
+{% block title %}{{ t('nav_docker_apps') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Applications Docker</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('nav_docker_apps') }}</span>{% endblock %}
 
 {% block content %}
         {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
@@ -10,14 +10,14 @@
 
     {% if not docker_installed %}
       <div class="message" style="background: var(--color-warning-bg); color: var(--color-warning-text); margin-bottom: 1.25rem;">
-        Docker n'est pas installé (ou son démon est injoignable) sur ce serveur — aucune app Docker ne peut être listée ou installée pour l'instant.
+        {{ t('docker_not_installed') }}
       </div>
     {% endif %}
 
     <div class="quick-add-row" style="gap: 0.6rem;">
-      <a href="{{ url_for('docker_add') }}" class="btn btn-success">+ Ajouter une app Docker</a>
-      <a href="{{ url_for('docker_audit') }}" class="btn">Audit &amp; nettoyage</a>
-      <button type="button" id="check-updates-btn" class="btn">Vérifier les mises à jour</button>
+      <a href="{{ url_for('docker_add') }}" class="btn btn-success">{{ t('btn_add_docker_app') }}</a>
+      <a href="{{ url_for('docker_audit') }}" class="btn">{{ t('btn_audit_cleanup') }}</a>
+      <button type="button" id="check-updates-btn" class="btn">{{ t('btn_check_updates') }}</button>
     </div>
 
     {% if apps %}
@@ -30,37 +30,37 @@
                 {% if a.container_status %}
                   <span class="docker-badge docker-badge-{{ 'ok' if a.container_status == 'running' else 'off' }}">{{ a.container_status }}</span>
                 {% elif a.container_missing %}
-                  <span class="badge-warning" title="Le conteneur Docker attendu est introuvable">conteneur introuvable</span>
+                  <span class="badge-warning" title="{{ t('container_not_found_title') }}">{{ t('container_not_found') }}</span>
                 {% endif %}
                 {% if a.cpu_limit or a.mem_limit %}
-                  <span class="docker-badge docker-badge-off" title="Limites de ressources appliquées">{{ a.cpu_limit ~ ' CPU' if a.cpu_limit else '' }}{{ ' / ' if a.cpu_limit and a.mem_limit else '' }}{{ a.mem_limit if a.mem_limit else '' }}</span>
+                  <span class="docker-badge docker-badge-off" title="{{ t('resource_limits_title') }}">{{ a.cpu_limit ~ ' CPU' if a.cpu_limit else '' }}{{ ' / ' if a.cpu_limit and a.mem_limit else '' }}{{ a.mem_limit if a.mem_limit else '' }}</span>
                 {% endif %}
-                <span class="docker-badge docker-badge-off" data-update-badge="{{ a.slug }}" style="display: none;">mise à jour disponible</span>
+                <span class="docker-badge docker-badge-off" data-update-badge="{{ a.slug }}" style="display: none;">{{ t('update_available_badge') }}</span>
               </span>
               <span class="link-list-sub">{{ a.image }} — {{ a.domain }}{{ a.path if a.path != '/' else '' }}</span>
             </span>
             <span style="display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap;">
-              <a href="{{ url_for('docker_logs', slug=a.slug) }}" class="btn">Logs</a>
-              <a href="{{ url_for('docker_edit', slug=a.slug) }}" class="btn">Modifier</a>
-              <a href="{{ url_for('docker_update', slug=a.slug) }}" class="btn">Mettre à jour</a>
+              <a href="{{ url_for('docker_logs', slug=a.slug) }}" class="btn">{{ t('btn_logs') }}</a>
+              <a href="{{ url_for('docker_edit', slug=a.slug) }}" class="btn">{{ t('btn_edit_short') }}</a>
+              <a href="{{ url_for('docker_update', slug=a.slug) }}" class="btn">{{ t('btn_update') }}</a>
               {% if a.container_status == 'running' %}
                 <form method="post" action="{{ url_for('docker_action', slug=a.slug, action='stop') }}" style="margin: 0;">
-                  <button type="submit" class="btn">Arrêter</button>
+                  <button type="submit" class="btn">{{ t('btn_stop') }}</button>
                 </form>
               {% else %}
                 <form method="post" action="{{ url_for('docker_action', slug=a.slug, action='start') }}" style="margin: 0;">
-                  <button type="submit" class="btn">Démarrer</button>
+                  <button type="submit" class="btn">{{ t('btn_start') }}</button>
                 </form>
               {% endif %}
               <form method="post" action="{{ url_for('docker_action', slug=a.slug, action='restart') }}" style="margin: 0;">
-                <button type="submit" class="btn">Redémarrer</button>
+                <button type="submit" class="btn">{{ t('btn_restart') }}</button>
               </form>
               <form method="post" action="{{ url_for('docker_remove', slug=a.slug) }}"
-                    onsubmit="return confirm('Supprimer {{ a.slug }} ? Cette action est irréversible.');" style="margin: 0;">
+                    onsubmit="return confirm({{ t('confirm_delete_docker_app', slug=a.slug)|tojson }});" style="margin: 0;">
                 <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; margin-right: 0.5rem;">
-                  <input type="checkbox" name="delete_data"> Purger les données
+                  <input type="checkbox" name="delete_data"> {{ t('checkbox_purge_data') }}
                 </label>
-                <button type="submit" class="btn btn-danger">Supprimer</button>
+                <button type="submit" class="btn btn-danger">{{ t('btn_delete_short') }}</button>
               </form>
             </span>
           </div>
@@ -68,7 +68,7 @@
       </div>
     {% else %}
       <div class="link-list">
-        <p class="field-info" style="margin: 0; padding: 1rem 1.5rem;">Aucune app Docker suivie pour l'instant.</p>
+        <p class="field-info" style="margin: 0; padding: 1rem 1.5rem;">{{ t('no_docker_app_tracked') }}</p>
       </div>
     {% endif %}
 {% endblock %}
@@ -84,15 +84,19 @@
 {% endblock %}
 
 {% block extra_script %}
+    var DOCKER_APPS_I18N = {
+      checking: {{ t('checking_updates')|tojson }},
+      checkUpdates: {{ t('btn_check_updates')|tojson }},
+    };
     document.getElementById("check-updates-btn").addEventListener("click", function () {
       var btn = this;
       btn.disabled = true;
-      btn.textContent = "Vérification…";
+      btn.textContent = DOCKER_APPS_I18N.checking;
       var badges = document.querySelectorAll("[data-update-badge]");
       var remaining = badges.length;
       if (remaining === 0) {
         btn.disabled = false;
-        btn.textContent = "Vérifier les mises à jour";
+        btn.textContent = DOCKER_APPS_I18N.checkUpdates;
         return;
       }
       badges.forEach(function (badge) {
@@ -108,7 +112,7 @@
             remaining -= 1;
             if (remaining === 0) {
               btn.disabled = false;
-              btn.textContent = "Vérifier les mises à jour";
+              btn.textContent = DOCKER_APPS_I18N.checkUpdates;
             }
           });
       });

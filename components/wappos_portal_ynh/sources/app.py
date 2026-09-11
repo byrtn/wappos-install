@@ -51,15 +51,15 @@ if not _metrics_token_file.exists():
 METRICS_TOKEN = _metrics_token_file.read_text().strip()
 
 _REQUEST_COUNT = Counter(
-    "wappos_portal_requests_total", "Nombre de requêtes HTTP traitées",
+    "wappos_portal_requests_total", "Total number of HTTP requests processed",
     ["method", "endpoint", "status"],
 )
 _REQUEST_LATENCY = Histogram(
-    "wappos_portal_request_duration_seconds", "Durée des requêtes HTTP",
+    "wappos_portal_request_duration_seconds", "HTTP request duration",
     ["method", "endpoint"],
 )
 _PROCESS_MEMORY = Gauge(
-    "wappos_portal_process_resident_memory_bytes", "Mémoire résidente du worker",
+    "wappos_portal_process_resident_memory_bytes", "Worker resident memory",
     multiprocess_mode="livesum",
 )
 
@@ -268,7 +268,7 @@ def _save_order(user: str, order: list[str]) -> None:
 
 
 def _wappos_api_host_header() -> dict[str, str]:
-    return {"X-Portal-Host": request.host}
+    return {"X-Portal-Host": request.host, "X-Wappos-Locale": get_lang()}
 
 
 def _wappos_api_login(user: str, password: str) -> tuple[str, str | None]:

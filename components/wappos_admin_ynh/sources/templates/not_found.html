@@ -1,13 +1,13 @@
 {% extends "base.html" %}
-{% block title %}Page introuvable{% endblock %}
+{% block title %}{{ t('title_not_found') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Page introuvable</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_not_found') }}</span>{% endblock %}
 
 {% block content %}
     <div class="card not-found-card">
-      <h2>Page introuvable</h2>
-      <p>Cette page n'existe pas ou plus.</p>
-      <a href="{{ url_for('home') }}" class="btn">Retour à l'accueil</a>
+      <h2>{{ t('title_not_found') }}</h2>
+      <p>{{ t('not_found_text') }}</p>
+      <a href="{{ url_for('home') }}" class="btn">{{ t('btn_back_to_home') }}</a>
     </div>
 {% endblock %}
 

@@ -1,69 +1,69 @@
 {% extends "base.html" %}
 {% set active_tab = "services" %}
-{% block title %}{{ info.name }} — Services{% endblock %}
+{% block title %}{{ t('title_service_name', name=info.name) }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('services') }}">Services</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ info.name }}</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('services') }}">{{ t('nav_services') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ info.name }}</span>{% endblock %}
 
 {% block content %}
-    
+
     <div class="card">
       <div class="service-header">
         <h2 style="margin: 0;">{{ info.name }}</h2>
         <div class="service-actions">
           {% if info.status in ("running", "exited") %}
             <form method="post" action="{{ url_for('run_service_action', name=info.name, action='restart') }}"
-                  onsubmit="return confirm('Voulez-vous vraiment redémarrer {{ info.name }} ?');">
-              <button type="submit" class="btn btn-warning">Redémarrer</button>
+                  onsubmit="return confirm({{ t('confirm_restart_service', name=info.name)|tojson }});">
+              <button type="submit" class="btn btn-warning">{{ t('btn_restart') }}</button>
             </form>
             {% if not is_critical %}
               <form method="post" action="{{ url_for('run_service_action', name=info.name, action='stop') }}"
-                    onsubmit="return confirm('Voulez-vous vraiment arrêter {{ info.name }} ?');">
-                <button type="submit" class="btn btn-danger">Arrêter</button>
+                    onsubmit="return confirm({{ t('confirm_stop_service', name=info.name)|tojson }});">
+                <button type="submit" class="btn btn-danger">{{ t('btn_stop') }}</button>
               </form>
             {% endif %}
           {% else %}
             <form method="post" action="{{ url_for('run_service_action', name=info.name, action='start') }}"
-                  onsubmit="return confirm('Voulez-vous vraiment démarrer {{ info.name }} ?');">
-              <button type="submit" class="btn btn-success">Démarrer</button>
+                  onsubmit="return confirm({{ t('confirm_start_service', name=info.name)|tojson }});">
+              <button type="submit" class="btn btn-success">{{ t('btn_start') }}</button>
             </form>
           {% endif %}
         </div>
       </div>
 
       <div class="service-row">
-        <strong class="service-row-label">Statut</strong>
+        <strong class="service-row-label">{{ t('label_status') }}</strong>
         <span class="{{ 'text-success' if info.status in ('running', 'exited') else 'text-danger' }}">
           {{ info.status|service_status_fr }}
         </span>
-        <span class="service-since">depuis {{ info.last_state_change|service_since }}</span>
+        <span class="service-since">{{ t('since_word', value=(info.last_state_change|service_since)) }}</span>
       </div>
       <div class="service-row">
-        <strong class="service-row-label">Lancement au démarrage</strong>
+        <strong class="service-row-label">{{ t('label_start_on_boot') }}</strong>
         <span class="{{ 'text-success' if info.start_on_boot == 'enabled' else 'text-danger' }}">
-          {{ 'Activé' if info.start_on_boot == 'enabled' else 'Désactivé' }}
+          {{ t('value_enabled') if info.start_on_boot == 'enabled' else t('value_disabled') }}
         </span>
                         {% if info.start_on_boot == "enabled" %}
           <form method="post" action="{{ url_for('run_service_action', name=info.name, action='disable') }}" class="service-inline-form"
-                onsubmit="return confirm({{ ('Voulez-vous vraiment désactiver ' + info.name + ' au démarrage ? C\'est un service critique — le serveur pourrait ne plus redémarrer correctement.' if is_critical else 'Voulez-vous vraiment désactiver ' + info.name + ' au démarrage ?')|tojson }});">
+                onsubmit="return confirm({{ (t('confirm_disable_critical_service', name=info.name) if is_critical else t('confirm_disable_service', name=info.name))|tojson }});">
             {% if is_critical %}<input type="hidden" name="confirm" value="1">{% endif %}
-            <button type="submit" class="diag-ignore-btn">Désactiver</button>
+            <button type="submit" class="diag-ignore-btn">{{ t('btn_disable') }}</button>
           </form>
         {% else %}
           <form method="post" action="{{ url_for('run_service_action', name=info.name, action='enable') }}" class="service-inline-form">
-            <button type="submit" class="diag-ignore-btn">Activer</button>
+            <button type="submit" class="diag-ignore-btn">{{ t('btn_enable') }}</button>
           </form>
         {% endif %}
       </div>
       {% if info.description %}
         <div class="service-row">
-          <strong class="service-row-label">Description</strong>
+          <strong class="service-row-label">{{ t('label_description') }}</strong>
           <span>{{ info.description }}</span>
         </div>
       {% endif %}
       <div class="service-row">
-        <strong class="service-row-label">Configuration</strong>
+        <strong class="service-row-label">{{ t('label_configuration') }}</strong>
         <span class="{{ 'text-danger' if info.configuration == 'broken' else '' }}">
-          {{ {"valid": "Valide", "broken": "Cassée", "unknown": "Inconnue"}.get(info.configuration, info.configuration) }}
+          {{ {"valid": t('config_valid'), "broken": t('config_broken'), "unknown": t('config_unknown')}.get(info.configuration, info.configuration) }}
         </span>
       </div>
       {% if info.configuration_details %}
@@ -74,9 +74,9 @@
       {% endif %}
     </div>
 
-    <h2>Journaux</h2>
+    <h2>{{ t('h2_logs') }}</h2>
         <form method="get" class="inline-form" style="margin-bottom: 0.75rem;">
-      <label for="lines" style="font-size: 0.85rem; color: var(--color-text-dim);">Lignes par journal :</label>
+      <label for="lines" style="font-size: 0.85rem; color: var(--color-text-dim);">{{ t('label_lines_per_log') }}</label>
       <select id="lines" name="lines" onchange="this.form.submit()">
         {% for n in (50, 100, 200, 500, 1000) %}
           <option value="{{ n }}" {{ "selected" if log_lines == n else "" }}>{{ n }}</option>

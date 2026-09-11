@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set active_tab = "logs" %}
-{% block title %}Journaux{% endblock %}
+{% block title %}{{ t('title_logs') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Journaux</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_logs') }}</span>{% endblock %}
 
 {% block content %}
     {% if error %}
@@ -10,11 +10,11 @@
     {% endif %}
 
     <div class="message" style="background: #fff4e5; color: #7a4b00;">
-      Regroupe par jour les opérations réellement journalisées par Wappos (apps, sauvegardes, services, diagnostic, domaines, utilisateurs, réglages, système). Les mises à jour d'apps ne sont pas journalisées nativement et n'apparaissent donc pas ici.
+      {{ t('logs_intro') }}
     </div>
 
     <div class="field" style="margin-bottom: 0.75rem;">
-      <input type="search" id="log-search" placeholder="Rechercher dans les journaux..."
+      <input type="search" id="log-search" placeholder="{{ t('placeholder_search_logs') }}"
              style="padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; min-width: 280px; max-width: 100%;">
     </div>
 
@@ -38,9 +38,9 @@
           </div>
         </div>
       {% else %}
-        <div class="card" style="padding: 1.25rem 1.5rem;">Aucune opération enregistrée.</div>
+        <div class="card" style="padding: 1.25rem 1.5rem;">{{ t('no_operation_recorded') }}</div>
       {% endfor %}
-      <p class="field-info" id="log-search-empty" style="display: none; padding: 1rem 1.5rem;">Aucun résultat.</p>
+      <p class="field-info" id="log-search-empty" style="display: none; padding: 1rem 1.5rem;">{{ t('no_result') }}</p>
     </div>
 {% endblock %}
 

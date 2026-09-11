@@ -2,8 +2,9 @@ packaging_format = 2
 
 id = "wappos_postinstall"
 name = "Wappos Postinstall"
+description.en = "Wappos initial setup page (domain, username, password)"
 description.fr = "Page de configuration initiale Wappos (domaine, identifiant, mot de passe)"
-version = "1.0.1~ynh1"
+version = "1.0.2~ynh1"
 
 maintainers = ["Patrick Ritaine"]
 

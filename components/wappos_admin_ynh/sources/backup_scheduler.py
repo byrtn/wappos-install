@@ -131,15 +131,15 @@ def _run_backup(schedule: dict) -> dict | None:
                 "timestamp": datetime.now().isoformat(), "name": archive_name,
                 "status": "COMPLETE", "failed_targets": [],
                 "detail": (
-                    "Sauvegarde réussie, confirmée via 'yunohost backup list' — la sortie de "
-                    "'yunohost backup create' n'a pas pu être décodée en JSON (souvent un avertissement "
-                    "texte d'une app, ex. SOGo recommandant d'arrêter son service avant sauvegarde)."
+                    "Backup succeeded, confirmed via 'yunohost backup list' — the output of "
+                    "'yunohost backup create' could not be decoded as JSON (often a text "
+                    "warning from an app, e.g. SOGo recommending its service be stopped before backup)."
                 ),
             }
         return {
             "timestamp": datetime.now().isoformat(), "status": "ERROR",
             "detail": (
-                f"sortie JSON illisible (code {result.returncode}) — "
+                f"unreadable JSON output (code {result.returncode}) — "
                 f"stdout: {result.stdout[-800:]!r} — stderr: {result.stderr[:800]!r}"
             ),
         }
@@ -170,11 +170,11 @@ def _run_retention_cleanup(schedule: dict) -> list[dict]:
             capture_output=True, text=True, timeout=60,
         )
     except (subprocess.SubprocessError, OSError):
-        return [{"name": "?", "status": "ERROR", "detail": "impossible de lister les sauvegardes"}]
+        return [{"name": "?", "status": "ERROR", "detail": "could not list backups"}]
 
     data = _extract_trailing_json(result.stdout)
     if data is None:
-        return [{"name": "?", "status": "ERROR", "detail": "impossible de lister les sauvegardes"}]
+        return [{"name": "?", "status": "ERROR", "detail": "could not list backups"}]
     archives = data.get("archives", [])
 
     to_delete = []
@@ -209,21 +209,21 @@ def _send_report(backup_result: dict | None, deletions: list[dict]) -> None:
     msg = EmailMessage()
     msg["From"] = "wappos-admin-backup-scheduler@localhost"
     msg["To"] = ALERT_TO
-    msg["Subject"] = "[wappos-admin] Sauvegarde automatique — anomalie détectée"
+    msg["Subject"] = "[wappos-admin] Automatic backup — anomaly detected"
 
     lines = []
     if backup_result:
-        lines.append(f"- Sauvegarde {backup_result.get('name', '?')} : {backup_result['status']}")
+        lines.append(f"- Backup {backup_result.get('name', '?')}: {backup_result['status']}")
         if backup_result.get("failed_targets"):
-            lines.append(f"  Cibles en échec : {', '.join(backup_result['failed_targets'])}")
+            lines.append(f"  Failed targets: {', '.join(backup_result['failed_targets'])}")
         if backup_result.get("detail"):
-            lines.append(f"  Détail : {backup_result['detail']}")
+            lines.append(f"  Detail: {backup_result['detail']}")
     for d in deletions:
         if d["status"] == "ERROR":
-            lines.append(f"- Suppression de {d['name']} : ÉCHEC")
+            lines.append(f"- Deletion of {d['name']}: FAILED")
 
     body = (
-        "Vérification quotidienne de la sauvegarde automatique — au moins un écart a été détecté :\n\n"
+        "Daily automatic backup check — at least one discrepancy was detected:\n\n"
         + "\n".join(lines)
     )
     msg.set_content(body, charset="utf-8")

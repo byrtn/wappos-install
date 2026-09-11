@@ -1,6 +1,5 @@
 #!/bin/bash
 # Auteur : Patrick Ritaine
-# A executer sur l'hyperviseur Proxmox (root), la ou l'ISO Debian netinst est deja stockee.
 set -euo pipefail
 
 SRC_ISO="${1:-/var/lib/vz/template/iso/debian-12.15.0-amd64-netinst.iso}"

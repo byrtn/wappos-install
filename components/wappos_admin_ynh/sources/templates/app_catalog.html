@@ -1,36 +1,36 @@
 {% extends "base.html" %}
 {% set active_tab = "apps" %}
-{% block title %}Catalogue{% endblock %}
+{% block title %}{{ t('title_catalog') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('apps') }}">Applications système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Catalogue</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('apps') }}">{{ t('nav_system_apps') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_catalog') }}</span>{% endblock %}
 
 {% block content %}
-    
+
     <form method="get" action="{{ url_for('app_catalog_page') }}" class="inline-form" style="margin-bottom: 1rem;">
-      <input type="text" name="q" value="{{ search }}" placeholder="Rechercher une app...">
+      <input type="text" name="q" value="{{ search }}" placeholder="{{ t('search_app_placeholder') }}">
       <select name="quality">
-        <option value="highQuality" {{ "selected" if quality == "highQuality" else "" }}>Apps de haute qualité seulement</option>
-        <option value="decentQuality" {{ "selected" if quality == "decentQuality" else "" }}>Apps de qualité correcte seulement</option>
-        <option value="working" {{ "selected" if quality == "working" else "" }}>Apps fonctionnelles seulement</option>
-        <option value="all" {{ "selected" if quality == "all" else "" }}>Toutes les apps</option>
+        <option value="highQuality" {{ "selected" if quality == "highQuality" else "" }}>{{ t('quality_high_only') }}</option>
+        <option value="decentQuality" {{ "selected" if quality == "decentQuality" else "" }}>{{ t('quality_decent_only') }}</option>
+        <option value="working" {{ "selected" if quality == "working" else "" }}>{{ t('quality_working_only') }}</option>
+        <option value="all" {{ "selected" if quality == "all" else "" }}>{{ t('quality_all') }}</option>
       </select>
       {% if category %}<input type="hidden" name="category" value="{{ category }}">{% endif %}
-      <button type="submit" class="btn">Rechercher</button>
+      <button type="submit" class="btn">{{ t('btn_search') }}</button>
       {% if category or search %}
-        <a href="{{ url_for('app_catalog_page', quality=quality) }}" class="btn">Voir les catégories</a>
+        <a href="{{ url_for('app_catalog_page', quality=quality) }}" class="btn">{{ t('btn_see_categories') }}</a>
       {% endif %}
     </form>
 
     {% if current_category and current_category.subtags %}
       <div class="inline-form" style="margin-bottom: 1.25rem;">
         <a href="{{ url_for('app_catalog_page', category=category, quality=quality) }}"
-           class="btn {{ '' if subtag != 'all' else 'btn-active' }}">Tout</a>
+           class="btn {{ '' if subtag != 'all' else 'btn-active' }}">{{ t('word_all') }}</a>
         {% for s in current_category.subtags %}
           <a href="{{ url_for('app_catalog_page', category=category, subtag=s.id, quality=quality) }}"
              class="btn {{ 'btn-active' if subtag == s.id else '' }}">{{ s.title }}</a>
         {% endfor %}
         <a href="{{ url_for('app_catalog_page', category=category, subtag='others', quality=quality) }}"
-           class="btn {{ 'btn-active' if subtag == 'others' else '' }}">Autres</a>
+           class="btn {{ 'btn-active' if subtag == 'others' else '' }}">{{ t('word_others') }}</a>
       </div>
     {% endif %}
 
@@ -57,35 +57,35 @@
                 {% endif %}
                 <div class="app-card-title">
                   <strong>{{ a.name }}</strong>
-                  {% if a.high_quality %}<span class="badge-star" title="Application de haute qualité">&#9733;</span>{% endif %}
+                  {% if a.high_quality %}<span class="badge-star" title="{{ t('high_quality_app_title') }}">&#9733;</span>{% endif %}
                   <span class="app-item-id">{{ a.id }}</span>
                 </div>
               </div>
               {% if a.description %}<p class="app-card-description">{{ a.description }}</p>{% endif %}
                             {% if not a.working or not a.maintained %}
                 <div class="app-card-badges">
-                  {% if not a.working %}<span class="badge-warning">état : {{ a.state }}</span>{% endif %}
-                  {% if not a.maintained %}<span class="badge-warning">non maintenue</span>{% endif %}
+                  {% if not a.working %}<span class="badge-warning">{{ t('badge_state', state=a.state) }}</span>{% endif %}
+                  {% if not a.maintained %}<span class="badge-warning">{{ t('badge_unmaintained') }}</span>{% endif %}
                 </div>
               {% endif %}
               <div class="app-card-footer">
-                <a href="{{ url_for('app_install_form', app_id=a.id) }}" class="btn">Installer</a>
+                <a href="{{ url_for('app_install_form', app_id=a.id) }}" class="btn">{{ t('btn_install') }}</a>
               </div>
             </div>
           {% endfor %}
         </div>
       {% else %}
-        <p class="field-info">Aucune app trouvée{% if search %} pour « {{ search }} »{% endif %}.</p>
+        <p class="field-info">{{ t('no_app_found_for_search', search=search) if search else t('no_app_found') }}</p>
       {% endif %}
     {% endif %}
 
     <div class="card create-card">
-      <div class="card-header"><h3>Installation personnalisée</h3></div>
+      <div class="card-header"><h3>{{ t('h3_custom_install') }}</h3></div>
       <div class="card-body">
-        <p class="field-info" style="margin: 0 0 0.75rem;">Installer depuis un dépôt git ou un chemin local, hors catalogue.</p>
+        <p class="field-info" style="margin: 0 0 0.75rem;">{{ t('custom_install_desc') }}</p>
                 <form method="post" action="{{ url_for('app_install_custom') }}" class="form-row">
           <input type="text" name="url" placeholder="https://some.git.forge.tld/USER/REPOSITORY" style="min-width: 320px; max-width: 100%;">
-          <button type="submit" class="btn">Installer</button>
+          <button type="submit" class="btn">{{ t('btn_install') }}</button>
         </form>
       </div>
     </div>

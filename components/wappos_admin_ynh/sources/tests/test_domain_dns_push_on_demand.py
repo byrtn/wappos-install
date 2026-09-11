@@ -30,7 +30,7 @@ def test_domain_detail_does_not_call_dns_push_by_default(logged_in_client):
             p.stop()
     assert resp.status_code == 200
     mocked_push.assert_not_called()
-    assert "Vérifier la synchronisation DNS" in resp.data.decode()
+    assert "Check DNS synchronization" in resp.data.decode()
 
 
 def test_domain_detail_calls_dns_push_when_check_requested(logged_in_client):
@@ -45,4 +45,4 @@ def test_domain_detail_calls_dns_push_when_check_requested(logged_in_client):
             p.stop()
     assert resp.status_code == 200
     mocked_push.assert_called_once_with("test-token", "dev.byrtn.fr", dry_run=True)
-    assert "déjà synchronisée" in resp.data.decode()
+    assert "already synchronized" in resp.data.decode()

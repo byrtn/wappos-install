@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% import "_option_fields.html" as fields %}
 {% set active_tab = "domains" %}
-{% block title %}{{ detail.name if detail else "Domaine" }}{% endblock %}
+{% block title %}{{ detail.name if detail else t('word_domain_fallback') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('domains_page') }}">Domaines</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ detail.name if detail else "Domaine" }}</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('domains_page') }}">{{ t('nav_domains') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ detail.name if detail else t('word_domain_fallback') }}</span>{% endblock %}
 
 {% block content %}
-    
+
     {% if detail %}
       <div class="card create-card">
         <div class="card-header app-detail-header">
@@ -14,29 +14,29 @@
           <div>
             <h1 style="margin: 0; font-size: 1.05rem;">
               {{ detail.name }}
-              {% if detail.main %}<span class="badge-main" title="Domaine principal">&#9733; Domaine principal</span>{% endif %}
+              {% if detail.main %}<span class="badge-main" title="{{ t('badge_main_domain') }}">&#9733; {{ t('badge_main_domain') }}</span>{% endif %}
             </h1>
             <a href="https://{{ detail.name }}" target="_blank" rel="noopener">https://{{ detail.name }}</a>
           </div>
           {% if not detail.main %}
             <form method="post" action="{{ url_for('domain_set_main', domain=detail.name) }}" style="margin-left: auto;"
-                  onsubmit="return confirm('Faire de {{ detail.name }} le nouveau domaine principal ?');">
-              <button type="submit" class="btn">Définir comme domaine principal</button>
+                  onsubmit="return confirm({{ t('confirm_set_main_domain', domain=detail.name)|tojson }});">
+              <button type="submit" class="btn">{{ t('btn_set_main_domain') }}</button>
             </form>
           {% endif %}
         </div>
         <div class="card-body">
                 {% set cert_class = {'success': 'text-success', 'warning': 'text-warning', 'danger': 'text-danger'} %}
-        {% set ca_type_labels = {'letsencrypt': "Let's Encrypt", 'selfsigned': 'Auto-signé', 'other': 'Autre/Inconnu'} %}
+        {% set ca_type_labels = {'letsencrypt': "Let's Encrypt", 'selfsigned': t('ca_type_selfsigned'), 'other': t('ca_type_other')} %}
         <p style="margin: 0 0 0.4rem;">
-          <strong>Certificat :</strong>
+          <strong>{{ t('label_certificate') }}</strong>
           <span class="{{ cert_class.get(detail.certificate.style, '') }}">{{ ca_type_labels.get(detail.certificate.CA_type, detail.certificate.CA_type) }}</span>
-          <span class="field-info">(valide {{ detail.certificate.validity }} jours)</span>
+          <span class="field-info">{{ t('valid_for_days', n=detail.certificate.validity) }}</span>
         </p>
         {% if detail.registrar == 'parent_domain' %}
-          <p class="field-info" style="margin: 0 0 0.9rem;">Registrar : configuré via le domaine parent</p>
+          <p class="field-info" style="margin: 0 0 0.9rem;">{{ t('registrar_via_parent') }}</p>
         {% elif detail.registrar %}
-          <p class="field-info" style="margin: 0 0 0.9rem;">Registrar : {{ detail.registrar }}</p>
+          <p class="field-info" style="margin: 0 0 0.9rem;">{{ t('registrar_value', registrar=detail.registrar) }}</p>
         {% endif %}
 
         {% if detail.apps %}
@@ -46,7 +46,7 @@
             {% endfor %}
           </div>
         {% else %}
-          <p class="field-info" style="margin: 0;">Aucune app sur ce domaine.</p>
+          <p class="field-info" style="margin: 0;">{{ t('no_app_on_domain') }}</p>
         {% endif %}
         </div>
       </div>
@@ -94,11 +94,11 @@
                                                         {% set yes_val = o.yes if o.yes is defined and o.yes is not none else 1 %}
                             {% set is_yes = val is not none and (val == yes_val or val|string == yes_val|string) %}
                             {% if val is none %}
-                              Inconnu
+                              {{ t('value_unknown') }}
                             {% elif is_yes %}
-                              Oui
+                              {{ t('value_yes') }}
                             {% else %}
-                              Non
+                              {{ t('value_no') }}
                             {% endif %}
                           {% elif o.type == 'select' and o.choices is mapping %}
                             {{ o.choices.get(val|string, val) }}
@@ -114,34 +114,34 @@
               {% endfor %}
 
               <div class="card create-card">
-                <div class="card-header"><h3>Opérations</h3></div>
+                <div class="card-header"><h3>{{ t('h3_operations') }}</h3></div>
                 <div class="card-body">
                                 <form method="post" action="{{ url_for('domain_cert_install', domain=detail.name) }}" class="form-row"
                       {% if cert_ns.acme_eligible is sameas false %}
-                      onsubmit="return this.no_checks.checked || confirm('Ce domaine ne semble pas éligible à un certificat Let\'s Encrypt (DNS non propagé ?). Continuer quand même ?');"
+                      onsubmit="return this.no_checks.checked || confirm({{ t('confirm_cert_not_eligible')|tojson }});"
                       {% endif %}>
                   <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-                    <input type="checkbox" name="force" value="1"> Forcer (remplacer un certificat déjà valide)
+                    <input type="checkbox" name="force" value="1"> {{ t('checkbox_force_replace_cert') }}
                   </label>
                   <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-                    <input type="checkbox" name="self_signed" value="1"> Certificat auto-signé (au lieu de Let's Encrypt)
+                    <input type="checkbox" name="self_signed" value="1"> {{ t('checkbox_self_signed_cert') }}
                   </label>
                   <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-                    <input type="checkbox" name="no_checks" value="1"> Ne pas vérifier la config DNS/joignabilité avant (déconseillé)
+                    <input type="checkbox" name="no_checks" value="1"> {{ t('checkbox_no_checks') }}
                   </label>
-                  <button type="submit" class="btn">Installer un certificat Let's Encrypt</button>
+                  <button type="submit" class="btn">{{ t('btn_install_cert') }}</button>
                 </form>
                 <form method="post" action="{{ url_for('domain_cert_renew', domain=detail.name) }}" class="form-row" style="margin-top: 0.75rem;">
                   <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-                    <input type="checkbox" name="force" value="1"> Forcer (ignorer le seuil de 15 jours)
+                    <input type="checkbox" name="force" value="1"> {{ t('checkbox_force_ignore_threshold') }}
                   </label>
                   <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-                    <input type="checkbox" name="email" value="1"> M'envoyer un email si le renouvellement échoue
+                    <input type="checkbox" name="email" value="1"> {{ t('checkbox_email_on_renew_failure') }}
                   </label>
                   <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-                    <input type="checkbox" name="no_checks" value="1"> Ne pas vérifier la config DNS/joignabilité avant (déconseillé)
+                    <input type="checkbox" name="no_checks" value="1"> {{ t('checkbox_no_checks') }}
                   </label>
-                  <button type="submit" class="btn">Renouveler le certificat</button>
+                  <button type="submit" class="btn">{{ t('btn_renew_cert') }}</button>
                 </form>
                 </div>
               </div>
@@ -167,7 +167,7 @@
                     <form method="post" action="{{ url_for('domain_config_submit', domain=detail.name, panel_key=panel.id) }}" class="config-panel-form" enctype="multipart/form-data">
                       <input type="hidden" name="__section_id__" value="{{ section.id }}">
                       {% for o in section.options %}{{ fields.render_option(o) }}{% endfor %}
-                      <button type="submit" class="btn">Appliquer</button>
+                      <button type="submit" class="btn">{{ t('btn_apply') }}</button>
                     </form>
                   {% endif %}
                   </div>
@@ -177,14 +177,13 @@
 
             {% if panel.id == 'dns' %}
               <div class="card create-card" id="dns">
-                <div class="card-header"><h3>Configuration DNS automatique chez le registrar</h3></div>
+                <div class="card-header"><h3>{{ t('h3_dns_auto_config') }}</h3></div>
                 <div class="card-body">
                 {% if not dns_push_checked %}
                   <p class="field-info" style="margin: 0 0 0.75rem;">
-                    Vérifie si la zone DNS chez le registrar correspond à la configuration suggérée par Wappos.
-                    Nécessite des identifiants API registrar configurés pour ce domaine.
+                    {{ t('dns_push_check_desc') }}
                   </p>
-                  <a href="{{ url_for('domain_detail', domain=detail.name, check_dns_push=1) }}#dns" class="btn">Vérifier la synchronisation DNS</a>
+                  <a href="{{ url_for('domain_detail', domain=detail.name, check_dns_push=1) }}#dns" class="btn">{{ t('btn_check_dns_sync') }}</a>
                 {% elif dns_push_error %}
                   <p class="field-info" style="margin: 0;">{{ dns_push_error }}</p>
                 {% elif dns_push_preview %}
@@ -194,41 +193,41 @@
                   {% set unchanged = dns_push_preview.get('unchanged', []) %}
                   {% set changes = creates + updates + deletes %}
                   {% if not changes %}
-                    <p class="field-info" style="margin: 0;">Zone DNS déjà synchronisée avec la suggestion Wappos ({{ unchanged|length }} enregistrement(s) inchangé(s)).</p>
+                    <p class="field-info" style="margin: 0;">{{ t('dns_already_synced', n=(unchanged|length)) }}</p>
                   {% else %}
                     {% set has_unmanaged = changes|selectattr('managed_by_yunohost', 'equalto', false)|list|length > 0 %}
-                    <p class="field-info" style="margin: 0 0 0.75rem;">Aperçu (dry-run) : {{ creates|length }} à créer, {{ updates|length }} à mettre à jour, {{ deletes|length }} à supprimer.</p>
+                    <p class="field-info" style="margin: 0 0 0.75rem;">{{ t('dns_preview_summary', create=(creates|length), update=(updates|length), delete=(deletes|length)) }}</p>
                     <table>
-                      {% for label, records in (('Créer', creates), ('Mettre à jour', updates), ('Supprimer', deletes)) %}
+                      {% for label, records in ((t('word_create'), creates), (t('word_update'), updates), (t('word_delete'), deletes)) %}
                         {% for rec in records %}
                           <tr>
                             <td style="font-size: 0.8rem; color: var(--color-text-dim);">{{ label }}</td>
-                            <td style="font-size: 0.82rem;">{{ rec.get('name') }} {{ rec.get('type') }} {{ rec.get('content') }}{% if not rec.get('managed_by_yunohost', true) %} <span class="text-warning">(non géré par Wappos)</span>{% endif %}</td>
+                            <td style="font-size: 0.82rem;">{{ rec.get('name') }} {{ rec.get('type') }} {{ rec.get('content') }}{% if not rec.get('managed_by_yunohost', true) %} <span class="text-warning">{{ t('not_managed_by_wappos') }}</span>{% endif %}</td>
                           </tr>
                         {% endfor %}
                       {% endfor %}
                     </table>
                     <form method="post" action="{{ url_for('domain_dns_push_submit', domain=detail.name) }}" class="form-row" style="margin-top: 0.75rem;"
-                          onsubmit="return confirm('Pousser réellement ces changements DNS chez le registrar de {{ detail.name }} ? Cette action modifie de vrais enregistrements DNS.');">
+                          onsubmit="return confirm({{ t('confirm_dns_push', domain=detail.name)|tojson }});">
                       {% if has_unmanaged %}
                         <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
-                          <input type="checkbox" name="force" value="1"> Forcer (inclure aussi les enregistrements non gérés par Wappos, ci-dessus)
+                          <input type="checkbox" name="force" value="1"> {{ t('checkbox_force_include_unmanaged') }}
                         </label>
                       {% endif %}
-                      <button type="submit" class="btn">Appliquer réellement ces changements</button>
+                      <button type="submit" class="btn">{{ t('btn_apply_dns_changes') }}</button>
                     </form>
                   {% endif %}
                 {% endif %}
                 </div>
               </div>
               {% if dns_suggestion %}
-                <h3 style="font-size: 0.95rem;">Configuration DNS suggérée (pour saisie manuelle)</h3>
+                <h3 style="font-size: 0.95rem;">{{ t('h3_dns_suggested') }}</h3>
                                 <p class="field-info" style="margin: 0 0 0.75rem;">
-                  Ceci est une recommandation basée sur la configuration actuelle du serveur — vérifiez-la avant de l'appliquer chez votre registrar, elle ne remplace pas votre propre jugement sur votre zone DNS.
+                  {{ t('dns_suggested_note') }}
                 </p>
                 {% if dns_adjusted_for_relay %}
                   <div class="message" style="background: #fff4e5; color: #7a4b00;">
-                    Ajustée par rapport à la suggestion Wappos native : ce domaine utilise un relais SMTP externe (SMTP2GO, réglage visible dans Réglages → Email). Le SPF a été complété avec <code>include:spf.smtp2go.com</code> et l'enregistrement DKIM local a été commenté (non utilisé — SMTP2GO signe avec sa propre clé, sélecteur propre à ce domaine à récupérer dans leur tableau de bord).
+                    {{ t('dns_adjusted_for_relay_note', spf_include='<code>include:spf.smtp2go.com</code>') | safe }}
                   </div>
                 {% endif %}
                 <div class="card">
@@ -241,13 +240,13 @@
       {% endif %}
 
       <div class="card create-card" style="border: 1px solid #f0c4c4; margin-top: 2rem;">
-        <div class="card-header"><h3 style="color: var(--color-danger);">Zone dangereuse</h3></div>
+        <div class="card-header"><h3 style="color: var(--color-danger);">{{ t('h3_danger_zone') }}</h3></div>
         <div class="card-body">
         {% if detail.main %}
-          <p class="field-info" style="margin: 0;">Ce domaine est le domaine principal — il ne peut pas être supprimé tant que ce sera le cas (définissez un autre domaine comme principal d'abord).</p>
+          <p class="field-info" style="margin: 0;">{{ t('domain_is_main_note') }}</p>
         {% elif detail.apps %}
                     <p class="field-info" style="margin: 0;">
-            Ce domaine ne peut pas être supprimé tant que des apps y sont installées — désinstallez-les d'abord :
+            {{ t('domain_has_apps_note') }}
           </p>
           <ul style="margin: 0.5rem 0 0; padding-left: 1.25rem; font-size: 0.85rem;">
             {% for a in detail.apps %}
@@ -256,30 +255,30 @@
           </ul>
         {% else %}
           <form method="post" action="{{ url_for('domain_remove', domain=detail.name) }}" class="form-row"
-                onsubmit="return confirm('Supprimer définitivement le domaine {{ detail.name }} ? Cette action est irréversible.') &amp;&amp; (document.getElementById('confirm-domain-name').value === {{ detail.name|tojson }} || (alert('Pour supprimer ce domaine, tape exactement « {{ detail.name }} » dans le champ prévu.'), false));">
+                onsubmit="return confirm({{ t('confirm_delete_domain', domain=detail.name)|tojson }}) &amp;&amp; (document.getElementById('confirm-domain-name').value === {{ detail.name|tojson }} || (alert({{ t('alert_type_domain_name', domain=detail.name)|tojson }}), false));">
             {% if detail.name.endswith('.nohost.me') or detail.name.endswith('.noho.st') or detail.name.endswith('.ynh.fr') %}
                             <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
                 <input type="checkbox" name="ignore_dyndns" value="1">
-                Ne pas annuler l'enregistrement DynDNS de ce domaine (le laisse abonné au service)
+                {{ t('checkbox_keep_dyndns') }}
               </label>
               <label style="display: block; font-size: 0.85rem; margin-top: 0.5rem;">
-                Mot de passe de récupération DynDNS (optionnel, nécessaire si l'annulation de l'abonnement l'exige)
+                {{ t('dyndns_recovery_password_label') }}
                 <input type="password" name="dyndns_recovery_password" autocomplete="off"
                        style="display: block; margin-top: 0.25rem; padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; max-width: 320px;">
               </label>
             {% endif %}
             <label style="display: block; font-size: 0.85rem; margin-top: 0.5rem;">
-              Tapez « {{ detail.name }} » pour confirmer
+              {{ t('type_word_to_confirm_generic', word=detail.name) }}
               <input type="text" id="confirm-domain-name" autocomplete="off"
                      style="display: block; margin-top: 0.25rem; padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.9rem; max-width: 320px;">
             </label>
-            <button type="submit" class="btn" style="background: var(--color-danger); margin-top: 0.75rem;">Supprimer ce domaine</button>
+            <button type="submit" class="btn" style="background: var(--color-danger); margin-top: 0.75rem;">{{ t('btn_delete_domain') }}</button>
           </form>
         {% endif %}
         </div>
       </div>
     {% else %}
-      <div class="error">Domaine introuvable ou inaccessible.</div>
+      <div class="error">{{ t('domain_not_found') }}</div>
     {% endif %}
 {% endblock %}
 

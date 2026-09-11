@@ -13,7 +13,7 @@ _compute_admin_alert_mail() {
 	if [ -z "$admin_alert_mail" ]; then
 		main_domain="$(yunohost domain list --output-as json 2>/dev/null \
 			| python3 -c 'import json,sys; print(json.load(sys.stdin).get("main",""))' 2>/dev/null)" || main_domain=""
-		ynh_print_warn --message="Impossible de déterminer l'adresse mail réelle de l'admin — repli sur ${admin_username:-adminynh}@$main_domain, qui peut ne pas exister."
+		ynh_print_warn --message="Could not determine the admin's real mail address — falling back to ${admin_username:-adminynh}@$main_domain, which may not exist."
 		admin_alert_mail="${admin_username:-adminynh}@$main_domain"
 	fi
 }

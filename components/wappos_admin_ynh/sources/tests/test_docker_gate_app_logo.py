@@ -51,7 +51,7 @@ def test_create_docker_app_applies_real_logo(monkeypatch, tmp_path):
     monkeypatch.setattr(dg, "_load_state", lambda: [])
     monkeypatch.setattr(dg, "_save_state", lambda apps: None)
     monkeypatch.setattr(dg, "_compose_dir", lambda slug: tmp_path / slug)
-    monkeypatch.setattr(dg, "_pick_free_port", lambda: 9100)
+    monkeypatch.setattr(dg, "_pick_free_port", lambda **kwargs: 9100)
     set_logo = MagicMock()
 
     with patch.object(dg, "_run_docker_compose"):
@@ -73,7 +73,7 @@ def test_create_docker_app_without_logo_does_not_call_set_permission(monkeypatch
     monkeypatch.setattr(dg, "_load_state", lambda: [])
     monkeypatch.setattr(dg, "_save_state", lambda apps: None)
     monkeypatch.setattr(dg, "_compose_dir", lambda slug: tmp_path / slug)
-    monkeypatch.setattr(dg, "_pick_free_port", lambda: 9100)
+    monkeypatch.setattr(dg, "_pick_free_port", lambda **kwargs: 9100)
     set_logo = MagicMock()
 
     with patch.object(dg, "_run_docker_compose"):
@@ -93,7 +93,7 @@ def test_create_docker_app_logo_failure_is_a_warning_not_a_crash(monkeypatch, tm
     monkeypatch.setattr(dg, "_load_state", lambda: [])
     monkeypatch.setattr(dg, "_save_state", lambda apps: None)
     monkeypatch.setattr(dg, "_compose_dir", lambda slug: tmp_path / slug)
-    monkeypatch.setattr(dg, "_pick_free_port", lambda: 9100)
+    monkeypatch.setattr(dg, "_pick_free_port", lambda **kwargs: 9100)
 
     def _boom(*a):
         raise RuntimeError("upstream rejected the file")

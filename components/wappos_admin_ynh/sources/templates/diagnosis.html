@@ -1,19 +1,19 @@
 {% extends "base.html" %}
 {% set active_tab = "diagnosis" %}
-{% block title %}Diagnostic{% endblock %}
+{% block title %}{{ t('title_diagnosis') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Diagnostic</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_diagnosis') }}</span>{% endblock %}
 
 {% block content %}
     {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
     {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
         <div class="alert alert-info">
       {% if reports %}
-        La fonctionnalité de diagnostic va tenter de trouver certains problèmes communs sur différents aspects de votre serveur pour être sûr que tout fonctionne normalement. Le diagnostic sera également effectué deux fois par jour et enverra un courriel au compte administrateur si des erreurs sont détectées. À noter que certains tests ne seront pas montrés si vous n'utilisez pas certaines fonctions spécifiques (par exemple l'e-mail) ou s'ils échouent à cause d'une configuration trop complexe. Dans ce cas, et si vous savez ce que vous avez modifié, vous pouvez ignorer les problèmes et les avertissements correspondantes.
+        {{ t('diagnosis_intro_with_reports') }}
       {% else %}
-        La fonctionnalité de diagnostic va tenter de trouver certains problèmes communs sur différents aspects de votre serveur pour être sûr que tout fonctionne normalement. Merci de ne pas paniquer si vous voyez une multitude d'erreurs après avoir configuré votre serveur : la fonctionnalité est précisément prévue pour les identifier et vous aider à les résoudre. Le diagnostic sera également effectué deux fois par jour et enverra un courriel au compte administrateur si des erreurs sont détectées.
+        {{ t('diagnosis_intro_no_reports') }}
       {% endif %}
-      {% if reports %}<p class="field-info" style="margin: 0.4rem 0 0;">Les catégories dont le cache est encore valide ne seront pas revérifiées — utilisez « Relancer le diagnostic » sur une catégorie précise pour forcer une vérification immédiate.</p>{% endif %}
+      {% if reports %}<p class="field-info" style="margin: 0.4rem 0 0;">{{ t('help_diagnosis_cache_valid') }}</p>{% endif %}
       {% if never_run_categories %}
                 <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}" style="margin-top: 0.75rem;">
           <select name="category" style="padding: 0.4rem 0.6rem; border-radius: 6px; border: 1px solid var(--color-border-strong); background: var(--color-input-bg); color: var(--color-text);">
@@ -21,20 +21,20 @@
               <option value="{{ c }}">{{ c }}</option>
             {% endfor %}
           </select>
-          <button type="submit" class="btn">Lancer cette catégorie (jamais exécutée)</button>
+          <button type="submit" class="btn">{{ t('btn_run_never_run_category') }}</button>
         </form>
       {% endif %}
       <div style="display: flex; justify-content: flex-end; margin-top: 0.75rem;">
         <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}">
-          <button type="submit" class="btn">{{ 'Lancer un diagnostic complet' if reports else 'Démarrer le diagnostic initial' }}</button>
+          <button type="submit" class="btn">{{ t('btn_run_full_diagnosis') if reports else t('btn_start_initial_diagnosis') }}</button>
         </form>
       </div>
     </div>
 
     <div id="diag-progress-overlay" class="diag-progress-overlay" style="display: none;">
       <div class="card diag-progress-card">
-        <div class="diag-progress-title">Exécuter le diagnostic</div>
-        <p>Le serveur traite l'action... (jusqu'à 2 minutes)</p>
+        <div class="diag-progress-title">{{ t('title_run_diagnosis') }}</div>
+        <p>{{ t('text_server_processing') }}</p>
         <div class="diag-spinner"></div>
       </div>
     </div>
@@ -43,20 +43,20 @@
             <details class="card diag-card" {{ 'open' if r.error_count or r.warning_count }}>
         <summary class="diag-header">
           {% if r.error_count == 0 and r.warning_count == 0 %}
-            <span class="diag-badge diag-badge-success">Tout est OK !</span>
+            <span class="diag-badge diag-badge-success">{{ t('diag_all_ok') }}</span>
           {% else %}
-            {% if r.error_count %}<span class="diag-badge diag-badge-error">{{ r.error_count }} problème{{ 's' if r.error_count > 1 }}</span>{% endif %}
-            {% if r.warning_count %}<span class="diag-badge diag-badge-warning">{{ r.warning_count }} avertissement{{ 's' if r.warning_count > 1 }}</span>{% endif %}
+            {% if r.error_count %}<span class="diag-badge diag-badge-error">{{ t('diag_n_problems', count=r.error_count, plural=('s' if r.error_count > 1 else '')) }}</span>{% endif %}
+            {% if r.warning_count %}<span class="diag-badge diag-badge-warning">{{ t('diag_n_warnings', count=r.warning_count, plural=('s' if r.warning_count > 1 else '')) }}</span>{% endif %}
           {% endif %}
-          {% if r.ignored_count %}<span class="diag-badge diag-badge-ignored">{{ r.ignored_count }} ignoré{{ 's' if r.ignored_count > 1 }}</span>{% endif %}
+          {% if r.ignored_count %}<span class="diag-badge diag-badge-ignored">{{ t('diag_n_ignored', count=r.ignored_count, plural=('s' if r.ignored_count > 1 else '')) }}</span>{% endif %}
           <strong>{{ r.description }}</strong>
         </summary>
         <div class="diag-card-body">
           <div class="diag-card-toolbar">
-            <span class="diag-last-run">Dernière exécution : {{ r.last_execution|relative_fr }}</span>
+            <span class="diag-last-run">{{ t('label_last_run', value=(r.last_execution|relative_fr)) }}</span>
             <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}">
               <input type="hidden" name="category" value="{{ r.id }}">
-              <button type="submit" class="btn diag-rerun-btn">Relancer le diagnostic</button>
+              <button type="submit" class="btn diag-rerun-btn">{{ t('btn_rerun_diagnosis') }}</button>
             </form>
           </div>
           <ul class="diag-items">
@@ -69,11 +69,11 @@
                       <form method="post" class="diag-ignore-form"
                             action="{{ url_for('unignore_diagnosis_item', category=r.id) if item.ignored else url_for('ignore_diagnosis_item', category=r.id) }}">
                         <input type="hidden" name="meta" value='{{ item.meta|tojson }}'>
-                        <button type="submit" class="diag-btn {{ 'diag-btn-plain' if item.ignored else 'diag-btn-warning' }}">{{ 'Ne plus ignorer' if item.ignored else 'Ignorer' }}</button>
+                        <button type="submit" class="diag-btn {{ 'diag-btn-plain' if item.ignored else 'diag-btn-warning' }}">{{ t('btn_unignore') if item.ignored else t('btn_ignore') }}</button>
                       </form>
                     {% endif %}
                     {% if item.details %}
-                      <button type="button" class="diag-btn diag-btn-outline diag-details-toggle" data-target="diag-details-{{ r.id }}-{{ loop.index }}" aria-expanded="false">Détails</button>
+                      <button type="button" class="diag-btn diag-btn-outline diag-details-toggle" data-target="diag-details-{{ r.id }}-{{ loop.index }}" aria-expanded="false">{{ t('btn_details') }}</button>
                     {% endif %}
                   </div>
                 </div>
@@ -182,7 +182,7 @@
           document.querySelectorAll('.diag-run-form button').forEach(function (btn) {
             btn.disabled = false;
           });
-          alert("Impossible de contacter l'API Wappos — réessayez.");
+          alert({{ t('err_api_unreachable_retry')|tojson }});
         }
       });
     });
@@ -196,7 +196,7 @@
           window.location.href = resp.url;
         } catch (err) {
           sessionStorage.removeItem('diag-scroll-y');
-          alert("Impossible de contacter l'API Wappos — réessayez.");
+          alert({{ t('err_api_unreachable_retry')|tojson }});
         }
       });
     });

@@ -78,37 +78,37 @@ def main() -> None:
     if version_changed or status_changed or (not status_ok and "status_ok" not in state):
         if not status_ok:
             headline = (
-                "Un problème de fonctionnement a été détecté sur wappos-portal.\n"
-                "Rien n'a été corrigé automatiquement — vérifie manuellement l'app "
-                "(connexion, tuiles, édition de profil) dès que possible."
+                "A functional problem was detected on wappos-portal.\n"
+                "Nothing was fixed automatically — check the app manually "
+                "(login, tiles, profile editing) as soon as possible."
             )
         elif version_changed:
             headline = (
-                "YunoHost a été mis à jour depuis la dernière vérification.\n"
-                "Wappos-portal dépend de détails internes non documentés de YunoHost "
-                "(cf. cahier des charges section 9bis) : vérifie manuellement que la "
-                "connexion, les tuiles et l'édition de profil fonctionnent toujours."
+                "YunoHost was updated since the last check.\n"
+                "wappos-portal relies on undocumented internal YunoHost details "
+                "(see cahier des charges section 9bis): manually verify that "
+                "login, tiles, and profile editing still work."
             )
         else:
-            headline = "L'état de wappos-portal a changé depuis la dernière vérification."
+            headline = "wappos-portal's status changed since the last check."
 
         details = (
             f"{headline}\n\n"
-            "--- Détails ---\n"
-            f"Version YunoHost précédemment connue : {state.get('yunohost_version', 'inconnue')}\n"
-            f"Version YunoHost actuelle            : {yunohost_version}\n\n"
-            f"Service wappos_portal actif      : {'oui' if service_ok else 'NON'}\n"
-            f"Service yunohost-portal-api actif : {'oui' if portalapi_ok else 'NON'}\n"
-            f"Page d'accueil accessible et correcte : {'oui' if reachable else 'NON'}"
+            "--- Details ---\n"
+            f"Previously known YunoHost version : {state.get('yunohost_version', 'unknown')}\n"
+            f"Current YunoHost version           : {yunohost_version}\n\n"
+            f"wappos_portal service active      : {'yes' if service_ok else 'NO'}\n"
+            f"yunohost-portal-api service active : {'yes' if portalapi_ok else 'NO'}\n"
+            f"Home page reachable and correct    : {'yes' if reachable else 'NO'}"
         )
         if not status_ok:
-            subject = "[wappos-portal] ALERTE : problème de fonctionnement détecté"
+            subject = "[wappos-portal] ALERT: functional problem detected"
         else:
-            subject = "[wappos-portal] Mise à jour YunoHost détectée — à vérifier"
+            subject = "[wappos-portal] YunoHost update detected — please verify"
         try:
             _send_alert(subject, details)
         except Exception as e:
-            print(f"[wappos-portal healthcheck] échec d'envoi de l'alerte : {e}", file=sys.stderr)
+            print(f"[wappos-portal healthcheck] failed to send alert: {e}", file=sys.stderr)
 
     _save_state({"yunohost_version": yunohost_version, "status_ok": status_ok})
 

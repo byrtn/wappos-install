@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set active_tab = "services" %}
-{% block title %}Services système{% endblock %}
+{% block title %}{{ t('label_system_services') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Services système</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('label_system_services') }}</span>{% endblock %}
 
 {% block content %}
         <ul class="app-list">
@@ -18,12 +18,12 @@
                 {{ '✓' if s.status in ('running', 'exited') else '✕' }}
                 {{ s.status|service_status_fr }}
               </span>
-              <span class="app-item-version">depuis {{ s.last_state_change|service_since }}</span>
+              <span class="app-item-version">{{ t('since_word', value=(s.last_state_change|service_since)) }}</span>
             </div>
           </a>
         </li>
       {% else %}
-        <li class="app-item">Aucun service.</li>
+        <li class="app-item">{{ t('no_service') }}</li>
       {% endfor %}
       {% for s in standalone_services %}
         <li class="app-item app-item-static">
@@ -32,13 +32,13 @@
           </div>
           <div class="app-item-meta">
             {% if not s.installed %}
-              <span class="app-item-version">non installé sur ce serveur</span>
+              <span class="app-item-version">{{ t('not_installed_on_server') }}</span>
             {% else %}
               <span class="{{ 'text-success' if s.status in ('running', 'exited') else 'text-danger' }}">
                 {{ '✓' if s.status in ('running', 'exited') else '✕' }}
                 {{ s.status|service_status_fr }}
               </span>
-              <span class="app-item-version">depuis {{ s.since|service_since }}</span>
+              <span class="app-item-version">{{ t('since_word', value=(s.since|service_since)) }}</span>
             {% endif %}
           </div>
         </li>

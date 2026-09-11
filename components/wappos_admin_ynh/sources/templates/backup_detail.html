@@ -1,41 +1,41 @@
 {% extends "base.html" %}
 {% set active_tab = "backups" %}
-{% block title %}Sauvegarde — {{ name }}{% endblock %}
+{% block title %}{{ t('title_backup_named', name=name) }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('backups_page') }}">Sauvegardes</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ name }}</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('backups_page') }}">{{ t('title_backups') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ name }}</span>{% endblock %}
 
 {% block content %}
     <div class="card create-card">
       <div class="card-header"><h2 style="font-size: 0.95rem;">{{ name }}</h2></div>
       <div class="card-body">
-        <h3 style="font-size: 0.95rem; margin-top: 0;">Informations</h3>
+        <h3 style="font-size: 0.95rem; margin-top: 0;">{{ t('h3_information') }}</h3>
         <table>
-          <tr><th>Créée le</th><td>{{ info.get('created_at')|backup_date_fr }}</td></tr>
-          <tr><th>Description</th><td>{{ info.get('description', '—') }}</td></tr>
-          <tr><th>Taille</th><td>{{ info.get('size', '—') }}</td></tr>
-          <tr><th>Chemin</th><td>{{ info.get('path', '—') }}</td></tr>
+          <tr><th>{{ t('th_created_on') }}</th><td>{{ info.get('created_at')|backup_date_fr }}</td></tr>
+          <tr><th>{{ t('th_description') }}</th><td>{{ info.get('description', t('value_dash')) }}</td></tr>
+          <tr><th>{{ t('th_size') }}</th><td>{{ info.get('size', t('value_dash')) }}</td></tr>
+          <tr><th>{{ t('th_path') }}</th><td>{{ info.get('path', t('value_dash')) }}</td></tr>
           {% if info.get('apps') %}
-            <tr><th>Apps incluses</th><td>{{ info.apps.keys() | join(', ') }}</td></tr>
+            <tr><th>{{ t('th_included_apps') }}</th><td>{{ info.apps.keys() | join(', ') }}</td></tr>
           {% endif %}
                     {% if info.get('system') %}
-            <tr><th>Composants système inclus</th><td>{{ info.system.keys() | join(', ') }}</td></tr>
+            <tr><th>{{ t('th_included_system_components') }}</th><td>{{ info.system.keys() | join(', ') }}</td></tr>
           {% endif %}
         </table>
         <div style="margin-top: 0.75rem;">
-          <a href="{{ url_for('download_backup', name=name) }}" class="btn">Télécharger</a>
+          <a href="{{ url_for('download_backup', name=name) }}" class="btn">{{ t('btn_download') }}</a>
         </div>
       </div>
     </div>
 
     <div class="card create-card">
-      <div class="card-header"><h3>Restaurer</h3></div>
+      <div class="card-header"><h3>{{ t('h3_restore') }}</h3></div>
       <div class="card-body">
-        <p class="field-info">Restaure cette archive sur le serveur — peut écraser des données existantes (comptes, apps, configuration système déjà présents). Action destructrice.</p>
+        <p class="field-info">{{ t('help_restore_destructive') }}</p>
         <form method="post" action="{{ url_for('restore_backup', name=name) }}"
-              onsubmit="return confirm('Restaurer la sauvegarde {{ name }} ? Cette action peut écraser des données existantes.') &amp;&amp; (document.getElementById('confirm-backup-name').value === {{ name|tojson }} || (alert('Pour restaurer cette sauvegarde, tape exactement « {{ name }} » dans le champ prévu.'), false));">
+              onsubmit="return confirm({{ t('confirm_restore_backup', name=name)|tojson }}) &amp;&amp; (document.getElementById('confirm-backup-name').value === {{ name|tojson }} || (alert({{ t('alert_type_exact_name_to_restore', name=name)|tojson }}), false));">
                     {% if info.get('apps') %}
             <div class="field" style="margin-bottom: 0.5rem;">
-              <label style="display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem;">Apps à restaurer</label>
+              <label style="display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem;">{{ t('label_apps_to_restore') }}</label>
               {% for app_id in info.apps.keys() %}
                 <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; margin-right: 0.75rem;">
                   <input type="checkbox" name="apps" value="{{ app_id }}" checked> {{ app_id }}
@@ -45,7 +45,7 @@
           {% endif %}
           {% if info.get('system') %}
             <div class="field" style="margin-bottom: 0.5rem;">
-              <label style="display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem;">Parties système à restaurer</label>
+              <label style="display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem;">{{ t('label_system_parts_to_restore') }}</label>
               {% for part in info.system.keys() %}
                 <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.85rem; margin-right: 0.75rem;">
                   <input type="checkbox" name="system" value="{{ part }}" checked> {{ part }}
@@ -55,22 +55,22 @@
           {% endif %}
           <div class="confirm-row">
             <p class="confirm-row-text">
-              Tapez « {{ name }} » pour confirmer
+              {{ t('label_type_name_to_confirm', name=name) }}
               <input type="text" id="confirm-backup-name" autocomplete="off"
                      style="padding: 0.4rem 0.6rem; border: 1px solid var(--color-border-strong); border-radius: 6px; font-size: 0.85rem;">
             </p>
-            <button type="submit" class="btn btn-danger">Restaurer</button>
+            <button type="submit" class="btn btn-danger">{{ t('btn_restore') }}</button>
           </div>
         </form>
       </div>
     </div>
 
     <div class="card create-card">
-      <div class="card-header"><h3 style="color: var(--color-danger);">Zone dangereuse</h3></div>
+      <div class="card-header"><h3 style="color: var(--color-danger);">{{ t('h3_danger_zone') }}</h3></div>
       <div class="card-body">
         <form method="post" action="{{ url_for('delete_backup', name=name) }}"
-              onsubmit="return confirm('Supprimer définitivement l\'archive {{ name }} ? Cette action est irréversible.');">
-          <button type="submit" class="btn btn-danger">Supprimer cette archive</button>
+              onsubmit="return confirm({{ t('confirm_delete_archive', name=name)|tojson }});">
+          <button type="submit" class="btn btn-danger">{{ t('btn_delete_this_archive') }}</button>
         </form>
       </div>
     </div>

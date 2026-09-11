@@ -166,7 +166,7 @@ def test_profile_update_falls_back_to_generic_message_without_native_detail(logg
          patch.object(app, "_wappos_api_update", side_effect=requests.exceptions.ConnectionError()):
         resp = logged_in_client.post("/profile", data={"action": "update_info", "fullname": "Patrick"})
     assert resp.status_code == 200
-    assert "la modification a échoué".encode() in resp.data.lower()
+    assert b"the change failed" in resp.data.lower()
 
 
 def test_domain_default_theme_is_injected_in_page(client):

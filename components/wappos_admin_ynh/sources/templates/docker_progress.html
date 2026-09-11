@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% set active_tab = "docker" %}
-{% set action_label = action_label or "Installation" %}
-{% block title %}{{ action_label }} Docker — {{ slug }}{% endblock %}
+{% set action_label = action_label or t('action_label_install') %}
+{% block title %}{{ t('progress_title', action=action_label, slug=slug) }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">Applications Docker</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ action_label }}</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">{{ t('nav_docker_apps') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ action_label }}</span>{% endblock %}
 
 {% block content %}
     <div class="card create-card">
-      <div class="card-header"><h3>{{ action_label }} de {{ slug }}</h3></div>
+      <div class="card-header"><h3>{{ t('progress_header', action=action_label, slug=slug) }}</h3></div>
       <div class="card-body">
         <div id="steps-list">
           {% for s in steps %}
@@ -21,15 +21,15 @@
         <div id="error-box" class="error" style="display: none; margin-top: 1rem;"></div>
 
         <div id="summary-box" style="display: none; margin-top: 1rem;">
-          <div class="message" id="summary-ok" style="display: none;">{{ action_label }} terminée avec succès.</div>
+          <div class="message" id="summary-ok" style="display: none;">{{ t('progress_success', action=action_label) }}</div>
           <div class="message" id="summary-warning" style="display: none; background: var(--color-warning-bg); color: var(--color-warning-text);">
-            <strong>{{ action_label }} terminée — points à vérifier :</strong>
+            <strong>{{ t('progress_warning_header', action=action_label) }}</strong>
             <ul id="summary-warning-list" style="margin: 0.5rem 0 0; padding-left: 1.25rem;"></ul>
           </div>
         </div>
 
         <div id="back-link" style="display: none; margin-top: 1rem;">
-          <a class="btn" href="{{ url_for('docker_apps') }}">Retour à Docker</a>
+          <a class="btn" href="{{ url_for('docker_apps') }}">{{ t('btn_back_to_docker') }}</a>
         </div>
       </div>
     </div>
@@ -43,6 +43,9 @@
 {% block extra_script %}
     var jobId = {{ job_id|tojson }};
     var totalSteps = {{ steps|length }};
+    var PROGRESS_I18N = {
+      notFound: {{ t('progress_not_found')|tojson }},
+    };
 
     function poll() {
       fetch({{ url_for('docker_progress_status', job_id=job_id)|tojson }})
@@ -50,7 +53,7 @@
         .then(function (data) {
           if (data.error === "not_found") {
             document.getElementById("error-box").style.display = "block";
-            document.getElementById("error-box").textContent = "Suivi de progression introuvable (le service a peut-être redémarré).";
+            document.getElementById("error-box").textContent = PROGRESS_I18N.notFound;
             document.getElementById("back-link").style.display = "block";
             return;
           }

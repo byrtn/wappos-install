@@ -1,46 +1,46 @@
 {% extends "base.html" %}
 {% set active_tab = "docker" %}
-{% block title %}Confirmer l'installation{% endblock %}
+{% block title %}{{ t('title_confirm_install') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">Applications Docker</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Confirmer</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">{{ t('nav_docker_apps') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('breadcrumb_confirm') }}</span>{% endblock %}
 
 {% block content %}
     <div class="card create-card">
-      <div class="card-header"><h3>Vérifie avant d'installer</h3></div>
+      <div class="card-header"><h3>{{ t('h3_check_before_install') }}</h3></div>
       <div class="card-body">
         <ul class="confirm-list">
-          <li><strong>Identifiant :</strong> {{ preview.slug }}</li>
-          <li><strong>Image :</strong> {{ preview.image }}</li>
-          <li><strong>Port du conteneur :</strong> {{ preview.container_port }}</li>
-          <li><strong>Adresse publique :</strong> <a href="{{ preview.target_url }}" target="_blank" rel="noopener">{{ preview.target_url }}</a></li>
-          <li><strong>Visible par :</strong> {{ preview.visibility_fr }}</li>
+          <li><strong>{{ t('confirm_label_identifier') }}</strong> {{ preview.slug }}</li>
+          <li><strong>{{ t('confirm_label_image') }}</strong> {{ preview.image }}</li>
+          <li><strong>{{ t('confirm_label_container_port') }}</strong> {{ preview.container_port }}</li>
+          <li><strong>{{ t('confirm_label_public_address') }}</strong> <a href="{{ preview.target_url }}" target="_blank" rel="noopener">{{ preview.target_url }}</a></li>
+          <li><strong>{{ t('confirm_label_visible_to') }}</strong> {{ preview.visibility_label }}</li>
           <li>
-            <strong>Données persistantes :</strong>
+            <strong>{{ t('confirm_label_persistent_data') }}</strong>
             {% if preview.has_volume %}
-              Oui — un volume Docker sera créé pour {{ preview.data_path }}.
+              {{ t('persistent_data_yes', path=preview.data_path) }}
             {% else %}
-              Non — aucun volume de données déclaré, l'app perdra ses données si le conteneur est recréé.
+              {{ t('persistent_data_no') }}
             {% endif %}
           </li>
           {% if preview.env_vars_count %}
-            <li><strong>Variables d'environnement :</strong> {{ preview.env_vars_count }} définie(s)</li>
+            <li><strong>{{ t('confirm_label_env_vars') }}</strong> {{ t('env_vars_defined_count', n=preview.env_vars_count) }}</li>
           {% endif %}
           {% if preview.companions %}
-            <li><strong>Dépendances internes (non exposées) :</strong> {{ preview.companions|map(attribute='service_key')|join(', ') }}</li>
+            <li><strong>{{ t('confirm_label_companions') }}</strong> {{ preview.companions|map(attribute='service_key')|join(', ') }}</li>
           {% endif %}
           {% if preview.config_files %}
-            <li><strong>Fichiers de configuration montés :</strong> {{ preview.config_files|map(attribute='filename')|join(', ') }}</li>
+            <li><strong>{{ t('confirm_label_config_files') }}</strong> {{ preview.config_files|map(attribute='filename')|join(', ') }}</li>
           {% endif %}
           {% if preview.cpu_limit or preview.mem_limit %}
-            <li><strong>Limites de ressources :</strong>
-              {% if preview.cpu_limit %}{{ preview.cpu_limit }} CPU{% endif %}{% if preview.cpu_limit and preview.mem_limit %}, {% endif %}{% if preview.mem_limit %}{{ preview.mem_limit }} de mémoire{% endif %}
+            <li><strong>{{ t('confirm_label_resource_limits') }}</strong>
+              {% if preview.cpu_limit %}{{ preview.cpu_limit }} CPU{% endif %}{% if preview.cpu_limit and preview.mem_limit %}, {% endif %}{% if preview.mem_limit %}{{ preview.mem_limit }} {{ t('mem_word') }}{% endif %}
             </li>
           {% endif %}
           {% if preview.has_catalogue_logo %}
-            <li><strong>Logo :</strong> celui du catalogue sera appliqué s'il est accessible, sinon une lettre de repli sera utilisée.</li>
+            <li><strong>{{ t('confirm_label_logo') }}</strong> {{ t('logo_will_apply') }}</li>
           {% endif %}
           {% if preview.ldap_enabled %}
-            <li><strong>Câblage LDAP :</strong> variables injectées — {% for k, v in preview.ldap_env_preview.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
+            <li><strong>{{ t('confirm_label_ldap_wiring') }}</strong> {{ t('ldap_variables_injected') }} {% for k, v in preview.ldap_env_preview.items() %}{{ k }}={{ v }}{% if not loop.last %}, {% endif %}{% endfor %}</li>
           {% endif %}
         </ul>
 
@@ -49,8 +49,8 @@
             {% if k != 'confirmed' %}<input type="hidden" name="{{ k }}" value="{{ v }}">{% endif %}
           {% endfor %}
           <input type="hidden" name="confirmed" value="1">
-          <button type="button" class="btn" onclick="history.back()" style="margin-right: 0.5rem;">Modifier</button>
-          <button type="submit" class="btn btn-success">Confirmer l'installation</button>
+          <button type="button" class="btn" onclick="history.back()" style="margin-right: 0.5rem;">{{ t('btn_edit') }}</button>
+          <button type="submit" class="btn btn-success">{{ t('btn_confirm_install') }}</button>
         </form>
       </div>
     </div>

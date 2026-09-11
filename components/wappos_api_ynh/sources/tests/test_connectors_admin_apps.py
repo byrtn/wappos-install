@@ -159,7 +159,7 @@ def test_get_app_detail_picks_notifications(admin_app_detail_url: str) -> None:
 
     detail = admin.get_app_detail("fake-session-token", "wappos_admin")
 
-    assert detail.notification_post_install == "Bienvenue"
+    assert detail.notification_post_install == "Welcome"
     assert detail.notifications_post_upgrade == {"main": "Upgraded"}
     assert detail.supports_config_panel is True
 
@@ -394,7 +394,7 @@ def test_get_app_manifest_picks_locale_for_dict_description(admin_apps_manifest_
 
     manifest = admin.get_app_manifest("fake-session-token", "nextcloud")
 
-    assert manifest.description == "Plateforme de partage de fichiers"
+    assert manifest.description == "File sharing platform"
 
 
 @respx.mock

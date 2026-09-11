@@ -8,6 +8,7 @@ from pathlib import Path
 
 import httpx
 
+from wappos_api import locale_context
 from wappos_api.config import settings
 from wappos_api.errors import (
     InvalidCredentialsError,
@@ -38,7 +39,7 @@ def _normalize_host(host: str) -> str:
 
 
 def _host_header(host: str) -> dict[str, str]:
-    return {"Host": _normalize_host(host), "locale": "fr"}
+    return {"Host": _normalize_host(host), "locale": locale_context.get_locale()}
 
 
 def _extract_portal_cookie(response: httpx.Response) -> str | None:

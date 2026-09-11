@@ -1,38 +1,38 @@
 {% extends "base.html" %}
 {% set active_tab = "home" %}
-{% block title %}Accueil{% endblock %}
+{% block title %}{{ t('title_home') }}{% endblock %}
 
 {% block content %}
         <div class="quick-add-row">
       <details class="quick-add">
-        <summary class="btn btn-success">+ Ajout rapide</summary>
+        <summary class="btn btn-success">{{ t('quick_add') }}</summary>
         <div class="quick-add-menu">
-          <a href="{{ url_for('index') }}#add-account">+ Ajouter un compte</a>
-          <a href="{{ url_for('domains_page') }}#add-domain">+ Ajouter un domaine</a>
-          <a href="{{ url_for('groups') }}#add-group">+ Ajouter un groupe</a>
-          <a href="{{ url_for('app_catalog_page') }}">+ Installer une app</a>
+          <a href="{{ url_for('index') }}#add-account">{{ t('quick_add_account') }}</a>
+          <a href="{{ url_for('domains_page') }}#add-domain">{{ t('quick_add_domain') }}</a>
+          <a href="{{ url_for('groups') }}#add-group">{{ t('quick_add_group') }}</a>
+          <a href="{{ url_for('app_catalog_page') }}">{{ t('quick_install_app') }}</a>
         </div>
       </details>
     </div>
 
     <div class="nav-list">
-      <a class="nav-list-item" href="{{ url_for('index') }}"><span>Utilisateurs</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('groups') }}"><span>Groupes et autorisations</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('domains_page') }}"><span>Domaines</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('index') }}"><span>{{ t('nav_users') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('groups') }}"><span>{{ t('nav_groups_perms') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('domains_page') }}"><span>{{ t('nav_domains') }}</span><span class="chevron">&rsaquo;</span></a>
       <details class="nav-list-group">
-        <summary class="nav-list-item nav-list-group-summary"><span>Applications</span><span class="chevron">&rsaquo;</span></summary>
+        <summary class="nav-list-item nav-list-group-summary"><span>{{ t('nav_applications') }}</span><span class="chevron">&rsaquo;</span></summary>
         <div class="nav-list-sub">
-          <a class="nav-list-sub-item" href="{{ url_for('apps') }}"><span>Applications système</span><span class="chevron">&rsaquo;</span></a>
-          <a class="nav-list-sub-item" href="{{ url_for('docker_apps') }}"><span>Applications Docker</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('apps') }}"><span>{{ t('nav_system_apps') }}</span><span class="chevron">&rsaquo;</span></a>
+          <a class="nav-list-sub-item" href="{{ url_for('docker_apps') }}"><span>{{ t('nav_docker_apps') }}</span><span class="chevron">&rsaquo;</span></a>
         </div>
       </details>
-      <a class="nav-list-item" href="{{ url_for('diagnosis') }}"><span>Diagnostic</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('backups_page') }}"><span>Sauvegardes</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('system_menu') }}"><span>Système</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('diagnosis') }}"><span>{{ t('nav_diagnosis') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('backups_page') }}"><span>{{ t('nav_backups') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('system_menu') }}"><span>{{ t('title_system') }}</span><span class="chevron">&rsaquo;</span></a>
     </div>
 
     <a class="card storage-summary" href="{{ url_for('storage') }}">
-      <div class="dashboard-tile-label">Stockage</div>
+      <div class="dashboard-tile-label">{{ t('label_storage') }}</div>
       {% if dashboard.mounts %}
         <div class="storage-summary-list">
           {% for m in dashboard.mounts %}
@@ -50,66 +50,66 @@
         </div>
       {% else %}
         <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
-        <div class="dashboard-tile-sub">Indisponible</div>
+        <div class="dashboard-tile-sub">{{ t('label_unavailable') }}</div>
       {% endif %}
     </a>
 
     <div class="dashboard-grid">
       <a class="card dashboard-tile" href="{{ url_for('services') }}">
-        <div class="dashboard-tile-label">Services système</div>
+        <div class="dashboard-tile-label">{{ t('label_system_services') }}</div>
         {% if dashboard.services_down is not none %}
           <div class="dashboard-tile-value dashboard-tile-{{ 'critical' if dashboard.services_down > 0 else 'ok' }}">
             {{ dashboard.services_down }}
           </div>
-          <div class="dashboard-tile-sub">en arrêt sur {{ dashboard.services_total }}</div>
+          <div class="dashboard-tile-sub">{{ t('down_of_total', total=dashboard.services_total) }}</div>
         {% else %}
           <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
-          <div class="dashboard-tile-sub">Indisponible</div>
+          <div class="dashboard-tile-sub">{{ t('label_unavailable') }}</div>
         {% endif %}
       </a>
       <a class="card dashboard-tile" href="{{ url_for('diagnosis') }}">
-        <div class="dashboard-tile-label">Diagnostic</div>
+        <div class="dashboard-tile-label">{{ t('nav_diagnosis') }}</div>
         {% if dashboard.diag_errors is not none %}
           <div class="dashboard-tile-value dashboard-tile-{{ 'critical' if dashboard.diag_errors > 0 else ('warning' if dashboard.diag_warnings > 0 else 'ok') }}">
             {{ dashboard.diag_errors }}
           </div>
-          <div class="dashboard-tile-sub">erreur{{ 's' if dashboard.diag_errors != 1 }}, {{ dashboard.diag_warnings }} avertissement{{ 's' if dashboard.diag_warnings != 1 }}</div>
+          <div class="dashboard-tile-sub">{{ t('error_and_warning_count', es=('s' if dashboard.diag_errors != 1 else ''), warnings=dashboard.diag_warnings, ws=('s' if dashboard.diag_warnings != 1 else '')) }}</div>
         {% else %}
           <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
-          <div class="dashboard-tile-sub">Indisponible</div>
+          <div class="dashboard-tile-sub">{{ t('label_unavailable') }}</div>
         {% endif %}
       </a>
       <a class="card dashboard-tile" href="{{ url_for('failed_units_page') }}">
-        <div class="dashboard-tile-label">Unités en échec</div>
+        <div class="dashboard-tile-label">{{ t('label_failed_units') }}</div>
         {% if dashboard.failed_units is not none %}
           <div class="dashboard-tile-value dashboard-tile-{{ 'critical' if dashboard.failed_units else 'ok' }}">
             {{ dashboard.failed_units|length }}
           </div>
           <div class="dashboard-tile-sub">
-            {% if dashboard.failed_units %}en échec : {{ dashboard.failed_units|join(', ') }}{% else %}en échec{% endif %}
+            {% if dashboard.failed_units %}{{ t('failed_units_list', list=(dashboard.failed_units|join(', '))) }}{% else %}{{ t('word_failed') }}{% endif %}
           </div>
         {% else %}
           <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
-          <div class="dashboard-tile-sub">Indisponible</div>
+          <div class="dashboard-tile-sub">{{ t('label_unavailable') }}</div>
         {% endif %}
       </a>
       <a class="card dashboard-tile" href="{{ url_for('backups_page') }}">
-        <div class="dashboard-tile-label">Dernière sauvegarde</div>
+        <div class="dashboard-tile-label">{{ t('label_last_backup') }}</div>
         {% if dashboard.last_backup %}
           <div class="dashboard-tile-value dashboard-tile-ok">{{ dashboard.last_backup|backup_date_fr }}</div>
         {% else %}
-          <div class="dashboard-tile-value dashboard-tile-unknown">Aucune</div>
+          <div class="dashboard-tile-value dashboard-tile-unknown">{{ t('word_none') }}</div>
         {% endif %}
       </a>
       <a class="card dashboard-tile" href="{{ url_for('system_page') }}">
-        <div class="dashboard-tile-label">Mises à jour</div>
+        <div class="dashboard-tile-label">{{ t('breadcrumb_updates') }}</div>
         {% if dashboard.app_updates is not none %}
           {% set total_updates = dashboard.app_updates + dashboard.system_update_categories %}
           <div class="dashboard-tile-value dashboard-tile-{{ 'warning' if total_updates > 0 else 'ok' }}">{{ total_updates }}</div>
-          <div class="dashboard-tile-sub">{{ dashboard.app_updates }} app{{ 's' if dashboard.app_updates != 1 }}, {{ dashboard.system_update_categories }} catégorie{{ 's' if dashboard.system_update_categories != 1 }} système</div>
+          <div class="dashboard-tile-sub">{{ t('apps_and_categories', apps=dashboard.app_updates, aps=('s' if dashboard.app_updates != 1 else ''), cats=dashboard.system_update_categories, cat_word=(t('system_category_singular') if dashboard.system_update_categories == 1 else t('system_category_plural'))) }}</div>
         {% else %}
           <div class="dashboard-tile-value dashboard-tile-unknown">?</div>
-          <div class="dashboard-tile-sub">Indisponible</div>
+          <div class="dashboard-tile-sub">{{ t('label_unavailable') }}</div>
         {% endif %}
       </a>
     </div>

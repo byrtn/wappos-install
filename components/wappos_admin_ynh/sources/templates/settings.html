@@ -1,20 +1,20 @@
 {% extends "base.html" %}
 {% import "_option_fields.html" as fields %}
 {% set active_tab = "settings" %}
-{% block title %}Réglages{% endblock %}
+{% block title %}{{ t('title_settings') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Réglages</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_settings') }}</span>{% endblock %}
 
 {% block content %}
         <div class="card create-card section-block">
-      <div class="card-header"><h3>Apparence</h3></div>
+      <div class="card-header"><h3>{{ t('h3_appearance') }}</h3></div>
       <div class="card-body">
       <div class="field field-inline">
-        <label for="admin-theme">Thème</label>
+        <label for="admin-theme">{{ t('label_theme') }}</label>
         <select id="admin-theme" onchange="setWapposAdminTheme(this.value);">
-          <option value="system">Système</option>
-          <option value="light">Clair</option>
-          <option value="dark">Sombre</option>
+          <option value="system">{{ t('option_theme_system') }}</option>
+          <option value="light">{{ t('option_theme_light') }}</option>
+          <option value="dark">{{ t('option_theme_dark') }}</option>
         </select>
       </div>
       </div>
@@ -42,25 +42,21 @@
               {{ fields.render_option(o) }}
                             {% if o.id == 'security_experimental_enabled' %}
                 <details class="option-help">
-                  <summary>En savoir plus</summary>
+                  <summary>{{ t('summary_learn_more') }}</summary>
                   <p>
-                    Active des en-têtes de sécurité HTTP plus stricts sur toutes les applications
-                    servies par ce serveur (Content-Security-Policy renforcée, Permissions-Policy
-                    complétée) — recommandé par la Fondation Mozilla, mais peut casser des
-                    applications qui chargent des ressources externes ou utilisent certaines API du
-                    navigateur (caméra, capteurs, etc.). À tester après activation.
+                    {{ t('help_security_experimental') }}
                   </p>
                 </details>
               {% endif %}
             {% endfor %}
-            <button type="submit" class="btn">Appliquer</button>
+            <button type="submit" class="btn">{{ t('btn_apply_settings') }}</button>
           </form>
           </div>
         </{{ section_tag }}>
       {% endfor %}
       </div>
     {% else %}
-      <div class="error">Aucun réglage disponible.</div>
+      <div class="error">{{ t('err_no_settings_available') }}</div>
     {% endfor %}
 {% endblock %}
 

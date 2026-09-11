@@ -98,7 +98,7 @@ def test_main_reports_only_the_real_alert_when_mixed(mbox_path):
         maf.main()
     sent = mock_run.call_args.kwargs["input"].decode()
     body = sent
-    assert "1 alerte(s)" in sent
+    assert "1 system alert(s)" in sent
     assert "/usr/bin/evil" in body
     assert "/dev/shm/rhm.8101f80c6ab1e5bc37fb" not in body
 

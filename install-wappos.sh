@@ -29,7 +29,8 @@ title() {
 step() {
     step_count=$((step_count + 1))
     local why="${2:-}"
-    local label="Etape ${step_count} - $1"
+    local label
+    label="$(t step_label_prefix) ${step_count} - $1"
     echo
     echo -e "${blue}${bold}${label}${reset}"
     echo -e "${blue}$(printf -- '─%.0s' $(seq 1 ${#label}))${reset}"
@@ -79,19 +80,220 @@ read_with_countdown() {
     return 0
 }
 
+t() {
+    local key="$1"
+    if [ "${WAPPOS_LANG:-en}" = "fr" ]; then
+        case "$key" in
+            step_label_prefix) echo "Etape" ;;
+            log_detail_fmt) echo "Le detail technique de chaque etape est enregistre dans %s" ;;
+            step_network_title) echo "Configuration reseau" ;;
+            step_network_why) echo "Verifie comment ce serveur va se connecter a Internet." ;;
+            network_msg1) echo "Ce serveur utilise l'adresse IP fournie automatiquement par votre routeur (DHCP)," ;;
+            network_msg2) echo "sauf si une configuration manuelle a ete choisie pendant l'installation Debian qui" ;;
+            network_msg3) echo "vient de se terminer. Aucune action requise ici." ;;
+            network_msg4) echo "Pour une adresse IP fixe : debranchez le reseau (ou coupez le Wi-Fi) avant de" ;;
+            network_msg5) echo "demarrer l'installateur Debian - il proposera alors la configuration manuelle." ;;
+            step_wait_network_title) echo "Attente du reseau" ;;
+            step_wait_network_why) echo "S'assure que la connexion est bien active avant de continuer." ;;
+            step_install_engine_title) echo "Installation du moteur systeme Wappos" ;;
+            step_install_engine_why) echo "Installe le socle technique sur lequel Wappos s'appuie." ;;
+            install_engine_msg1) echo "Cette etape peut durer plusieurs minutes, c'est normal." ;;
+            err_after_retries) echo "Echec apres plusieurs tentatives, abandon. Dernieres lignes du journal :" ;;
+            warn_retry_fmt) echo "Echec, nouvelle tentative dans 10 secondes (%s/4)..." ;;
+            success_engine_installed) echo "Moteur systeme installe" ;;
+            step_gui_title) echo "Interface graphique Wappos" ;;
+            step_gui_why) echo "Application et lancement de l'interface graphique pour la configuration initiale." ;;
+            success_gui) echo "Interface graphique Wappos appliquee" ;;
+            title_finalize_browser) echo "Finalisation via votre navigateur" ;;
+            finalize_msg1) echo "La derniere etape (nom de domaine, identifiant, mot de passe) se termine" ;;
+            finalize_msg2) echo "depuis un navigateur, exactement comme Wappos vous y invitera." ;;
+            finalize_warn1) echo "Attention si ce domaine local (.lan/.local) existe deja ailleurs sur votre" ;;
+            finalize_warn2) echo "reseau (une autre installation, un autre serveur) : choisissez un nom" ;;
+            finalize_warn3) echo "clairement distinct pour une installation de test." ;;
+            finalize_open_browser) echo "Ouvrez un navigateur sur une autre machine du meme reseau et allez sur :" ;;
+            finalize_follow1) echo "Suivez les instructions a l'ecran. Cette etape reprend automatiquement" ;;
+            finalize_follow2) echo "des que vous avez valide le formulaire, sans rien taper ici." ;;
+            finalize_waiting) echo "En attente de la finalisation depuis votre navigateur..." ;;
+            finalize_done) echo "Configuration initiale terminee" ;;
+            step_base_installed_title) echo "Systeme de base installe et configure" ;;
+            step_base_installed_why) echo "Le socle technique est pret, la suite installe Wappos par-dessus." ;;
+            step_docker_title) echo "Installation de Docker Engine" ;;
+            step_docker_why) echo "Permet a Wappos de faire tourner des applications supplementaires de facon isolee." ;;
+            docker_msg1) echo "Cette etape peut durer une a deux minutes, c'est normal." ;;
+            success_docker) echo "Docker installe" ;;
+            step_nftables_title) echo "Protection Docker contre les rechargements nftables" ;;
+            step_nftables_why) echo "Evite un bug connu qui pourrait couper Docker apres un redemarrage reseau." ;;
+            step_alert_account_title) echo "Creation du compte technique d'alertes" ;;
+            step_alert_account_why) echo "Un compte interne pour les notifications systeme, pas pour vous connecter." ;;
+            step_components_title) echo "Installation des composants Wappos" ;;
+            step_components_why) echo "Installe le portail, l'administration et les autres briques propres a Wappos." ;;
+            installing_component_fmt) echo "  Installation de %s..." ;;
+            component_installed_fmt) echo "  %s installe" ;;
+            step_rspamd_title) echo "Installation de Rspamd (antispam)" ;;
+            step_rspamd_why) echo "Protege vos boites mail contre le spam." ;;
+            success_rspamd) echo "Rspamd installe" ;;
+            step_prometheus_title) echo "Finalisation de la liaison Prometheus / wappos_admin" ;;
+            step_prometheus_why) echo "Connecte le tableau de bord de performance a l'administration." ;;
+            success_components) echo "Composants Wappos installes." ;;
+            step_ssh_password_title) echo "Connexion SSH par mot de passe" ;;
+            ssh_msg1) echo "Par defaut, seules les cles SSH sont acceptees pour la connexion root" ;;
+            ssh_msg2) echo "(la connexion par mot de passe reste desactivee depuis le premier" ;;
+            ssh_msg3) echo "demarrage, pour ne pas exposer ce serveur avant sa configuration)." ;;
+            ssh_key_present1) echo "Une cle SSH est deja enregistree pour root." ;;
+            ssh_key_present2) echo "Rien a faire, vous pouvez vous connecter normalement." ;;
+            ssh_no_key1) echo "Aucune cle SSH enregistree pour root." ;;
+            ssh_no_key2) echo "Activer la connexion par mot de passe le temps d'en ajouter une ? [o/N] (20 secondes, sinon N par defaut)" ;;
+            ssh_enabled1) echo "Connexion par mot de passe activee." ;;
+            ssh_enabled2) echo "Le mot de passe root est celui que vous venez de choisir pour l'administrateur Wappos ci-dessus." ;;
+            ssh_enabled3) echo "Pensez a la desactiver a nouveau une fois votre cle ajoutee." ;;
+            final_ready) echo "Wappos est pret" ;;
+            final_done) echo "L'installation est terminee." ;;
+            final_connect) echo "Connectez-vous avec :" ;;
+            final_portal_label) echo "Portail" ;;
+            final_admin_label) echo "Administration" ;;
+            final_or) echo "ou" ;;
+            final_username_label) echo ">>> IDENTIFIANT :" ;;
+            final_password_label) echo ">>> MOT DE PASSE : celui que vous venez de definir ci-dessus" ;;
+            ssh_disabled_default1) echo "Acces SSH desactive par defaut." ;;
+            ssh_disabled_default2) echo "Si vous en avez besoin plus tard, connectez-vous en console (identifiant/mot de passe ci-dessus) puis executez :" ;;
+            ssh_disabled_default3) echo "Pensez a la desactiver a nouveau une fois votre cle SSH ajoutee :" ;;
+            progress_start) echo "Demarrage..." ;;
+            progress_base_update) echo "Mise a jour du systeme de base..." ;;
+            progress_deps) echo "Installation des dependances necessaires..." ;;
+            progress_prep) echo "Preparation de l'installation..." ;;
+            progress_sources) echo "Ajout des sources logicielles..." ;;
+            progress_core) echo "Installation du coeur du systeme..." ;;
+            progress_slapd) echo "Configuration de l'annuaire utilisateurs..." ;;
+            progress_postfix) echo "Configuration du service de messagerie..." ;;
+            progress_nginx) echo "Configuration du serveur web..." ;;
+            progress_fail2ban) echo "Configuration de la protection contre les intrusions..." ;;
+            progress_yunohost) echo "Finalisation de la configuration..." ;;
+            spinner_wait) echo "En cours... Patientez !" ;;
+            *) echo "$key" ;;
+        esac
+    else
+        case "$key" in
+            step_label_prefix) echo "Step" ;;
+            log_detail_fmt) echo "Technical detail for each step is logged in %s" ;;
+            step_network_title) echo "Network configuration" ;;
+            step_network_why) echo "Checks how this server will connect to the Internet." ;;
+            network_msg1) echo "This server uses the IP address automatically provided by your router (DHCP)," ;;
+            network_msg2) echo "unless manual configuration was chosen during the Debian installation that" ;;
+            network_msg3) echo "just finished. No action needed here." ;;
+            network_msg4) echo "For a fixed IP address: unplug the network (or turn off Wi-Fi) before" ;;
+            network_msg5) echo "starting the Debian installer - it will then offer manual configuration." ;;
+            step_wait_network_title) echo "Waiting for network" ;;
+            step_wait_network_why) echo "Makes sure the connection is active before continuing." ;;
+            step_install_engine_title) echo "Installing the Wappos system engine" ;;
+            step_install_engine_why) echo "Installs the technical foundation Wappos relies on." ;;
+            install_engine_msg1) echo "This step can take several minutes, that's normal." ;;
+            err_after_retries) echo "Failed after several attempts, aborting. Last lines of the log:" ;;
+            warn_retry_fmt) echo "Failed, retrying in 10 seconds (%s/4)..." ;;
+            success_engine_installed) echo "System engine installed" ;;
+            step_gui_title) echo "Wappos graphical interface" ;;
+            step_gui_why) echo "Applies and launches the graphical interface for initial setup." ;;
+            success_gui) echo "Graphical interface applied" ;;
+            title_finalize_browser) echo "Finishing up in your browser" ;;
+            finalize_msg1) echo "The last step (domain name, username, password) is completed" ;;
+            finalize_msg2) echo "from a browser, exactly as Wappos will invite you to." ;;
+            finalize_warn1) echo "Careful if this local domain (.lan/.local) already exists elsewhere on your" ;;
+            finalize_warn2) echo "network (another install, another server): choose a clearly distinct name" ;;
+            finalize_warn3) echo "for a test installation." ;;
+            finalize_open_browser) echo "Open a browser on another machine on the same network and go to:" ;;
+            finalize_follow1) echo "Follow the on-screen instructions. This step resumes automatically" ;;
+            finalize_follow2) echo "once you've submitted the form, nothing to type here." ;;
+            finalize_waiting) echo "Waiting for finalization from your browser..." ;;
+            finalize_done) echo "Initial configuration complete" ;;
+            step_base_installed_title) echo "Base system installed and configured" ;;
+            step_base_installed_why) echo "The technical foundation is ready, Wappos is installed on top next." ;;
+            step_docker_title) echo "Installing Docker Engine" ;;
+            step_docker_why) echo "Lets Wappos run additional applications in isolation." ;;
+            docker_msg1) echo "This step can take one to two minutes, that's normal." ;;
+            success_docker) echo "Docker installed" ;;
+            step_nftables_title) echo "Protecting Docker from nftables reloads" ;;
+            step_nftables_why) echo "Avoids a known bug that could take Docker down after a network restart." ;;
+            step_alert_account_title) echo "Creating the technical alert account" ;;
+            step_alert_account_why) echo "An internal account for system notifications, not for you to log in with." ;;
+            step_components_title) echo "Installing Wappos components" ;;
+            step_components_why) echo "Installs the portal, administration, and other Wappos-specific building blocks." ;;
+            installing_component_fmt) echo "  Installing %s..." ;;
+            component_installed_fmt) echo "  %s installed" ;;
+            step_rspamd_title) echo "Installing Rspamd (antispam)" ;;
+            step_rspamd_why) echo "Protects your mailboxes against spam." ;;
+            success_rspamd) echo "Rspamd installed" ;;
+            step_prometheus_title) echo "Finalizing the Prometheus / wappos_admin link" ;;
+            step_prometheus_why) echo "Connects the performance dashboard to the admin panel." ;;
+            success_components) echo "Wappos components installed." ;;
+            step_ssh_password_title) echo "SSH password login" ;;
+            ssh_msg1) echo "By default, only SSH keys are accepted for root login" ;;
+            ssh_msg2) echo "(password login stays disabled from first boot, so this server" ;;
+            ssh_msg3) echo "isn't exposed before it's configured)." ;;
+            ssh_key_present1) echo "An SSH key is already registered for root." ;;
+            ssh_key_present2) echo "Nothing to do, you can log in normally." ;;
+            ssh_no_key1) echo "No SSH key registered for root." ;;
+            ssh_no_key2) echo "Enable password login long enough to add one? [y/N] (20 seconds, N by default)" ;;
+            ssh_enabled1) echo "Password login enabled." ;;
+            ssh_enabled2) echo "The root password is the one you just chose for the Wappos administrator above." ;;
+            ssh_enabled3) echo "Remember to disable it again once your key has been added." ;;
+            final_ready) echo "Wappos is ready" ;;
+            final_done) echo "Installation complete." ;;
+            final_connect) echo "Log in with:" ;;
+            final_portal_label) echo "Portal" ;;
+            final_admin_label) echo "Administration" ;;
+            final_or) echo "or" ;;
+            final_username_label) echo ">>> USERNAME:" ;;
+            final_password_label) echo ">>> PASSWORD: the one you just set above" ;;
+            ssh_disabled_default1) echo "SSH access disabled by default." ;;
+            ssh_disabled_default2) echo "If you need it later, log in via console (username/password above) then run:" ;;
+            ssh_disabled_default3) echo "Remember to disable it again once your SSH key has been added:" ;;
+            progress_start) echo "Starting..." ;;
+            progress_base_update) echo "Updating the base system..." ;;
+            progress_deps) echo "Installing required dependencies..." ;;
+            progress_prep) echo "Preparing the installation..." ;;
+            progress_sources) echo "Adding software sources..." ;;
+            progress_core) echo "Installing the system core..." ;;
+            progress_slapd) echo "Configuring the user directory..." ;;
+            progress_postfix) echo "Configuring the mail service..." ;;
+            progress_nginx) echo "Configuring the web server..." ;;
+            progress_fail2ban) echo "Configuring intrusion protection..." ;;
+            progress_yunohost) echo "Finalizing configuration..." ;;
+            spinner_wait) echo "Working... please wait!" ;;
+            *) echo "$key" ;;
+        esac
+    fi
+}
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 release_dir="$script_dir/components"
 alert_box_user="cron.alerts"
 install_log="/var/log/wappos-install-detail.log"
 
 network_configured_marker="$script_dir/.network-configured"
+wappos_lang_file="/etc/wappos/language"
+
+if [ -f "$wappos_lang_file" ]; then
+    WAPPOS_LANG="$(cat "$wappos_lang_file")"
+else
+    echo
+    echo -e "${bold}Language / Langue :${reset}"
+    echo "  [1] English (default)"
+    echo "  [2] Francais"
+    echo
+    read_with_countdown 15 lang_choice || lang_choice=""
+    case "$lang_choice" in
+        2|f|F) WAPPOS_LANG="fr" ;;
+        *) WAPPOS_LANG="en" ;;
+    esac
+    mkdir -p "$(dirname "$wappos_lang_file")"
+    printf '%s' "$WAPPOS_LANG" > "$wappos_lang_file"
+fi
 
 quiet() {
     "$@" >>"$install_log" 2>&1 &
     local pid=$! spin='-\|/' i=0
     while kill -0 "$pid" 2>/dev/null; do
         i=$(( (i + 1) % 4 ))
-        printf "\r  %s En cours... Patientez !" "${spin:$i:1}"
+        printf "\r  %s %s" "${spin:$i:1}" "$(t spinner_wait)"
         sleep 0.2
     done
     wait "$pid"
@@ -101,7 +303,8 @@ quiet() {
 }
 
 quiet_with_progress() {
-    local seen_line=0 phase="Demarrage..."
+    local seen_line=0 phase
+    phase="$(t progress_start)"
     "$@" >>"$install_log" 2>&1 &
     local pid=$! spin='-\|/' i=0
     while kill -0 "$pid" 2>/dev/null; do
@@ -113,25 +316,25 @@ quiet_with_progress() {
             new_content="$(tail -n "+$((seen_line + 1))" "$install_log" 2>/dev/null)"
             seen_line=$total_lines
             if echo "$new_content" | grep -q "1/5"; then
-                phase="Mise a jour du systeme de base..."
+                phase="$(t progress_base_update)"
             elif echo "$new_content" | grep -q "2/5"; then
-                phase="Installation des dependances necessaires..."
+                phase="$(t progress_deps)"
             elif echo "$new_content" | grep -q "3/5"; then
-                phase="Preparation de l'installation..."
+                phase="$(t progress_prep)"
             elif echo "$new_content" | grep -q "4/5"; then
-                phase="Ajout des sources logicielles..."
+                phase="$(t progress_sources)"
             elif echo "$new_content" | grep -q "5/5"; then
-                phase="Installation du coeur du systeme..."
+                phase="$(t progress_core)"
             elif echo "$new_content" | grep -q "Setting up slapd ("; then
-                phase="Configuration de l'annuaire utilisateurs..."
+                phase="$(t progress_slapd)"
             elif echo "$new_content" | grep -q "Setting up postfix ("; then
-                phase="Configuration du service de messagerie..."
+                phase="$(t progress_postfix)"
             elif echo "$new_content" | grep -q "Setting up nginx"; then
-                phase="Configuration du serveur web..."
+                phase="$(t progress_nginx)"
             elif echo "$new_content" | grep -q "Setting up fail2ban ("; then
-                phase="Configuration de la protection contre les intrusions..."
+                phase="$(t progress_fail2ban)"
             elif echo "$new_content" | grep -q "Setting up yunohost ("; then
-                phase="Finalisation de la configuration..."
+                phase="$(t progress_yunohost)"
             fi
         fi
         printf "\r\033[K  %s %s" "${spin:$i:1}" "$phase"
@@ -145,20 +348,20 @@ quiet_with_progress() {
 
 banner
 echo
-echo "Le detail technique de chaque etape est enregistre dans $install_log"
+printf "$(t log_detail_fmt)\n" "$install_log"
 
 if [ ! -f "$network_configured_marker" ]; then
-    step "Configuration reseau" "Verifie comment ce serveur va se connecter a Internet."
-    echo "Ce serveur utilise l'adresse IP fournie automatiquement par votre routeur (DHCP),"
-    echo "sauf si une configuration manuelle a ete choisie pendant l'installation Debian qui"
-    echo "vient de se terminer. Aucune action requise ici."
+    step "$(t step_network_title)" "$(t step_network_why)"
+    echo "$(t network_msg1)"
+    echo "$(t network_msg2)"
+    echo "$(t network_msg3)"
     echo
-    echo "Pour une adresse IP fixe : debranchez le reseau (ou coupez le Wi-Fi) avant de"
-    echo "demarrer l'installateur Debian - il proposera alors la configuration manuelle."
+    echo "$(t network_msg4)"
+    echo "$(t network_msg5)"
     touch "$network_configured_marker"
 fi
 
-step "Attente du reseau" "S'assure que la connexion est bien active avant de continuer."
+step "$(t step_wait_network_title)" "$(t step_wait_network_why)"
 tries=0
 until getent hosts install.yunohost.org >/dev/null 2>&1; do
     tries=$((tries + 1))
@@ -174,60 +377,59 @@ if ! command -v curl >/dev/null 2>&1 || ! command -v rsync >/dev/null 2>&1; then
 fi
 
 if ! command -v yunohost >/dev/null 2>&1; then
-    step "Installation du moteur systeme Wappos" "Installe le socle technique sur lequel Wappos s'appuie."
-    echo "Cette etape peut durer plusieurs minutes, c'est normal."
+    step "$(t step_install_engine_title)" "$(t step_install_engine_why)"
+    echo "$(t install_engine_msg1)"
     tries=0
     until quiet_with_progress bash -c "curl --ipv4 https://install.yunohost.org | bash -s -- -a"; do
         tries=$((tries + 1))
         if [ "$tries" -ge 4 ]; then
-            error_line "Echec apres plusieurs tentatives, abandon. Dernieres lignes du journal :"
+            error_line "$(t err_after_retries)"
             tail -n 40 "$install_log"
             exit 1
         fi
-        warn_line "Echec, nouvelle tentative dans 10 secondes (${tries}/4)..."
+        warn_line "$(printf "$(t warn_retry_fmt)" "$tries")"
         sleep 10
     done
-    success_line "Moteur systeme installe"
+    success_line "$(t success_engine_installed)"
 fi
 
 if [ ! -f /etc/yunohost/installed ] && ! systemctl list-unit-files wappos_postinstall.service >/dev/null 2>&1; then
-    step "Interface graphique Wappos" "Application et lancement de l'interface graphique pour la configuration initiale."
+    step "$(t step_gui_title)" "$(t step_gui_why)"
     quiet bash "$release_dir/wappos_postinstall/standalone/install.sh"
-    success_line "Interface graphique Wappos appliquee"
+    success_line "$(t success_gui)"
 fi
 
 if [ ! -f /etc/yunohost/installed ]; then
-    title "Finalisation via votre navigateur"
-    echo "La derniere etape (nom de domaine, identifiant, mot de passe) se termine"
-    echo "depuis un navigateur, exactement comme Wappos vous y invitera."
+    title "$(t title_finalize_browser)"
+    echo "$(t finalize_msg1)"
+    echo "$(t finalize_msg2)"
     echo
-    echo -e "${bold}Attention si ce domaine local (.lan/.local) existe deja ailleurs sur votre"
-    echo -e "reseau${reset} (une autre installation, un autre serveur) : choisissez un nom"
-    echo "clairement distinct pour une installation de test."
+    echo -e "${bold}$(t finalize_warn1)"
+    echo -e "$(t finalize_warn2)${reset} $(t finalize_warn3)"
     echo
 
     interface="$(ip route show default | awk '{print $5; exit}')"
     current_ip="$(ip -4 -o addr show dev "$interface" | awk '{print $4}' | cut -d/ -f1 | head -n1)"
-    echo -e "${bold}Ouvrez un navigateur sur une autre machine du meme reseau et allez sur :${reset}"
+    echo -e "${bold}$(t finalize_open_browser)${reset}"
     echo
     echo -e "  ${blue}${bold}https://${current_ip}/${reset}"
     echo
-    echo "Suivez les instructions a l'ecran. Cette etape reprend automatiquement"
-    echo "des que vous avez valide le formulaire, sans rien taper ici."
+    echo "$(t finalize_follow1)"
+    echo "$(t finalize_follow2)"
     echo
 
     i=0
     spin='-\|/'
     until [ -f /etc/yunohost/installed ]; do
         i=$(( (i + 1) % 4 ))
-        printf "\r  %s En attente de la finalisation depuis votre navigateur..." "${spin:$i:1}"
+        printf "\r  %s %s" "${spin:$i:1}" "$(t finalize_waiting)"
         sleep 2
     done
     printf "\r%70s\r" " "
-    success_line "Configuration initiale terminee"
+    success_line "$(t finalize_done)"
 fi
 
-step "Systeme de base installe et configure" "Le socle technique est pret, la suite installe Wappos par-dessus."
+step "$(t step_base_installed_title)" "$(t step_base_installed_why)"
 
 if [ -f /usr/bin/yunoprompt ] && ! grep -q "W A P P O S" /usr/bin/yunoprompt; then
     python3 - <<'PYEOF'
@@ -251,24 +453,24 @@ PYEOF
 fi
 
 if ! command -v docker >/dev/null 2>&1; then
-    step "Installation de Docker Engine" "Permet a Wappos de faire tourner des applications supplementaires de facon isolee."
-    echo "Cette etape peut durer une a deux minutes, c'est normal."
+    step "$(t step_docker_title)" "$(t step_docker_why)"
+    echo "$(t docker_msg1)"
     tries=0
     until quiet bash -c "curl --ipv4 -fsSL https://get.docker.com | sh"; do
         tries=$((tries + 1))
         if [ "$tries" -ge 4 ]; then
-            error_line "Echec apres plusieurs tentatives, abandon. Dernieres lignes du journal :"
+            error_line "$(t err_after_retries)"
             tail -n 40 "$install_log"
             exit 1
         fi
-        warn_line "Echec, nouvelle tentative dans 10 secondes (${tries}/4)..."
+        warn_line "$(printf "$(t warn_retry_fmt)" "$tries")"
         sleep 10
     done
-    success_line "Docker installe"
+    success_line "$(t success_docker)"
 fi
 
 if [ ! -f /etc/systemd/system/docker.service.d/nftables-resync.conf ]; then
-    step "Protection Docker contre les rechargements nftables" "Evite un bug connu qui pourrait couper Docker apres un redemarrage reseau."
+    step "$(t step_nftables_title)" "$(t step_nftables_why)"
     mkdir -p /etc/systemd/system/docker.service.d
     cat > /etc/systemd/system/docker.service.d/nftables-resync.conf <<'NFTABLES_EOF'
 [Unit]
@@ -288,19 +490,19 @@ main_domain="$(yunohost domain list --output-as json | python3 -c "import json,s
 admin_username="$(yunohost user list --output-as json | python3 -c "import json,sys; users=json.load(sys.stdin)['users']; print(next(iter(users), 'wappos_admin'))")"
 
 if ! yunohost user list --output-as json | python3 -c "import json,sys; sys.exit(0 if '$alert_box_user' in json.load(sys.stdin)['users'] else 1)"; then
-    step "Creation du compte technique d'alertes" "Un compte interne pour les notifications systeme, pas pour vous connecter."
+    step "$(t step_alert_account_title)" "$(t step_alert_account_why)"
     yunohost user create "$alert_box_user" -F "SYSTEME - NE PAS SUPPRIMER" -d "$main_domain" -p "$(openssl rand -base64 24)"
 fi
 
-step "Installation des composants Wappos" "Installe le portail, l'administration et les autres briques propres a Wappos."
+step "$(t step_components_title)" "$(t step_components_why)"
 for component in wappos_api_ynh wappos_sso_bypass wappos_admin_ynh wappos_portal_ynh prometheus_ynh; do
-    echo "  Installation de $component..."
+    printf "$(t installing_component_fmt)\n" "$component"
     quiet bash "$release_dir/$component/standalone/install.sh"
-    success_line "  $component installe"
+    success_line "$(printf "$(t component_installed_fmt)" "$component")"
 done
 
 if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'rspamd' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then
-    step "Installation de Rspamd (antispam)" "Protege vos boites mail contre le spam."
+    step "$(t step_rspamd_title)" "$(t step_rspamd_why)"
     quiet yunohost app install rspamd
 
     cat > /etc/rspamd/local.d/phishing.conf <<'RSPAMD_PHISHING_EOF'
@@ -336,17 +538,17 @@ CRON_EOF
         systemctl reload postfix
     fi
 
-    success_line "Rspamd installe"
+    success_line "$(t success_rspamd)"
 fi
 
-step "Finalisation de la liaison Prometheus / wappos_admin" "Connecte le tableau de bord de performance a l'administration."
+step "$(t step_prometheus_title)" "$(t step_prometheus_why)"
 (
     source "$release_dir/wappos_admin_ynh/standalone/vars.sh"
     deploy_prometheus_readonly_user
 )
 systemctl restart wappos_admin
 
-success_line "Composants Wappos installes."
+success_line "$(t success_components)"
 
 interface="$(ip route show default | awk '{print $5; exit}')"
 final_ip="$(ip -4 -o addr show dev "$interface" | awk '{print $4}' | cut -d/ -f1 | head -n1)"
@@ -354,28 +556,28 @@ final_ip="$(ip -4 -o addr show dev "$interface" | awk '{print $4}' | cut -d/ -f1
 security_configured_marker="$script_dir/.security-configured"
 
 if [ ! -f "$security_configured_marker" ]; then
-    step "Connexion SSH par mot de passe"
-    echo "Par defaut, seules les cles SSH sont acceptees pour la connexion root"
-    echo "(la connexion par mot de passe reste desactivee depuis le premier"
-    echo "demarrage, pour ne pas exposer ce serveur avant sa configuration)."
+    step "$(t step_ssh_password_title)"
+    echo "$(t ssh_msg1)"
+    echo "$(t ssh_msg2)"
+    echo "$(t ssh_msg3)"
     echo
     if [ -s /root/.ssh/authorized_keys ]; then
-        echo -e "${bold}Une cle SSH est deja enregistree pour root.${reset} Rien a faire, vous pouvez"
-        echo "vous connecter normalement."
+        echo -e "${bold}$(t ssh_key_present1)${reset} $(t ssh_key_present2)"
     else
-        echo -e "${bold}Aucune cle SSH enregistree pour root.${reset} Activer la connexion par mot"
-        echo "de passe le temps d'en ajouter une ? [o/N] (20 secondes, sinon N par defaut)"
+        echo -e "${bold}$(t ssh_no_key1)${reset}"
+        echo "$(t ssh_no_key2)"
         read_with_countdown 20 enable_ssh_password || enable_ssh_password="n"
 
-        if [ "$enable_ssh_password" = "o" ] || [ "$enable_ssh_password" = "O" ]; then
-            cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
-            sed -i 's/^#\?PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-            sshd -t
-            systemctl reload sshd
-            echo -e "${bold}Connexion par mot de passe activee.${reset} Le mot de passe root est celui"
-            echo "que vous venez de choisir pour l'administrateur Wappos ci-dessus."
-            echo "Pensez a la desactiver a nouveau une fois votre cle ajoutee."
-        fi
+        case "$enable_ssh_password" in
+            y|Y|o|O)
+                cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
+                sed -i 's/^#\?PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
+                sshd -t
+                systemctl reload sshd
+                echo -e "${bold}$(t ssh_enabled1)${reset} $(t ssh_enabled2)"
+                echo "$(t ssh_enabled3)"
+                ;;
+        esac
     fi
     echo
 
@@ -384,34 +586,34 @@ fi
 
 echo
 box_start
-success_line "Wappos est pret"
+success_line "$(t final_ready)"
 box_end
 echo
-echo -e "${bold}L'installation est terminee.${reset} Connectez-vous avec :"
+echo -e "${bold}$(t final_done)${reset} $(t final_connect)"
 echo
-echo -e "  Portail        : ${bold}https://$main_domain/wappos-portal/${reset}  (ou https://$final_ip/wappos-portal/)"
-echo -e "  Administration : ${bold}https://$main_domain/wappos-admin/${reset}  (ou https://$final_ip/wappos-admin/)"
+echo -e "  $(t final_portal_label)        : ${bold}https://$main_domain/wappos-portal/${reset}  ($(t final_or) https://$final_ip/wappos-portal/)"
+echo -e "  $(t final_admin_label) : ${bold}https://$main_domain/wappos-admin/${reset}  ($(t final_or) https://$final_ip/wappos-admin/)"
 echo
-echo -e "${blue}${bold}  >>> IDENTIFIANT : ${admin_username}${reset}"
-echo -e "${blue}${bold}  >>> MOT DE PASSE : celui que vous venez de definir ci-dessus${reset}"
+echo -e "${blue}${bold}  $(t final_username_label) ${admin_username}${reset}"
+echo -e "${blue}${bold}  $(t final_password_label)${reset}"
 echo
 
 if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config 2>/dev/null; then
-    echo -e "${bold}Acces SSH desactive par defaut.${reset} Si vous en avez besoin plus tard,"
-    echo "connectez-vous en console (identifiant/mot de passe ci-dessus) puis executez :"
+    echo -e "${bold}$(t ssh_disabled_default1)${reset} $(t ssh_disabled_default2)"
     echo
     echo -e "  ${bold}sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && systemctl reload ssh${reset}"
     echo
-    echo "Pensez a la desactiver a nouveau une fois votre cle SSH ajoutee :"
+    echo "$(t ssh_disabled_default3)"
     echo -e "  ${bold}sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && systemctl reload ssh${reset}"
     echo
 fi
 
-if [ -f /usr/bin/yunoprompt ] && ! grep -q "Portail Wappos" /usr/bin/yunoprompt; then
+if [ -f /usr/bin/yunoprompt ] && ! grep -q "Wappos Portal\|Portail Wappos" /usr/bin/yunoprompt; then
     export WAPPOS_DOMAIN="$main_domain"
     export WAPPOS_IP="$final_ip"
     export WAPPOS_USERNAME="$admin_username"
     export WAPPOS_SSH_DISABLED="$(grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config 2>/dev/null && echo 1 || echo 0)"
+    export WAPPOS_LANG
     python3 - <<'PYEOF'
 import os
 import re
@@ -420,6 +622,7 @@ domain = os.environ["WAPPOS_DOMAIN"]
 ip = os.environ["WAPPOS_IP"]
 username = os.environ["WAPPOS_USERNAME"]
 ssh_disabled = os.environ["WAPPOS_SSH_DISABLED"] == "1"
+lang = os.environ.get("WAPPOS_LANG", "en")
 with open(path, encoding="utf-8") as f:
     content = f.read()
 
@@ -429,17 +632,28 @@ noise_pattern = re.compile(
 )
 content = noise_pattern.sub("", content, count=1)
 
+if lang == "fr":
+    portal_label = "Portail Wappos"
+    admin_label = "Administration Wappos"
+    username_label = "Identifiant"
+    ssh_disabled_label = "Acces SSH desactive - pour l'activer, executez :"
+else:
+    portal_label = "Wappos Portal"
+    admin_label = "Wappos Administration"
+    username_label = "Username"
+    ssh_disabled_label = "SSH access disabled - to enable it, run:"
+
 anchor = "Local IP: ${local_ip:-(no ip detected?)}"
 block = (
     "\n"
-    f" Portail Wappos        : https://{domain}/wappos-portal/ (ou https://{ip}/wappos-portal/)\n"
-    f" Administration Wappos : https://{domain}/wappos-admin/ (ou https://{ip}/wappos-admin/)\n"
-    f" Identifiant : {username}"
+    f" {portal_label}        : https://{domain}/wappos-portal/ ({'ou' if lang == 'fr' else 'or'} https://{ip}/wappos-portal/)\n"
+    f" {admin_label} : https://{domain}/wappos-admin/ ({'ou' if lang == 'fr' else 'or'} https://{ip}/wappos-admin/)\n"
+    f" {username_label} : {username}"
 )
 if ssh_disabled:
     block += (
         "\n\n"
-        " Acces SSH desactive - pour l'activer, executez :\n"
+        f" {ssh_disabled_label}\n"
         " sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && systemctl reload ssh"
     )
 if anchor in content:

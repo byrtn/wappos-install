@@ -17,6 +17,8 @@ from urllib.parse import urlencode
 import requests
 import yaml
 
+import i18n
+
 DATA_FILE = Path(__file__).parent / "data" / "docker_apps.json"
 PORT_RANGE_START = 9100
 PORT_RANGE_END = 9999
@@ -24,6 +26,10 @@ PORT_RANGE_END = 9999
 KNOWN_SPA_IMAGES = (
     "portainer", "dashy", "heimdall", "homepage", "homarr", "organizr", "flame",
 )
+
+
+def _t(key: str, lang: str, **kwargs) -> str:
+    return i18n.t(key, i18n.normalize_lang(lang), **kwargs)
 
 
 def _looks_like_spa(image):
@@ -74,7 +80,7 @@ class DockerGateError(Exception):
     pass
 
 
-def _get_docker_client():
+def _get_docker_client(lang: str = "en"):
     global _docker_client, _docker_client_error
     if _docker_client is not None:
         return _docker_client
@@ -84,9 +90,7 @@ def _get_docker_client():
         return _docker_client
     except Exception as e:
         _docker_client_error = str(e)
-        raise DockerGateError(
-            f"Impossible de contacter le démon Docker — vérifiez qu'il est installé et démarré ({e})."
-        )
+        raise DockerGateError(_t("dg_err_docker_daemon_unreachable", lang, detail=e))
 
 
 def docker_available() -> bool:
@@ -183,30 +187,28 @@ def _slug_already_used(slug: str) -> bool:
     return any(a["slug"] == slug for a in _load_state())
 
 
-def _validate_cpu_limit(cpu_limit: str) -> str | None:
+def _validate_cpu_limit(cpu_limit: str, lang: str = "en") -> str | None:
     cpu_limit = (cpu_limit or "").strip()
     if not cpu_limit:
         return None
     if not re.fullmatch(r"\d+(\.\d+)?", cpu_limit) or float(cpu_limit) <= 0:
-        raise DockerGateError(f"Limite CPU invalide : « {cpu_limit} » (attendu un nombre positif, ex. 0.5).")
+        raise DockerGateError(_t("dg_err_cpu_limit_invalid", lang, value=cpu_limit))
     return cpu_limit
 
 
-def _validate_mem_limit(mem_limit: str) -> str | None:
+def _validate_mem_limit(mem_limit: str, lang: str = "en") -> str | None:
     mem_limit = (mem_limit or "").strip()
     if not mem_limit:
         return None
     if not re.fullmatch(r"\d+[mMgG]", mem_limit):
-        raise DockerGateError(
-            f"Limite mémoire invalide : « {mem_limit} » — attendu un nombre suivi de m (méga-octets) ou g (giga-octets), ex. 512m ou 1g."
-        )
+        raise DockerGateError(_t("dg_err_mem_limit_invalid", lang, value=mem_limit))
     return mem_limit
 
 
-def _pick_free_port() -> int:
+def _pick_free_port(lang: str = "en") -> int:
     used = {a["host_port"] for a in _load_state()}
 
-    client = _get_docker_client()
+    client = _get_docker_client(lang)
     for container in client.containers.list(all=True):
         for bindings in (container.ports or {}).values():
             if not bindings:
@@ -221,37 +223,37 @@ def _pick_free_port() -> int:
         if port not in used:
             return port
 
-    raise DockerGateError("Aucun port libre disponible dans la plage 9100-9999.")
+    raise DockerGateError(_t("dg_err_no_free_port", lang))
 
 
-def build_create_steps(mode: str) -> list[str]:
-    steps = ["Vérification des paramètres", "Sélection du port"]
+def build_create_steps(mode: str, lang: str = "en") -> list[str]:
+    steps = [_t("dg_step_check_parameters", lang), _t("dg_step_select_port", lang)]
     if mode == "subdomain":
         steps += [
-            "Création du domaine",
-            "Diagnostic DNS",
-            "Diagnostic Web",
-            "Obtention du certificat",
-            "Vérification du certificat",
+            _t("dg_step_create_domain", lang),
+            _t("dg_step_dns_diagnosis", lang),
+            _t("dg_step_web_diagnosis", lang),
+            _t("dg_step_get_certificate", lang),
+            _t("dg_step_check_certificate", lang),
         ]
-    steps += ["Écriture de la configuration", "Démarrage du conteneur", "Exposition de l'app"]
+    steps += [_t("dg_step_write_configuration", lang), _t("dg_step_start_container", lang), _t("dg_step_expose_app", lang)]
     return steps
 
 
-def build_edit_steps() -> list[str]:
-    return ["Vérification des paramètres", "Écriture de la configuration", "Redémarrage du conteneur"]
+def build_edit_steps(lang: str = "en") -> list[str]:
+    return [_t("dg_step_check_parameters", lang), _t("dg_step_write_configuration", lang), _t("dg_step_restart_container", lang)]
 
 
-def fetch_compose_from_url(url: str) -> str:
+def fetch_compose_from_url(url: str, lang: str = "en") -> str:
     if not url.startswith("https://"):
-        raise DockerGateError("Seules les URL https:// sont acceptées.")
+        raise DockerGateError(_t("dg_err_https_only", lang))
     try:
         response = requests.get(url, timeout=10)
         response.raise_for_status()
     except requests.RequestException as e:
-        raise DockerGateError(f"Impossible de récupérer l'URL ({e}).")
+        raise DockerGateError(_t("dg_err_url_fetch_failed", lang, detail=e))
     if len(response.content) > 200_000:
-        raise DockerGateError("Fichier trop volumineux (>200 Ko).")
+        raise DockerGateError(_t("dg_err_file_too_large", lang))
     return response.text
 
 
@@ -297,13 +299,13 @@ def _strip_port_protocol(port_str: str) -> str:
     return port_str.split("/")[0]
 
 
-def inspect_docker_image(image_name: str) -> dict:
-    client = _get_docker_client()
+def inspect_docker_image(image_name: str, lang: str = "en") -> dict:
+    client = _get_docker_client(lang)
     import docker as docker_lib
     try:
         image = client.images.pull(image_name)
     except docker_lib.errors.APIError as e:
-        raise DockerGateError(f"Impossible de télécharger l'image « {image_name} » ({e}).")
+        raise DockerGateError(_t("dg_err_image_pull_failed", lang, image=image_name, detail=e))
 
     config = image.attrs.get("Config", {}) or {}
     result = {"image": image_name, "container_port": None, "data_path": None, "suggested_slug": None}
@@ -339,19 +341,19 @@ def _substitute_compose_vars(text, defaults=None):
     return resolved_text, unresolved
 
 
-def parse_docker_run_command(text: str) -> dict:
+def parse_docker_run_command(text: str, lang: str = "en") -> dict:
     joined = re.sub(r"\\\s*\n", " ", text)
     joined = joined.replace("\n", " ").strip()
     if not joined.startswith("docker "):
-        raise DockerGateError("Ce texte ne ressemble pas à une commande « docker run ».")
+        raise DockerGateError(_t("dg_err_not_docker_run", lang))
 
     try:
         tokens = shlex.split(joined)
     except ValueError as e:
-        raise DockerGateError(f"Impossible d'analyser la commande ({e}).")
+        raise DockerGateError(_t("dg_err_command_parse_failed", lang, detail=e))
 
     if "run" not in tokens:
-        raise DockerGateError("Aucun sous-commande « run » trouvée.")
+        raise DockerGateError(_t("dg_err_no_run_subcommand", lang))
 
     tokens = tokens[tokens.index("run") + 1:]
 
@@ -370,7 +372,7 @@ def parse_docker_run_command(text: str) -> dict:
             if result["container_port"] is None:
                 result["container_port"] = _strip_port_protocol(tokens[i + 1].split(":")[-1])
             else:
-                warnings.append("Plusieurs ports publiés — seul le premier a été retenu.")
+                warnings.append(_t("dg_warn_multiple_published_ports", lang))
             i += 2
             continue
         if tok in ("-v", "--volume") and i + 1 < len(tokens):
@@ -379,7 +381,7 @@ def parse_docker_run_command(text: str) -> dict:
                 if result["data_path"] is None:
                     result["data_path"] = parts[1]
                 else:
-                    warnings.append("Plusieurs volumes montés — seul le premier a été retenu.")
+                    warnings.append(_t("dg_warn_multiple_mounted_volumes", lang))
             i += 2
             continue
         if tok in ("-e", "--env") and i + 1 < len(tokens):
@@ -409,25 +411,25 @@ def parse_docker_run_command(text: str) -> dict:
         result["env_vars"] = "\n".join(other_lines)
 
     if not result["image"]:
-        raise DockerGateError("Aucune image Docker trouvée dans cette commande.")
+        raise DockerGateError(_t("dg_err_no_docker_image_found", lang))
 
     result["warnings"] = warnings
     return result
 
 
-def smart_parse_input(text: str, env_example_text=None) -> dict:
+def smart_parse_input(text: str, env_example_text=None, lang: str = "en") -> dict:
     stripped = text.strip()
     if not stripped:
-        raise DockerGateError("Rien à analyser.")
+        raise DockerGateError(_t("dg_err_nothing_to_parse", lang))
 
     if stripped.startswith("docker "):
-        result = parse_docker_run_command(stripped)
+        result = parse_docker_run_command(stripped, lang=lang)
     elif "\n" in stripped or stripped.lstrip().startswith(("services:", "image:")):
-        result = parse_compose_snippet(stripped, env_example_text=env_example_text)
+        result = parse_compose_snippet(stripped, env_example_text=env_example_text, lang=lang)
     elif re.fullmatch(r"[a-zA-Z0-9][a-zA-Z0-9._/-]*(:[a-zA-Z0-9._-]+)?", stripped):
-        result = inspect_docker_image(stripped)
+        result = inspect_docker_image(stripped, lang=lang)
     else:
-        raise DockerGateError("Format non reconnu — collez une image, une commande « docker run » ou un docker-compose.yml.")
+        raise DockerGateError(_t("dg_err_unrecognized_format", lang))
 
     if result.get("multi_service"):
         for service_result in result["services"]:
@@ -449,7 +451,7 @@ def _is_internal_service_reference(url_value, sibling_service_keys):
     return host in sibling_service_keys
 
 
-def _extract_compose_service_fields(service, service_key, sibling_service_keys=None, env_example_vars=None):
+def _extract_compose_service_fields(service, service_key, sibling_service_keys=None, env_example_vars=None, lang: str = "en"):
     result = {"image": None, "container_port": None, "data_path": None, "env_vars": None, "url_env_var": None,
               "service_key": service_key,
               "suggested_slug": service.get("container_name") or service_key}
@@ -460,7 +462,7 @@ def _extract_compose_service_fields(service, service_key, sibling_service_keys=N
         if env_example_vars:
             pairs.extend(env_example_vars.items())
         else:
-            warnings.append("« env_file » n'est pas supporté — ajoutez les variables manuellement.")
+            warnings.append(_t("dg_warn_env_file_unsupported", lang))
 
     if "image" in service:
         result["image"] = str(service["image"])
@@ -470,7 +472,7 @@ def _extract_compose_service_fields(service, service_key, sibling_service_keys=N
         first = str(ports[0])
         result["container_port"] = _strip_port_protocol(first.split(":")[-1])
         if len(ports) > 1:
-            warnings.append("Plusieurs ports déclarés — seul le premier a été retenu.")
+            warnings.append(_t("dg_warn_multiple_declared_ports", lang))
 
     volumes = service.get("volumes")
     if volumes and isinstance(volumes, list):
@@ -487,7 +489,7 @@ def _extract_compose_service_fields(service, service_key, sibling_service_keys=N
             if result["data_path"] is None:
                 result["data_path"] = parts[1]
         if candidates_found > 1:
-            warnings.append("Plusieurs volumes déclarés — seul le premier a été retenu.")
+            warnings.append(_t("dg_warn_multiple_declared_volumes", lang))
 
     environment = service.get("environment")
     if environment:
@@ -552,11 +554,11 @@ def _autogenerate_secrets(parsed_services):
     return generated_labels
 
 
-def parse_compose_snippet(text: str, env_example_text=None) -> dict:
+def parse_compose_snippet(text: str, env_example_text=None, lang: str = "en") -> dict:
     env_example_vars = None
     if env_example_text:
         try:
-            env_example_vars = parse_env_vars_text(env_example_text)
+            env_example_vars = parse_env_vars_text(env_example_text, lang=lang)
         except DockerGateError:
             pass
 
@@ -565,21 +567,21 @@ def parse_compose_snippet(text: str, env_example_text=None) -> dict:
     try:
         data = yaml.safe_load(text)
     except yaml.YAMLError as e:
-        raise DockerGateError(f"docker-compose.yml invalide ({e}).")
+        raise DockerGateError(_t("dg_err_compose_invalid", lang, detail=e))
 
     if not isinstance(data, dict):
-        raise DockerGateError("Ce contenu ne ressemble pas à un docker-compose.yml valide.")
+        raise DockerGateError(_t("dg_err_compose_not_valid_content", lang))
 
     if "services" in data and isinstance(data["services"], dict):
         services = data["services"]
         if not services:
-            raise DockerGateError("Aucun service trouvé dans ce docker-compose.yml.")
+            raise DockerGateError(_t("dg_err_no_service_found", lang))
     else:
         services = {None: data}
 
     compose_warnings = []
     if unresolved_vars:
-        compose_warnings.append(f"Variables non résolues : {', '.join(sorted(set(unresolved_vars)))}.")
+        compose_warnings.append(_t("dg_warn_unresolved_vars", lang, names=", ".join(sorted(set(unresolved_vars)))))
 
     if len(services) > 1:
         all_service_keys = set(services.keys())
@@ -587,46 +589,46 @@ def parse_compose_snippet(text: str, env_example_text=None) -> dict:
         env_example_applied = False
         for service_key, service in services.items():
             if not isinstance(service, dict):
-                raise DockerGateError("Format de service non reconnu.")
+                raise DockerGateError(_t("dg_err_unrecognized_service_format", lang))
             sibling_keys = all_service_keys - {service_key}
             if env_example_vars and service.get("env_file"):
                 env_example_applied = True
             service_result, service_warnings = _extract_compose_service_fields(
-                service, service_key, sibling_keys, env_example_vars=env_example_vars)
+                service, service_key, sibling_keys, env_example_vars=env_example_vars, lang=lang)
             service_result["warnings"] = service_warnings
             parsed_services.append(service_result)
         if not any(s["image"] for s in parsed_services):
-            raise DockerGateError("Aucune image trouvée dans ce docker-compose.yml.")
+            raise DockerGateError(_t("dg_err_no_image_found_compose", lang))
         if env_example_applied:
-            compose_warnings.append("Fichier d'exemple d'environnement du projet utilisé pour compléter env_file.")
+            compose_warnings.append(_t("dg_warn_env_example_used", lang))
         generated = _autogenerate_secrets(parsed_services)
         if generated:
-            compose_warnings.append(f"Secrets auto-générés : {', '.join(generated)}.")
+            compose_warnings.append(_t("dg_warn_secrets_autogenerated", lang, names=", ".join(generated)))
         return {"multi_service": True, "services": parsed_services, "warnings": compose_warnings}
 
     service_key, service = next(iter(services.items()))
     if not isinstance(service, dict):
-        raise DockerGateError("Format de service non reconnu.")
+        raise DockerGateError(_t("dg_err_unrecognized_service_format", lang))
 
-    result, service_warnings = _extract_compose_service_fields(service, service_key, env_example_vars=env_example_vars)
+    result, service_warnings = _extract_compose_service_fields(service, service_key, env_example_vars=env_example_vars, lang=lang)
     if env_example_vars and service.get("env_file"):
-        compose_warnings.append("Fichier d'exemple d'environnement du projet utilisé pour compléter env_file.")
+        compose_warnings.append(_t("dg_warn_env_example_used", lang))
 
     if not result["image"] and not result["container_port"] and not result["data_path"] and not result["env_vars"]:
-        raise DockerGateError("Rien d'exploitable n'a été trouvé dans ce docker-compose.yml.")
+        raise DockerGateError(_t("dg_err_nothing_usable_in_compose", lang))
 
     result["warnings"] = compose_warnings + service_warnings
     return result
 
 
-def parse_env_vars_text(text: str) -> dict:
+def parse_env_vars_text(text: str, lang: str = "en") -> dict:
     env = {}
     for i, raw_line in enumerate(text.splitlines(), start=1):
         line = raw_line.strip()
         if not line or line.startswith("#"):
             continue
         if "=" not in line:
-            raise DockerGateError(f"Ligne {i} invalide (pas de « = ») : {line}")
+            raise DockerGateError(_t("dg_err_invalid_line_no_equals", lang, line_num=i, line=line))
         key, _, value = line.partition("=")
         env[key.strip()] = value.strip()
     return env
@@ -639,9 +641,9 @@ def _compose_dir(slug: str) -> Path:
 _CONFIG_FILE_NAME_RE = re.compile(r"[A-Za-z0-9][A-Za-z0-9._-]{0,63}")
 
 
-def _write_bind_mount_file(slug: str, relative_name: str, content: str) -> None:
+def _write_bind_mount_file(slug: str, relative_name: str, content: str, lang: str = "en") -> None:
     if not _CONFIG_FILE_NAME_RE.fullmatch(relative_name or ""):
-        raise DockerGateError(f"Nom de fichier de configuration invalide : « {relative_name} ».")
+        raise DockerGateError(_t("dg_err_invalid_config_filename", lang, name=relative_name))
     config_dir = _compose_dir(slug) / "config"
     config_dir.mkdir(parents=True, exist_ok=True)
     (config_dir / relative_name).write_text(content)
@@ -702,16 +704,16 @@ def _build_compose_document(slug, main_key, image, container_port, host_port, en
     return doc
 
 
-def _run_docker_compose(project_name, compose_path, args, error_message, timeout=180):
+def _run_docker_compose(project_name, compose_path, args, error_message, timeout=180, lang: str = "en"):
     try:
         result = subprocess.run(
             ["docker", "compose", "-p", project_name, "-f", str(compose_path)] + args,
             capture_output=True, text=True, timeout=timeout,
         )
     except subprocess.TimeoutExpired:
-        raise DockerGateError(f"{error_message} (délai dépassé après {timeout}s).")
+        raise DockerGateError(_t("dg_err_timeout_after", lang, message=error_message, timeout=timeout))
     if result.returncode != 0:
-        raise DockerGateError(f"{error_message} : {result.stderr.strip() or result.stdout.strip()}")
+        raise DockerGateError(_t("dg_err_with_detail", lang, message=error_message, detail=(result.stderr.strip() or result.stdout.strip())))
     return result.stdout
 
 
@@ -763,19 +765,19 @@ def check_path_status(domain, path, list_apps_fn):
     return {"status": "free", "domain": domain, "path": normalized_path}
 
 
-def resolve_target_url(mode, domain, domain_parent, path, new_subdomain):
+def resolve_target_url(mode, domain, domain_parent, path, new_subdomain, lang: str = "en"):
     if mode == "subdomain":
         if not new_subdomain or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,62}", new_subdomain):
-            raise DockerGateError("Sous-domaine invalide.")
+            raise DockerGateError(_t("dg_err_invalid_subdomain", lang))
         if not domain_parent:
-            raise DockerGateError("Domaine parent manquant.")
+            raise DockerGateError(_t("dg_err_missing_parent_domain", lang))
         return f"https://{new_subdomain}.{domain_parent}/"
 
     if not domain:
-        raise DockerGateError("Domaine manquant.")
+        raise DockerGateError(_t("dg_err_missing_domain", lang))
     normalized_path = path if path.startswith("/") else f"/{path}"
     if not re.fullmatch(r"/[a-zA-Z0-9._~-]*(?:/[a-zA-Z0-9._~-]+)*", normalized_path):
-        raise DockerGateError("Chemin invalide.")
+        raise DockerGateError(_t("dg_err_invalid_path", lang))
     return f"https://{domain}{normalized_path}"
 
 
@@ -874,7 +876,7 @@ def create_docker_app(
     slug, image, container_port, mode, domain, domain_parent, path, new_subdomain, visibility,
     data_path="", env_vars=None, url_env_var="", reuse_existing_domain=False,
     companions=None, main_service_key=None, config_files=None, cpu_limit="", mem_limit="",
-    ldap_enabled=False, logo_bytes=None, on_step=None,
+    ldap_enabled=False, logo_bytes=None, on_step=None, lang: str = "en",
     *,
     add_domain_fn, run_diagnosis_fn, install_cert_fn, domain_detail_fn,
     install_app_fn, list_app_ids_fn, set_permission_logo_fn=None,
@@ -885,74 +887,71 @@ def create_docker_app(
         if on_step:
             on_step(label)
 
-    step("Vérification des paramètres")
+    step(_t("dg_step_check_parameters", lang))
     if not _slug_is_valid(slug):
-        raise DockerGateError("Identifiant (slug) invalide — lettres minuscules, chiffres et tirets uniquement.")
+        raise DockerGateError(_t("dg_err_invalid_slug", lang))
     if _slug_already_used(slug):
-        raise DockerGateError(f"L'identifiant « {slug} » est déjà utilisé.")
+        raise DockerGateError(_t("dg_err_slug_already_used", lang, slug=slug))
 
     try:
         container_port = int(container_port)
     except (TypeError, ValueError):
-        raise DockerGateError("Le port du conteneur doit être un nombre.")
+        raise DockerGateError(_t("dg_err_container_port_must_be_number", lang))
 
-    cpu_limit = _validate_cpu_limit(cpu_limit)
-    mem_limit = _validate_mem_limit(mem_limit)
+    cpu_limit = _validate_cpu_limit(cpu_limit, lang=lang)
+    mem_limit = _validate_mem_limit(mem_limit, lang=lang)
 
     if mode == "subdomain":
         if not new_subdomain or not re.fullmatch(r"[a-z0-9][a-z0-9-]{1,62}", new_subdomain):
-            raise DockerGateError("Sous-domaine invalide.")
+            raise DockerGateError(_t("dg_err_invalid_subdomain", lang))
         if not domain_parent:
-            raise DockerGateError("Domaine parent manquant.")
+            raise DockerGateError(_t("dg_err_missing_parent_domain", lang))
         target_domain = f"{new_subdomain}.{domain_parent}"
         target_path = "/"
     else:
         if not domain:
-            raise DockerGateError("Domaine manquant.")
+            raise DockerGateError(_t("dg_err_missing_domain", lang))
         normalized_path = path if path.startswith("/") else f"/{path}"
         if not re.fullmatch(r"/[a-zA-Z0-9._~-]*(?:/[a-zA-Z0-9._~-]+)*", normalized_path):
-            raise DockerGateError("Chemin invalide.")
+            raise DockerGateError(_t("dg_err_invalid_path", lang))
         target_domain = domain
         target_path = normalized_path
 
     permission_group = visibility if visibility in ("admins", "all_users", "visitors") else "admins"
 
     with _state_lock():
-        step("Sélection du port")
-        host_port = _pick_free_port()
+        step(_t("dg_step_select_port", lang))
+        host_port = _pick_free_port(lang=lang)
 
         if mode == "subdomain":
             if not reuse_existing_domain:
-                step("Création du domaine")
+                step(_t("dg_step_create_domain", lang))
                 add_domain_fn(target_domain)
 
-            step("Diagnostic DNS")
+            step(_t("dg_step_dns_diagnosis", lang))
             if not run_diagnosis_fn("dnsrecords"):
-                warnings.append(f"Le diagnostic DNS de {target_domain} n'a pas pu être vérifié.")
+                warnings.append(_t("dg_warn_dns_diagnosis_unverified", lang, domain=target_domain))
 
-            step("Diagnostic Web")
+            step(_t("dg_step_web_diagnosis", lang))
             if not run_diagnosis_fn("web"):
-                warnings.append(f"Le diagnostic Web de {target_domain} n'a pas pu être vérifié.")
+                warnings.append(_t("dg_warn_web_diagnosis_unverified", lang, domain=target_domain))
 
-            step("Obtention du certificat")
+            step(_t("dg_step_get_certificate", lang))
             try:
                 install_cert_fn(target_domain)
             except Exception:
                 pass
 
-            step("Vérification du certificat")
+            step(_t("dg_step_check_certificate", lang))
             ca_type = None
             try:
                 detail = domain_detail_fn(target_domain)
                 ca_type = (detail.get("certificate") or {}).get("CA_type")
             except Exception as e:
-                warnings.append(f"Impossible de vérifier le certificat de {target_domain} ({e}).")
+                warnings.append(_t("dg_warn_cert_check_failed", lang, domain=target_domain, detail=e))
 
             if ca_type and ca_type != "letsencrypt":
-                warnings.append(
-                    f"Le certificat de {target_domain} n'est pas Let's Encrypt (« {ca_type} »). "
-                    "Vérifiez la configuration DNS et le transfert TLS, puis relancez l'installation."
-                )
+                warnings.append(_t("dg_warn_cert_not_letsencrypt", lang, domain=target_domain, ca_type=ca_type))
 
         if url_env_var:
             env_vars = dict(env_vars) if env_vars else {}
@@ -965,16 +964,16 @@ def create_docker_app(
         project_name = f"docker-gate-{slug}"
         compose_path = _compose_dir(slug) / "docker-compose.yml"
 
-        step("Écriture de la configuration")
+        step(_t("dg_step_write_configuration", lang))
         if ldap_enabled:
-            ensure_ldap_relay()
+            ensure_ldap_relay(lang=lang)
         resolved_config_files = []
         for cf in config_files or []:
             container_path = (cf.get("container_path") or "").strip()
             filename = (cf.get("filename") or "").strip()
             if not container_path.startswith("/"):
-                raise DockerGateError(f"Chemin de fichier de configuration invalide : « {container_path} ».")
-            _write_bind_mount_file(slug, filename, cf.get("content") or "")
+                raise DockerGateError(_t("dg_err_invalid_config_file_path", lang, path=container_path))
+            _write_bind_mount_file(slug, filename, cf.get("content") or "", lang=lang)
             resolved_config_files.append({"container_path": container_path, "host_relative_path": filename})
 
         compose_doc = _build_compose_document(
@@ -988,15 +987,15 @@ def create_docker_app(
             with open(compose_path, "w") as f:
                 yaml.safe_dump(compose_doc, f, sort_keys=False)
         except OSError as e:
-            raise DockerGateError(f"Impossible d'écrire la configuration ({e}).")
+            raise DockerGateError(_t("dg_err_write_config_failed", lang, detail=e))
 
-        step("Démarrage du conteneur")
-        _run_docker_compose(project_name, compose_path, ["config", "-q"], "Configuration invalide", timeout=30)
+        step(_t("dg_step_start_container", lang))
+        _run_docker_compose(project_name, compose_path, ["config", "-q"], _t("dg_err_invalid_configuration", lang), timeout=30, lang=lang)
         try:
             _run_docker_compose(
                 project_name, compose_path,
                 ["up", "-d", "--wait", "--wait-timeout", "120", "--pull", "missing"],
-                "Échec du démarrage du conteneur", timeout=240,
+                _t("dg_err_container_start_failed", lang), timeout=240, lang=lang,
             )
         except DockerGateError:
             _teardown_compose_project(project_name, compose_path)
@@ -1018,7 +1017,7 @@ def create_docker_app(
         for c in (companions or [])
     ]
 
-    step("Exposition de l'app")
+    step(_t("dg_step_expose_app", lang))
     args_string = urlencode({
         "domain": target_domain,
         "path": target_path,
@@ -1041,7 +1040,7 @@ def create_docker_app(
         try:
             set_permission_logo_fn(f"{yunohost_app_id}.main", "logo.png", logo_bytes)
         except Exception as e:
-            warnings.append(f"Le logo de l'app n'a pas pu être appliqué ({e}).")
+            warnings.append(_t("dg_warn_logo_not_applied", lang, detail=e))
 
     entry = {
         "slug": slug,
@@ -1073,16 +1072,16 @@ def create_docker_app(
     return entry
 
 
-def _find_entry(slug: str) -> tuple[list[dict], dict]:
+def _find_entry(slug: str, lang: str = "en") -> tuple[list[dict], dict]:
     apps = _load_state()
     entry = next((a for a in apps if a["slug"] == slug), None)
     if entry is None:
-        raise DockerGateError(f"App inconnue : {slug}")
+        raise DockerGateError(_t("dg_err_unknown_app", lang, slug=slug))
     return apps, entry
 
 
-def get_app_entry(slug: str) -> dict:
-    _, entry = _find_entry(slug)
+def get_app_entry(slug: str, lang: str = "en") -> dict:
+    _, entry = _find_entry(slug, lang=lang)
     return entry
 
 
@@ -1096,14 +1095,14 @@ def get_all_yunohost_app_ids() -> set[str]:
     return {a["yunohost_app_id"] for a in apps if a.get("yunohost_app_id")}
 
 
-def _find_main_service_key(doc: dict, container_name: str) -> str:
+def _find_main_service_key(doc: dict, container_name: str, lang: str = "en") -> str:
     services = doc.get("services", {})
     for key, service in services.items():
         if service.get("container_name") == container_name:
             return key
     if services:
         return next(iter(services))
-    raise DockerGateError("Aucun service trouvé dans la configuration du conteneur.")
+    raise DockerGateError(_t("dg_err_no_service_in_container_config", lang))
 
 
 def read_current_env_vars(slug: str) -> dict:
@@ -1117,48 +1116,46 @@ def read_current_env_vars(slug: str) -> dict:
 
 
 def update_docker_app(slug, image, container_port, data_path="", env_vars=None, cpu_limit="", mem_limit="",
-                       ldap_enabled=None, on_step=None):
+                       ldap_enabled=None, on_step=None, lang: str = "en"):
     with _state_lock():
         return _update_docker_app_locked(
             slug, image, container_port, data_path=data_path, env_vars=env_vars, cpu_limit=cpu_limit,
-            mem_limit=mem_limit, ldap_enabled=ldap_enabled, on_step=on_step,
+            mem_limit=mem_limit, ldap_enabled=ldap_enabled, on_step=on_step, lang=lang,
         )
 
 
 def _update_docker_app_locked(slug, image, container_port, data_path="", env_vars=None, cpu_limit="", mem_limit="",
-                               ldap_enabled=None, on_step=None):
+                               ldap_enabled=None, on_step=None, lang: str = "en"):
     warnings = []
 
     def step(label):
         if on_step:
             on_step(label)
 
-    step("Vérification des paramètres")
-    apps, entry = _find_entry(slug)
+    step(_t("dg_step_check_parameters", lang))
+    apps, entry = _find_entry(slug, lang=lang)
 
     compose_file = entry.get("compose_file")
     if not compose_file or not Path(compose_file).exists():
-        raise DockerGateError(
-            "Fichier compose introuvable pour cette app — elle a peut-être été créée avant cette fonctionnalité."
-        )
+        raise DockerGateError(_t("dg_err_compose_file_not_found", lang))
 
     image = (image or "").strip()
     if not image:
-        raise DockerGateError("L'image Docker est obligatoire.")
+        raise DockerGateError(_t("dg_err_image_required", lang))
     try:
         container_port = int(container_port)
     except (TypeError, ValueError):
-        raise DockerGateError("Le port du conteneur doit être un nombre.")
-    cpu_limit = _validate_cpu_limit(cpu_limit)
-    mem_limit = _validate_mem_limit(mem_limit)
+        raise DockerGateError(_t("dg_err_container_port_must_be_number", lang))
+    cpu_limit = _validate_cpu_limit(cpu_limit, lang=lang)
+    mem_limit = _validate_mem_limit(mem_limit, lang=lang)
     data_path = (data_path or "").strip()
 
     compose_path = Path(compose_file)
     doc = yaml.safe_load(compose_path.read_text()) or {}
-    main_key = _find_main_service_key(doc, entry.get("container_name"))
+    main_key = _find_main_service_key(doc, entry.get("container_name"), lang=lang)
     main_service = doc["services"][main_key]
 
-    step("Écriture de la configuration")
+    step(_t("dg_step_write_configuration", lang))
     main_service["image"] = image
     main_service["ports"] = [f"127.0.0.1:{entry['host_port']}:{container_port}/tcp"]
     effective_ldap_enabled = entry.get("ldap_enabled", False) if ldap_enabled is None else bool(ldap_enabled)
@@ -1198,17 +1195,17 @@ def _update_docker_app_locked(slug, image, container_port, data_path="", env_var
         with open(compose_path, "w") as f:
             yaml.safe_dump(doc, f, sort_keys=False)
     except OSError as e:
-        raise DockerGateError(f"Impossible d'écrire la configuration ({e}).")
+        raise DockerGateError(_t("dg_err_write_config_failed", lang, detail=e))
 
     if effective_ldap_enabled:
-        ensure_ldap_relay()
+        ensure_ldap_relay(lang=lang)
 
-    step("Redémarrage du conteneur")
-    _run_docker_compose(entry["compose_project"], compose_path, ["config", "-q"], "Configuration invalide", timeout=30)
+    step(_t("dg_step_restart_container", lang))
+    _run_docker_compose(entry["compose_project"], compose_path, ["config", "-q"], _t("dg_err_invalid_configuration", lang), timeout=30, lang=lang)
     _run_docker_compose(
         entry["compose_project"], compose_path,
         ["up", "-d", "--wait", "--wait-timeout", "120"],
-        "Échec de la mise à jour du conteneur", timeout=180,
+        _t("dg_err_container_update_failed", lang), timeout=180, lang=lang,
     )
 
     entry["image"] = image
@@ -1243,19 +1240,19 @@ def _remove_stale_app_logo(yunohost_app_id: str) -> None:
         pass
 
 
-def remove_docker_app(slug, delete_data=False, delete_domain=False, *, remove_app_fn, remove_domain_fn=None):
+def remove_docker_app(slug, delete_data=False, delete_domain=False, lang: str = "en", *, remove_app_fn, remove_domain_fn=None):
     with _state_lock():
         return _remove_docker_app_locked(
-            slug, delete_data=delete_data, delete_domain=delete_domain,
+            slug, delete_data=delete_data, delete_domain=delete_domain, lang=lang,
             remove_app_fn=remove_app_fn, remove_domain_fn=remove_domain_fn,
         )
 
 
-def _remove_docker_app_locked(slug, delete_data=False, delete_domain=False, *, remove_app_fn, remove_domain_fn=None):
+def _remove_docker_app_locked(slug, delete_data=False, delete_domain=False, lang: str = "en", *, remove_app_fn, remove_domain_fn=None):
     apps = _load_state()
     entry = next((a for a in apps if a["slug"] == slug), None)
     if entry is None:
-        raise DockerGateError(f"App inconnue : {slug}")
+        raise DockerGateError(_t("dg_err_unknown_app", lang, slug=slug))
 
     warnings = []
 
@@ -1263,7 +1260,7 @@ def _remove_docker_app_locked(slug, delete_data=False, delete_domain=False, *, r
         try:
             remove_app_fn(entry["yunohost_app_id"])
         except Exception as e:
-            warnings.append(f"Échec du retrait de l'exposition YunoHost : {e}")
+            warnings.append(_t("dg_warn_yunohost_exposure_removal_failed", lang, detail=e))
         _remove_stale_app_logo(entry["yunohost_app_id"])
 
     if entry.get("compose_project"):
@@ -1271,14 +1268,14 @@ def _remove_docker_app_locked(slug, delete_data=False, delete_domain=False, *, r
         down_args = ["down", "-v", "--rmi", "all"] if delete_data else ["down"]
         try:
             if compose_file and compose_file.exists():
-                _run_docker_compose(entry["compose_project"], compose_file, down_args, "Échec de l'arrêt du conteneur")
+                _run_docker_compose(entry["compose_project"], compose_file, down_args, _t("dg_err_container_stop_failed", lang), lang=lang)
             else:
                 result = subprocess.run(
                     ["docker", "compose", "-p", entry["compose_project"]] + down_args,
                     capture_output=True, text=True, timeout=180,
                 )
                 if result.returncode != 0:
-                    raise DockerGateError(f"Échec de l'arrêt du conteneur : {result.stderr.strip()}")
+                    raise DockerGateError(_t("dg_err_container_stop_failed_detail", lang, detail=result.stderr.strip()))
         except (DockerGateError, subprocess.TimeoutExpired) as e:
             warnings.append(str(e))
         if compose_file and compose_file.parent.exists():
@@ -1291,7 +1288,7 @@ def _remove_docker_app_locked(slug, delete_data=False, delete_domain=False, *, r
         try:
             remove_domain_fn(entry["domain"])
         except Exception as e:
-            warnings.append(f"Échec de la suppression du domaine : {e}")
+            warnings.append(_t("dg_warn_domain_removal_failed", lang, detail=e))
 
     apps = [a for a in apps if a["slug"] != slug]
     _save_state(apps)
@@ -1302,60 +1299,58 @@ def _remove_docker_app_locked(slug, delete_data=False, delete_domain=False, *, r
 _CONTAINER_ACTIONS = ("start", "stop", "restart")
 
 
-def container_action(slug: str, action: str) -> None:
+def container_action(slug: str, action: str, lang: str = "en") -> None:
     if action not in _CONTAINER_ACTIONS:
-        raise DockerGateError(f"Action inconnue : {action}")
+        raise DockerGateError(_t("dg_err_unknown_action", lang, action=action))
 
     apps = _load_state()
     entry = next((a for a in apps if a["slug"] == slug), None)
     if entry is None:
-        raise DockerGateError(f"App inconnue : {slug}")
+        raise DockerGateError(_t("dg_err_unknown_app", lang, slug=slug))
 
     compose_file = entry.get("compose_file")
     if not compose_file or not Path(compose_file).exists():
-        raise DockerGateError(
-            "Fichier compose introuvable pour cette app — elle a peut-être été créée avant cette fonctionnalité."
-        )
+        raise DockerGateError(_t("dg_err_compose_file_not_found", lang))
 
-    _run_docker_compose(entry["compose_project"], Path(compose_file), [action], f"Échec du {action}")
+    _run_docker_compose(entry["compose_project"], Path(compose_file), [action], _t("dg_err_action_failed", lang, action=action), lang=lang)
 
 
-def get_container_logs(slug: str, tail: int = 200) -> str:
+def get_container_logs(slug: str, tail: int = 200, lang: str = "en") -> str:
     apps = _load_state()
     entry = next((a for a in apps if a["slug"] == slug), None)
     if entry is None:
-        raise DockerGateError(f"App inconnue : {slug}")
+        raise DockerGateError(_t("dg_err_unknown_app", lang, slug=slug))
 
     container_name = entry.get("container_name")
     if not container_name:
-        raise DockerGateError("Aucun conteneur associé à cette app.")
+        raise DockerGateError(_t("dg_err_no_container_for_app", lang))
 
     import docker as docker_lib
-    client = _get_docker_client()
+    client = _get_docker_client(lang)
     try:
         container = client.containers.get(container_name)
     except docker_lib.errors.NotFound:
-        raise DockerGateError(f"Conteneur « {container_name} » introuvable.")
+        raise DockerGateError(_t("dg_err_container_not_found", lang, name=container_name))
 
     return container.logs(tail=tail, timestamps=True).decode("utf-8", errors="replace")
 
 
-def get_container_stats(slug: str) -> dict:
+def get_container_stats(slug: str, lang: str = "en") -> dict:
     apps = _load_state()
     entry = next((a for a in apps if a["slug"] == slug), None)
     if entry is None:
-        raise DockerGateError(f"App inconnue : {slug}")
+        raise DockerGateError(_t("dg_err_unknown_app", lang, slug=slug))
 
     container_name = entry.get("container_name")
     if not container_name:
-        raise DockerGateError("Aucun conteneur associé à cette app.")
+        raise DockerGateError(_t("dg_err_no_container_for_app", lang))
 
     import docker as docker_lib
-    client = _get_docker_client()
+    client = _get_docker_client(lang)
     try:
         container = client.containers.get(container_name)
     except docker_lib.errors.NotFound:
-        raise DockerGateError(f"Conteneur « {container_name} » introuvable.")
+        raise DockerGateError(_t("dg_err_container_not_found", lang, name=container_name))
 
     if container.status != "running":
         return {"running": False}
@@ -1456,11 +1451,11 @@ def find_empty_domains(*, existing_domains_fn, domain_detail_fn) -> list[str]:
     return empty
 
 
-def remove_orphan_container(name: str) -> None:
+def remove_orphan_container(name: str, lang: str = "en") -> None:
     import docker as docker_lib
     if name in _known_container_names(_load_state()) or not name.startswith("docker-gate-"):
-        raise DockerGateError(f"« {name} » n'est pas un conteneur orphelin reconnu.")
-    client = _get_docker_client()
+        raise DockerGateError(_t("dg_err_not_recognized_orphan_container", lang, name=name))
+    client = _get_docker_client(lang)
     try:
         c = client.containers.get(name)
         c.stop()
@@ -1469,22 +1464,22 @@ def remove_orphan_container(name: str) -> None:
         pass
 
 
-def remove_orphan_volume(name: str) -> None:
+def remove_orphan_volume(name: str, lang: str = "en") -> None:
     import docker as docker_lib
     if name in _known_volume_names(_load_state()) or not (name.startswith("docker-gate-") and name.endswith("-data")):
-        raise DockerGateError(f"« {name} » n'est pas un volume orphelin reconnu.")
-    client = _get_docker_client()
+        raise DockerGateError(_t("dg_err_not_recognized_orphan_volume", lang, name=name))
+    client = _get_docker_client(lang)
     try:
         client.volumes.get(name).remove()
     except docker_lib.errors.NotFound:
         pass
 
 
-def remove_orphan_network(name: str) -> None:
+def remove_orphan_network(name: str, lang: str = "en") -> None:
     import docker as docker_lib
     if name in _known_network_names(_load_state()) or not (name.startswith("docker-gate-") and name.endswith("-net")):
-        raise DockerGateError(f"« {name} » n'est pas un réseau orphelin reconnu.")
-    client = _get_docker_client()
+        raise DockerGateError(_t("dg_err_not_recognized_orphan_network", lang, name=name))
+    client = _get_docker_client(lang)
     try:
         client.networks.get(name).remove()
     except docker_lib.errors.NotFound:
@@ -1511,39 +1506,39 @@ def docker_ce_status() -> dict:
     return {"installed": installed, "tracked_containers": tracked, "foreign_containers": foreign}
 
 
-def _run_root_command(args: list[str], error_message: str) -> None:
+def _run_root_command(args: list[str], error_message: str, lang: str = "en") -> None:
     result = subprocess.run(["sudo", "-n"] + args, capture_output=True, text=True, timeout=120)
     if result.returncode != 0:
-        raise DockerGateError(f"{error_message} : {result.stderr.strip() or result.stdout.strip()}")
+        raise DockerGateError(_t("dg_err_with_detail", lang, message=error_message, detail=(result.stderr.strip() or result.stdout.strip())))
 
 
-def uninstall_docker_ce() -> list[str]:
+def uninstall_docker_ce(lang: str = "en") -> list[str]:
     commands = [
-        (["systemctl", "stop", "docker", "docker.socket", "containerd"], "Échec de l'arrêt de Docker"),
+        (["systemctl", "stop", "docker", "docker.socket", "containerd"], _t("dg_err_docker_stop_failed", lang)),
         (
             [
                 "apt-get", "purge", "-y",
                 "docker-ce", "docker-ce-cli", "docker-ce-rootless-extras",
                 "docker-buildx-plugin", "docker-compose-plugin", "containerd.io",
             ],
-            "Échec de la purge des paquets Docker",
+            _t("dg_err_purge_packages_failed", lang),
         ),
-        (["apt-get", "autoremove", "-y"], "Échec du nettoyage des paquets orphelins"),
-        (["rm", "-rf", "/var/lib/docker", "/var/lib/containerd", "/etc/docker"], "Échec de la suppression des données Docker"),
+        (["apt-get", "autoremove", "-y"], _t("dg_err_autoremove_failed", lang)),
+        (["rm", "-rf", "/var/lib/docker", "/var/lib/containerd", "/etc/docker"], _t("dg_err_remove_data_failed", lang)),
         (
             ["rm", "-f", "/etc/apt/sources.list.d/docker.list", "/etc/apt/keyrings/docker.gpg"],
-            "Échec de la suppression du dépôt APT Docker",
+            _t("dg_err_remove_apt_repo_failed", lang),
         ),
     ]
     warnings = []
     for args, error_message in commands:
         try:
-            _run_root_command(args, error_message)
+            _run_root_command(args, error_message, lang=lang)
         except (DockerGateError, subprocess.TimeoutExpired) as e:
             warnings.append(str(e))
 
     try:
-        _run_root_command(["groupdel", "docker"], "Échec de la suppression du groupe docker")
+        _run_root_command(["groupdel", "docker"], _t("dg_err_remove_docker_group_failed", lang), lang=lang)
     except (DockerGateError, subprocess.TimeoutExpired):
         pass
 
@@ -1632,7 +1627,7 @@ def restore_docker_volumes(src_dir: Path) -> list[dict]:
     return results
 
 
-def restart_all_docker_apps() -> list[dict]:
+def restart_all_docker_apps(lang: str = "en") -> list[dict]:
     apps = _load_state()
     results = []
     for entry in apps:
@@ -1645,7 +1640,7 @@ def restart_all_docker_apps() -> list[dict]:
             _run_docker_compose(
                 entry["compose_project"], Path(compose_file),
                 ["up", "-d", "--wait", "--wait-timeout", "120"],
-                f"Échec du redémarrage de {slug}",
+                _t("dg_err_restart_app_failed", lang, slug=slug), lang=lang,
             )
             results.append({"slug": slug, "status": "started"})
         except DockerGateError as e:
@@ -1681,7 +1676,7 @@ _LDAP_RELAY_UNIT_PATH = Path("/etc/systemd/system") / _LDAP_RELAY_SERVICE_NAME
 _LDAP_RELAY_UNIT_TMP_PATH = Path("/tmp") / _LDAP_RELAY_SERVICE_NAME
 
 
-def ensure_ldap_relay() -> None:
+def ensure_ldap_relay(lang: str = "en") -> None:
     status = subprocess.run(
         ["sudo", "-n", "systemctl", "is-active", _LDAP_RELAY_SERVICE_NAME],
         capture_output=True, text=True, timeout=10,
@@ -1690,11 +1685,11 @@ def ensure_ldap_relay() -> None:
         return
 
     if shutil.which("socat") is None:
-        _run_root_command(["apt-get", "install", "-y", "socat"], "Impossible d'installer socat")
+        _run_root_command(["apt-get", "install", "-y", "socat"], _t("dg_err_install_socat_failed", lang), lang=lang)
 
     unit_content = (
         "[Unit]\n"
-        "Description=Relais TCP LDAP pour les conteneurs Docker Gate\n"
+        f"Description={_t('dg_err_ldap_relay_description', lang)}\n"
         "After=docker.service slapd.service\n"
         "Requires=docker.service slapd.service\n\n"
         "[Service]\n"
@@ -1709,13 +1704,13 @@ def ensure_ldap_relay() -> None:
     try:
         _run_root_command(
             ["cp", str(_LDAP_RELAY_UNIT_TMP_PATH), str(_LDAP_RELAY_UNIT_PATH)],
-            "Impossible d'installer le service de relais LDAP",
+            _t("dg_err_install_ldap_relay_failed", lang), lang=lang,
         )
     finally:
         _LDAP_RELAY_UNIT_TMP_PATH.unlink(missing_ok=True)
-    _run_root_command(["systemctl", "daemon-reload"], "Échec du rechargement systemd")
+    _run_root_command(["systemctl", "daemon-reload"], _t("dg_err_systemd_reload_failed", lang), lang=lang)
     _run_root_command(
-        ["systemctl", "enable", "--now", _LDAP_RELAY_SERVICE_NAME], "Échec du démarrage du relais LDAP"
+        ["systemctl", "enable", "--now", _LDAP_RELAY_SERVICE_NAME], _t("dg_err_ldap_relay_start_failed", lang), lang=lang,
     )
 
 
@@ -1732,19 +1727,17 @@ def _docker_hub_repository_ref(image: str) -> tuple[str, str] | None:
     return None
 
 
-def list_available_image_tags(image: str, limit: int = 25) -> list[dict]:
+def list_available_image_tags(image: str, limit: int = 25, lang: str = "en") -> list[dict]:
     ref = _docker_hub_repository_ref(image)
     if ref is None:
-        raise DockerGateError(
-            "Liste des versions non disponible pour ce registre — seul Docker Hub est supporté pour l'instant."
-        )
+        raise DockerGateError(_t("dg_err_tag_list_unavailable", lang))
     namespace, repository = ref
     url = f"https://hub.docker.com/v2/repositories/{namespace}/{repository}/tags"
     try:
         resp = requests.get(url, params={"page_size": limit, "ordering": "last_updated"}, timeout=15)
         resp.raise_for_status()
     except requests.exceptions.RequestException as e:
-        raise DockerGateError(f"Impossible d'interroger Docker Hub ({e}).")
+        raise DockerGateError(_t("dg_err_docker_hub_query_failed", lang, detail=e))
 
     data = resp.json()
     return [
@@ -1787,23 +1780,21 @@ def check_docker_app_update(slug: str) -> dict:
     }
 
 
-def apply_docker_app_update(slug: str, target_tag: str | None = None, on_step=None) -> dict:
+def apply_docker_app_update(slug: str, target_tag: str | None = None, on_step=None, lang: str = "en") -> dict:
     with _state_lock():
-        return _apply_docker_app_update_locked(slug, target_tag=target_tag, on_step=on_step)
+        return _apply_docker_app_update_locked(slug, target_tag=target_tag, on_step=on_step, lang=lang)
 
 
-def _apply_docker_app_update_locked(slug: str, target_tag: str | None = None, on_step=None) -> dict:
+def _apply_docker_app_update_locked(slug: str, target_tag: str | None = None, on_step=None, lang: str = "en") -> dict:
     def step(label):
         if on_step:
             on_step(label)
 
-    step("Vérification des paramètres")
-    apps, entry = _find_entry(slug)
+    step(_t("dg_step_check_parameters", lang))
+    apps, entry = _find_entry(slug, lang=lang)
     compose_file = entry.get("compose_file")
     if not compose_file or not Path(compose_file).exists():
-        raise DockerGateError(
-            "Fichier compose introuvable pour cette app — elle a peut-être été créée avant cette fonctionnalité."
-        )
+        raise DockerGateError(_t("dg_err_compose_file_not_found", lang))
 
     current_image = entry.get("image", "")
     if target_tag:
@@ -1814,27 +1805,27 @@ def _apply_docker_app_update_locked(slug: str, target_tag: str | None = None, on
 
     compose_path = Path(compose_file)
     doc = yaml.safe_load(compose_path.read_text()) or {}
-    main_key = _find_main_service_key(doc, entry.get("container_name"))
+    main_key = _find_main_service_key(doc, entry.get("container_name"), lang=lang)
     doc["services"][main_key]["image"] = new_image
 
-    step("Écriture de la configuration")
+    step(_t("dg_step_write_configuration", lang))
     try:
         with open(compose_path, "w") as f:
             yaml.safe_dump(doc, f, sort_keys=False)
     except OSError as e:
-        raise DockerGateError(f"Impossible d'écrire la configuration ({e}).")
+        raise DockerGateError(_t("dg_err_write_config_failed", lang, detail=e))
 
-    step("Récupération de la nouvelle image")
+    step(_t("dg_step_fetch_new_image", lang))
     _run_docker_compose(
-        entry["compose_project"], compose_path, ["pull"], "Échec du téléchargement de la nouvelle image",
-        timeout=300,
+        entry["compose_project"], compose_path, ["pull"], _t("dg_err_image_download_failed", lang),
+        timeout=300, lang=lang,
     )
 
-    step("Redémarrage du conteneur")
+    step(_t("dg_step_restart_container", lang))
     _run_docker_compose(
         entry["compose_project"], compose_path,
         ["up", "-d", "--wait", "--wait-timeout", "120"],
-        "Échec de la mise à jour du conteneur",
+        _t("dg_err_container_update_failed", lang), lang=lang,
     )
 
     entry["image"] = new_image

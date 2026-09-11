@@ -49,7 +49,7 @@ def test_list_services_parses_real_shape_and_sorts(admin_services_url: str) -> N
     assert [s.name for s in services] == ["nginx", "ssh"]
     assert services[0].configuration == "broken"
     assert services[0].configuration_details == ["nginx: [emerg] bad config"]
-    assert route.calls.last.request.headers["locale"] == "fr"
+    assert route.calls.last.request.headers["locale"] == "en"
     assert services[1].status == "running"
 
 

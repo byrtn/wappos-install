@@ -1,5 +1,5 @@
 <!doctype html>
-<html lang="fr">
+<html lang="{{ current_lang() }}">
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -265,10 +265,26 @@
       body { padding: 0.5rem; }
       .card-body { padding: 0.9rem 1rem; }
     }
+    .lang-switch { position: fixed; top: 0.75rem; right: 0.75rem; z-index: 1000;
+                   background: rgba(20, 20, 20, 0.65); border-radius: 999px;
+                   padding: 0.3rem 0.65rem; font-size: 0.72rem; font-weight: 600;
+                   display: flex; align-items: center; gap: 0.35rem; letter-spacing: 0.02em; }
+    .lang-switch a { color: #ccc; text-decoration: none; padding: 0.1rem 0.35rem; border-radius: 999px; }
+    .lang-switch a:hover { color: #fff; }
+    .lang-switch a.active { color: #fff; background: rgba(255, 255, 255, 0.2); }
+    .lang-switch-sep { color: #777; }
+    @media (max-width: 480px) {
+      .lang-switch { top: 0.5rem; right: 0.5rem; padding: 0.25rem 0.55rem; font-size: 0.68rem; }
+    }
     {% block extra_style %}{% endblock %}
   </style>
 </head>
 <body>
+  <div class="lang-switch" aria-label="{{ t('aria_language_switch') }}">
+    <a href="{{ url_for('set_language', lang='en') }}" class="{{ 'active' if current_lang() == 'en' else '' }}">EN</a>
+    <span class="lang-switch-sep">|</span>
+    <a href="{{ url_for('set_language', lang='fr') }}" class="{{ 'active' if current_lang() == 'fr' else '' }}">FR</a>
+  </div>
   <div class="page">
     {% if user %}
     <header>
@@ -277,19 +293,19 @@
           <img id="header-logo" src="" alt="" class="header-logo" hidden>
           <span id="header-fallback-text">WAPPOS</span>
           <span id="header-subtitle" class="header-subtitle" hidden>
-            <span class="header-subtitle-rule"></span>Administration<span class="header-subtitle-rule"></span>
+            <span class="header-subtitle-rule"></span>{{ t('header_subtitle_administration') }}<span class="header-subtitle-rule"></span>
           </span>
         </a>
         <span class="user-info">{{ user }}</span>
       </h1>
       <form method="post" action="{{ url_for('logout') }}" class="logout-form">
-        <button type="submit" class="logout-button">Déconnexion</button>
+        <button type="submit" class="logout-button">{{ t('nav_logout') }}</button>
       </form>
     </header>
 
     {% if active_tab and active_tab != 'home' %}
-    <nav class="breadcrumb" aria-label="Fil d'Ariane">
-      <a href="{{ url_for('home') }}">Accueil</a>{% block breadcrumb %}{% endblock %}
+    <nav class="breadcrumb" aria-label="{{ t('aria_breadcrumb') }}">
+      <a href="{{ url_for('home') }}">{{ t('nav_home') }}</a>{% block breadcrumb %}{% endblock %}
     </nav>
     {% endif %}
     {% endif %}
@@ -307,18 +323,27 @@
   {% if message or error %}
     <div id="toast" class="toast {{ 'toast-error' if error else 'toast-success' }}">
       <span>{{ error or message }}</span>
-      <button type="button" class="toast-close" aria-label="Fermer">&times;</button>
+      <button type="button" class="toast-close" aria-label="{{ t('aria_close') }}">&times;</button>
     </div>
   {% endif %}
 
   <div id="loading-overlay" class="loading-overlay" hidden>
     <div class="loading-box">
       <div class="loading-spinner"></div>
-      <div class="loading-text">Traitement en cours…</div>
+      <div class="loading-text">{{ t('processing') }}</div>
     </div>
   </div>
 
   <script>
+    var WAPPOS_I18N = {
+      toggleShow: {{ t('toggle_password_show')|tojson }},
+      toggleHide: {{ t('toggle_password_hide')|tojson }},
+      ariaShowPassword: {{ t('aria_show_password')|tojson }},
+      ariaHidePassword: {{ t('aria_hide_password')|tojson }},
+      fileRemoveCancel: {{ t('file_remove_cancel')|tojson }},
+      fileRemoveConfirm: {{ t('file_remove_confirm')|tojson }},
+    };
+
     (function () {
       var logo = document.getElementById('header-logo');
       if (!logo) return;
@@ -366,8 +391,8 @@
         var input = btn.previousElementSibling;
         var showing = input.type === 'password';
         input.type = showing ? 'text' : 'password';
-        btn.textContent = showing ? 'Masquer' : 'Afficher';
-        btn.setAttribute('aria-label', showing ? 'Masquer le mot de passe' : 'Afficher le mot de passe');
+        btn.textContent = showing ? WAPPOS_I18N.toggleHide : WAPPOS_I18N.toggleShow;
+        btn.setAttribute('aria-label', showing ? WAPPOS_I18N.ariaHidePassword : WAPPOS_I18N.ariaShowPassword);
       });
     });
 
@@ -378,7 +403,7 @@
       btn.addEventListener('click', function () {
         checkbox.checked = !checkbox.checked;
         btn.classList.toggle('marked', checkbox.checked);
-        btn.textContent = checkbox.checked ? 'Annuler la suppression' : 'Supprimer';
+        btn.textContent = checkbox.checked ? WAPPOS_I18N.fileRemoveCancel : WAPPOS_I18N.fileRemoveConfirm;
         if (note) note.hidden = !checkbox.checked;
       });
     });

@@ -144,7 +144,7 @@ def _check_and_fix() -> list[tuple[str, str, str]]:
 
     for domain, spec in GUARDED_FRAGMENTS.items():
         if domain not in domains:
-            results.append((domain, "SKIP", "domaine plus hébergé sur cette VM, fragment ignoré"))
+            results.append((domain, "SKIP", "domain no longer hosted on this VM, fragment ignored"))
             continue
 
         from pathlib import Path
@@ -154,7 +154,7 @@ def _check_and_fix() -> list[tuple[str, str, str]]:
         try:
             current = path.read_text() if path.exists() else None
         except OSError as e:
-            results.append((domain, "ERROR", f"lecture impossible : {e}"))
+            results.append((domain, "ERROR", f"cannot read: {e}"))
             continue
 
         if current == expected:
@@ -166,16 +166,16 @@ def _check_and_fix() -> list[tuple[str, str, str]]:
             path.parent.mkdir(parents=True, exist_ok=True)
             path.write_text(expected)
             nginx_touched = True
-            results.append((domain, status, "corrigé automatiquement"))
+            results.append((domain, status, "automatically fixed"))
         except OSError as e:
-            results.append((domain, status, f"échec de la correction automatique : {e}"))
+            results.append((domain, status, f"automatic fix failed: {e}"))
 
     if nginx_touched:
         test = subprocess.run(["nginx", "-t"], capture_output=True, text=True)
         if test.returncode == 0:
             subprocess.run(["systemctl", "reload", "nginx"], check=False)
         else:
-            results.append(("nginx", "ERROR", f"`nginx -t` a échoué après correction : {test.stderr.strip()}"))
+            results.append(("nginx", "ERROR", f"`nginx -t` failed after fix: {test.stderr.strip()}"))
 
     return results
 
@@ -190,12 +190,12 @@ def _check_crossdomain_hook() -> list[tuple[str, str, str]]:
     results = []
     for domain in _current_domains():
         frag = Path(f"/etc/nginx/conf.d/{domain}.d/wappos_sso_bypass.conf")
-        label = f"{domain} (contournement SSO natif)"
+        label = f"{domain} (native SSO bypass)"
 
         try:
             current = frag.read_text() if frag.exists() else ""
         except OSError as e:
-            results.append((label, "ERROR", f"lecture impossible : {e}"))
+            results.append((label, "ERROR", f"cannot read: {e}"))
             continue
 
         if CROSSDOMAIN_MARKER in current:
@@ -207,9 +207,9 @@ def _check_crossdomain_hook() -> list[tuple[str, str, str]]:
             ["bash", CROSSDOMAIN_HOOK, domain], capture_output=True, text=True,
         )
         if regen.returncode == 0:
-            results.append((label, status, "régénéré automatiquement via le hook officiel"))
+            results.append((label, status, "automatically regenerated via the official hook"))
         else:
-            results.append((label, status, f"échec de la régénération : {regen.stderr.strip()}"))
+            results.append((label, status, f"regeneration failed: {regen.stderr.strip()}"))
 
     return results
 
@@ -251,13 +251,13 @@ def _check_disk_thresholds() -> list[tuple[str, str, str]]:
             percent = round((used / total) * 100, 1)
             seen_devices.add(device)
 
-            label = f"disque {mountpoint}"
+            label = f"disk {mountpoint}"
             if percent >= DISK_CRITICAL_PERCENT:
-                results.append((label, "CRITICAL", f"{percent}% utilisé — intervention rapide recommandée"))
+                results.append((label, "CRITICAL", f"{percent}% used — prompt intervention recommended"))
             elif percent >= DISK_WARNING_PERCENT:
-                results.append((label, "WARNING", f"{percent}% utilisé"))
+                results.append((label, "WARNING", f"{percent}% used"))
             else:
-                results.append((label, "OK", f"{percent}% utilisé"))
+                results.append((label, "OK", f"{percent}% used"))
     return results
 
 
@@ -273,7 +273,7 @@ def _check_failed_units() -> list[tuple[str, str, str]]:
             continue
         unit = parts[0]
         description = parts[4] if len(parts) > 4 else unit
-        results.append((f"service {unit}", "CRITICAL", f"en échec — {description}"))
+        results.append((f"service {unit}", "CRITICAL", f"failed — {description}"))
     return results
 
 
@@ -281,24 +281,23 @@ def _send_report(results: list[tuple[str, str, str]]) -> None:
     msg = EmailMessage()
     msg["From"] = "wappos-admin-config-guard@localhost"
     msg["To"] = ALERT_TO
-    msg["Subject"] = "[wappos-admin] Vérification quotidienne du serveur — anomalie détectée"
+    msg["Subject"] = "[wappos-admin] Daily server check — anomaly detected"
 
     lines = [
-        f"- {domain} : {status}" + (f" — {detail}" if detail else "")
+        f"- {domain}: {status}" + (f" — {detail}" if detail else "")
         for domain, status, detail in results
     ]
     body = (
-        "Vérification quotidienne (personnalisations nginx hors du périmètre "
-        "géré automatiquement par YunoHost, occupation disque, et services "
-        "système en échec) — au moins un écart a été détecté :\n\n" + "\n".join(lines) +
-        "\n\nSTATUTS possibles — configuration : OK (conforme), MISSING (absent, "
-        "recréé), DRIFTED (contenu différent, corrigé), SKIP (domaine plus "
-        "hébergé ici), ERROR (correction échouée — intervention manuelle "
-        f"nécessaire). Disque : OK (sous {DISK_WARNING_PERCENT}%), WARNING "
-        f"(au moins {DISK_WARNING_PERCENT}% utilisé), CRITICAL (au moins "
-        f"{DISK_CRITICAL_PERCENT}% utilisé — intervention rapide recommandée). "
-        "Services système : CRITICAL (service ou minuterie en échec — intervention "
-        "manuelle nécessaire, ce correctif n'est jamais appliqué automatiquement)."
+        "Daily check (nginx customizations outside the scope automatically "
+        "managed by YunoHost, disk usage, and failed system services) — "
+        "at least one discrepancy was detected:\n\n" + "\n".join(lines) +
+        "\n\nPossible STATUSES — configuration: OK (compliant), MISSING (absent, "
+        "recreated), DRIFTED (different content, fixed), SKIP (domain no longer "
+        "hosted here), ERROR (fix failed — manual intervention required). Disk: "
+        f"OK (under {DISK_WARNING_PERCENT}%), WARNING (at least {DISK_WARNING_PERCENT}% "
+        f"used), CRITICAL (at least {DISK_CRITICAL_PERCENT}% used — prompt intervention "
+        "recommended). System services: CRITICAL (service or timer failed — manual "
+        "intervention required, this fix is never applied automatically)."
     )
     msg.set_content(body, charset="utf-8")
 

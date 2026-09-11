@@ -69,7 +69,7 @@ def test_create_docker_app_persists_resource_limits(monkeypatch, tmp_path):
     monkeypatch.setattr(dg, "_load_state", lambda: [])
     monkeypatch.setattr(dg, "_save_state", lambda apps: None)
     monkeypatch.setattr(dg, "_compose_dir", lambda slug: tmp_path / slug)
-    monkeypatch.setattr(dg, "_pick_free_port", lambda: 9100)
+    monkeypatch.setattr(dg, "_pick_free_port", lambda **kwargs: 9100)
 
     with patch.object(dg, "_run_docker_compose"):
         entry = dg.create_docker_app(
@@ -88,7 +88,7 @@ def test_create_docker_app_persists_resource_limits(monkeypatch, tmp_path):
 def test_create_docker_app_rejects_invalid_cpu_limit(monkeypatch, tmp_path):
     monkeypatch.setattr(dg, "_load_state", lambda: [])
     monkeypatch.setattr(dg, "_compose_dir", lambda slug: tmp_path / slug)
-    monkeypatch.setattr(dg, "_pick_free_port", lambda: 9100)
+    monkeypatch.setattr(dg, "_pick_free_port", lambda **kwargs: 9100)
 
     with pytest.raises(dg.DockerGateError):
         dg.create_docker_app(

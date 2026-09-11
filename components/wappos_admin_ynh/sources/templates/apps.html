@@ -1,13 +1,13 @@
 {% extends "base.html" %}
 {% set active_tab = "apps" %}
-{% block title %}Applications système{% endblock %}
+{% block title %}{{ t('nav_system_apps') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Applications système</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('nav_system_apps') }}</span>{% endblock %}
 
 {% block content %}
         <div class="app-list-toolbar">
-      <input type="text" id="app-search" placeholder="Rechercher une application installée...">
-      <a href="{{ url_for('app_catalog_page') }}" class="btn btn-success">Installer une application</a>
+      <input type="text" id="app-search" placeholder="{{ t('search_installed_app_placeholder') }}">
+      <a href="{{ url_for('app_catalog_page') }}" class="btn btn-success">{{ t('btn_install_an_app') }}</a>
     </div>
     <ul class="app-list" id="app-list">
       {% for a in apps %}
@@ -31,7 +31,7 @@
 
           {% if a.permissions %}
             <details class="app-permissions">
-              <summary>Permissions ({{ a.permissions|length }})</summary>
+              <summary>{{ t('permissions_count', n=(a.permissions|length)) }}</summary>
               {% for p in a.permissions %}
                 <details class="perm-props-row">
                   <summary>{{ p.label }} <span class="app-item-id">{{ p.id }}</span></summary>
@@ -39,30 +39,30 @@
                         enctype="multipart/form-data" class="perm-props-form">
                     <div class="fields">
                       <div class="field">
-                        <label for="label-{{ p.id }}">Libellé</label>
+                        <label for="label-{{ p.id }}">{{ t('label_display_label') }}</label>
                         <input type="text" id="label-{{ p.id }}" name="label" value="{{ p.label }}">
                       </div>
                       <div class="field">
-                        <label for="order-{{ p.id }}">Ordre d'affichage</label>
+                        <label for="order-{{ p.id }}">{{ t('label_display_order') }}</label>
                         <input type="number" id="order-{{ p.id }}" name="order" value="{{ p.order if p.order is not none else '' }}">
                       </div>
                     </div>
                     <div class="field" style="margin-bottom: 0.75rem;">
-                      <label for="description-{{ p.id }}">Description</label>
+                      <label for="description-{{ p.id }}">{{ t('label_description') }}</label>
                       <input type="text" id="description-{{ p.id }}" name="description" value="{{ p.description or '' }}">
                     </div>
                     <div class="field" style="margin-bottom: 0.75rem;">
-                      <label for="logo-{{ p.id }}">Logo (PNG)</label>
+                      <label for="logo-{{ p.id }}">{{ t('label_logo_png') }}</label>
                       <input type="file" id="logo-{{ p.id }}" name="logo" accept="image/png">
                     </div>
                     <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin-right: 1rem; font-size: 0.85rem;">
-                      <input type="checkbox" name="show_tile" {{ "checked" if p.show_tile else "" }}> Afficher la tuile dans le portail
+                      <input type="checkbox" name="show_tile" {{ "checked" if p.show_tile else "" }}> {{ t('checkbox_show_tile') }}
                     </label>
                     <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; font-size: 0.85rem;">
-                      <input type="checkbox" name="hide_from_public" {{ "checked" if p.hide_from_public else "" }}> Masquer de la liste publique
+                      <input type="checkbox" name="hide_from_public" {{ "checked" if p.hide_from_public else "" }}> {{ t('checkbox_hide_from_public') }}
                     </label>
                     <div style="margin-top: 0.75rem;">
-                      <button type="submit" class="btn">Enregistrer</button>
+                      <button type="submit" class="btn">{{ t('btn_save') }}</button>
                     </div>
                   </form>
                 </details>
@@ -71,10 +71,10 @@
           {% endif %}
         </li>
       {% else %}
-        <li class="app-item">Aucune app installée.</li>
+        <li class="app-item">{{ t('no_app_installed') }}</li>
       {% endfor %}
     </ul>
-    {% if apps %}<p id="app-search-empty" class="field-info" style="display: none;">Aucune app ne correspond à la recherche.</p>{% endif %}
+    {% if apps %}<p id="app-search-empty" class="field-info" style="display: none;">{{ t('no_app_matches_search') }}</p>{% endif %}
 {% endblock %}
 
 {% block extra_style %}

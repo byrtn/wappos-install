@@ -1,12 +1,12 @@
 {% extends "base.html" %}
 {% set active_tab = "services" %}
-{% block title %}Unités en échec{% endblock %}
+{% block title %}{{ t('title_failed_units') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Unités en échec</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_failed_units') }}</span>{% endblock %}
 
 {% block content %}
   {% if units is none %}
-    <p class="field-info">Impossible de lister les unités en échec.</p>
+    <p class="field-info">{{ t('err_cannot_list_failed_units') }}</p>
   {% else %}
     <ul class="app-list">
       {% for u in units %}
@@ -16,11 +16,11 @@
           </div>
           <div class="app-item-meta">
             <span class="text-danger">✕ {{ u.result|unit_result_fr }}</span>
-            <span class="app-item-version">depuis {{ u.since|service_since }}</span>
+            <span class="app-item-version">{{ t('since_word', value=(u.since|service_since)) }}</span>
           </div>
         </li>
       {% else %}
-        <li class="app-item">Aucune unité en échec.</li>
+        <li class="app-item">{{ t('no_failed_unit') }}</li>
       {% endfor %}
     </ul>
   {% endif %}

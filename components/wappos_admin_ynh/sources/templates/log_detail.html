@@ -1,8 +1,8 @@
 {% extends "base.html" %}
 {% set active_tab = "logs" %}
-{% block title %}{{ detail.description }} — Journaux{% endblock %}
+{% block title %}{{ t('title_log_named', description=detail.description) }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('logs') }}">Journaux</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ detail.description }}</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('logs') }}">{{ t('title_logs') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ detail.description }}</span>{% endblock %}
 
 {% block content %}
     {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
@@ -12,25 +12,25 @@
       <h2 style="margin: 0; padding: 1.25rem 1.5rem 0;">{{ detail.description }}</h2>
       {% if detail.path %}
         <div class="log-info-row">
-          <strong class="log-info-label">Chemin</strong>
+          <strong class="log-info-label">{{ t('th_path_generic') }}</strong>
           <span class="log-info-path">{{ detail.path }}</span>
         </div>
       {% endif %}
       {% if detail.started_at %}
         <div class="log-info-row">
-          <strong class="log-info-label">Début</strong>
+          <strong class="log-info-label">{{ t('th_start') }}</strong>
           <span>{{ detail.started_at }}</span>
         </div>
       {% endif %}
       {% if detail.ended_at %}
         <div class="log-info-row">
-          <strong class="log-info-label">Fin</strong>
+          <strong class="log-info-label">{{ t('th_end') }}</strong>
           <span>{{ detail.ended_at }}</span>
         </div>
       {% endif %}
       {% if detail.suboperations %}
         <div class="log-info-row">
-          <strong class="log-info-label">Sous-opérations</strong>
+          <strong class="log-info-label">{{ t('th_suboperations') }}</strong>
           <div>
             {% for sub in detail.suboperations %}
               <div>
@@ -45,18 +45,18 @@
 
     {% if detail.error %}
       <div class="alert alert-danger">
-        L'opération a échoué ! Vous pouvez essayer de demander de l'aide à la communauté Wappos.
+        {{ t('err_operation_failed_help') }}
       </div>
     {% endif %}
 
     <div class="card">
-      <h2 style="margin: 0; padding: 1.25rem 1.5rem;">Journal</h2>
+      <h2 style="margin: 0; padding: 1.25rem 1.5rem;">{{ t('h2_log') }}</h2>
       <form method="post" action="{{ url_for('share_log', name=detail.name) }}" style="padding: 0 1.5rem 1rem;"
-            onsubmit="return confirm('Ce journal sera envoyé a un service de partage externe pour obtenir un lien partageable. Continuer ?');">
-        <button type="submit" class="btn">Partager en ligne</button>
+            onsubmit="return confirm({{ t('confirm_share_log')|tojson }});">
+        <button type="submit" class="btn">{{ t('btn_share_online') }}</button>
       </form>
       {% if detail.more_logs_available %}
-        <a href="{{ url_for('log_detail', name=detail.name, n=number * 10) }}" class="btn log-more-btn">Afficher plus de lignes</a>
+        <a href="{{ url_for('log_detail', name=detail.name, n=number * 10) }}" class="btn log-more-btn">{{ t('btn_show_more_lines') }}</a>
       {% endif %}
       <pre class="log-content"><code>{% for line in detail.logs %}{{ line|colorize_log_line }}
 {% endfor %}</code></pre>

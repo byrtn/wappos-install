@@ -14,6 +14,7 @@ from fastapi import Body, FastAPI, File, Form, Header, HTTPException, Request, R
 from fastapi.responses import StreamingResponse
 from prometheus_client import CONTENT_TYPE_LATEST, CollectorRegistry, Counter, Gauge, Histogram, generate_latest, multiprocess
 
+from wappos_api import locale_context
 from wappos_api.config import settings
 from wappos_api.connectors import adguard as adguard_connector
 from wappos_api.connectors import admin as admin_connector
@@ -70,15 +71,15 @@ if not _metrics_token_file.exists():
 METRICS_TOKEN = _metrics_token_file.read_text().strip()
 
 _REQUEST_COUNT = Counter(
-    "wappos_api_requests_total", "Nombre de requêtes HTTP traitées",
+    "wappos_api_requests_total", "Total number of HTTP requests processed",
     ["method", "endpoint", "status"],
 )
 _REQUEST_LATENCY = Histogram(
-    "wappos_api_request_duration_seconds", "Durée des requêtes HTTP",
+    "wappos_api_request_duration_seconds", "HTTP request duration",
     ["method", "endpoint"],
 )
 _PROCESS_MEMORY = Gauge(
-    "wappos_api_process_resident_memory_bytes", "Mémoire résidente du worker",
+    "wappos_api_process_resident_memory_bytes", "Worker resident memory",
     multiprocess_mode="livesum",
 )
 
@@ -92,6 +93,12 @@ def _current_rss_bytes() -> int:
     except OSError:
         pass
     return 0
+
+
+@app.middleware("http")
+async def _apply_locale(request: Request, call_next):
+    locale_context.set_locale(request.headers.get("X-Wappos-Locale"))
+    return await call_next(request)
 
 
 @app.middleware("http")

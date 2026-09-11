@@ -1,16 +1,16 @@
 {% extends "base.html" %}
 {% set active_tab = "firewall" %}
-{% block title %}Pare-feu{% endblock %}
+{% block title %}{{ t('title_firewall') }}{% endblock %}
 
-{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">Système</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">Pare-feu</span>{% endblock %}
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_firewall') }}</span>{% endblock %}
 
 {% block content %}
         {% for protocol, ports in [("tcp", rules.tcp), ("udp", rules.udp)] %}
       <div class="card">
-        <div class="card-header"><h3>Ports {{ protocol|upper }}</h3></div>
+        <div class="card-header"><h3>{{ t('h3_ports_protocol', protocol=protocol|upper) }}</h3></div>
         <table class="fw-table">
           <thead>
-            <tr><th>Port</th><th>Ouvrir</th><th>UPnP</th><th>Commentaire</th><th></th></tr>
+            <tr><th>{{ t('th_port') }}</th><th>{{ t('th_open') }}</th><th>{{ t('th_upnp') }}</th><th>{{ t('th_comment') }}</th><th></th></tr>
           </thead>
           <tbody>
             {% for p in ports %}
@@ -19,15 +19,15 @@
                 <td class="fw-col-switch">
                   {% if p.open %}
                     <form method="post" action="{{ url_for('close_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form"
-                          onsubmit="return confirm('Fermer le port {{ p.port }}/{{ protocol|upper }} ?');">
-                      <button type="submit" class="fw-switch fw-switch-on" aria-label="Fermer le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
+                          onsubmit="return confirm({{ t('confirm_close_port', port=p.port, protocol=protocol|upper)|tojson }});">
+                      <button type="submit" class="fw-switch fw-switch-on" aria-label="{{ t('aria_close_port', port=p.port) }}"><span class="fw-switch-thumb"></span></button>
                     </form>
                   {% else %}
                                         <form method="post" action="{{ url_for('open_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form"
-                          onsubmit="return confirm('Ouvrir le port {{ p.port }}/{{ protocol|upper }} ?');">
+                          onsubmit="return confirm({{ t('confirm_open_port', port=p.port, protocol=protocol|upper)|tojson }});">
                       <input type="hidden" name="comment" value="{{ p.comment }}">
                       {% if p.upnp %}<input type="hidden" name="upnp" value="on">{% endif %}
-                      <button type="submit" class="fw-switch fw-switch-off" aria-label="Ouvrir le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
+                      <button type="submit" class="fw-switch fw-switch-off" aria-label="{{ t('aria_open_port', port=p.port) }}"><span class="fw-switch-thumb"></span></button>
                     </form>
                   {% endif %}
                 </td>
@@ -36,17 +36,17 @@
                     {% if p.upnp %}
                       <form method="post" action="{{ url_for('close_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form">
                         <input type="hidden" name="upnp_only" value="on">
-                        <button type="submit" class="fw-switch fw-switch-on" aria-label="Désactiver le transfert UPnP pour le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
+                        <button type="submit" class="fw-switch fw-switch-on" aria-label="{{ t('aria_disable_upnp_port', port=p.port) }}"><span class="fw-switch-thumb"></span></button>
                       </form>
                     {% else %}
                       <form method="post" action="{{ url_for('open_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form">
                         <input type="hidden" name="comment" value="{{ p.comment }}">
                         <input type="hidden" name="upnp" value="on">
-                        <button type="submit" class="fw-switch fw-switch-off" aria-label="Activer le transfert UPnP pour le port {{ p.port }}"><span class="fw-switch-thumb"></span></button>
+                        <button type="submit" class="fw-switch fw-switch-off" aria-label="{{ t('aria_enable_upnp_port', port=p.port) }}"><span class="fw-switch-thumb"></span></button>
                       </form>
                     {% endif %}
                   {% else %}
-                    <span class="fw-switch fw-switch-off fw-switch-disabled" title="Le port doit être ouvert pour transférer via UPnP"><span class="fw-switch-thumb"></span></span>
+                    <span class="fw-switch fw-switch-off fw-switch-disabled" title="{{ t('title_upnp_requires_open') }}"><span class="fw-switch-thumb"></span></span>
                   {% endif %}
                 </td>
                 <td class="fw-col-comment">{{ p.comment }}</td>
@@ -56,12 +56,12 @@
                           data-open="{{ 'true' if p.open else 'false' }}"
                           data-upnp="{{ 'true' if p.upnp else 'false' }}"
                           data-comment="{{ p.comment }}">
-                    Modifier
+                    {{ t('btn_edit') }}
                   </button>
                 </td>
               </tr>
             {% else %}
-              <tr><td colspan="5">Aucun port {{ protocol|upper }} enregistré.</td></tr>
+              <tr><td colspan="5">{{ t('no_port_registered', protocol=protocol|upper) }}</td></tr>
             {% endfor %}
           </tbody>
         </table>
@@ -69,24 +69,24 @@
     {% endfor %}
 
     <div class="card create-card">
-      <div class="card-header"><h3 id="operations">Opérations</h3></div>
+      <div class="card-header"><h3 id="operations">{{ t('h3_operations') }}</h3></div>
       <div class="card-body">
         <form method="post" action="{{ url_for('apply_firewall_operation') }}" id="fw-operations-form">
           <div class="fields">
             <div class="field">
-              <label for="op-action">Action</label>
+              <label for="op-action">{{ t('label_action') }}</label>
               <select id="op-action" name="action">
-                <option value="open">Ouvrir</option>
-                <option value="close">Fermer</option>
+                <option value="open">{{ t('option_open') }}</option>
+                <option value="close">{{ t('option_close') }}</option>
               </select>
             </div>
             <div class="field">
-              <label for="op-port">Port</label>
+              <label for="op-port">{{ t('label_port') }}</label>
                             <input type="text" id="op-port" name="port" pattern="\d{1,5}(-\d{1,5})?"
-                     title="Un port (1-65535) ou une plage N-M" placeholder="ex. 8080 ou 60000-60050" required>
+                     title="{{ t('title_port_pattern') }}" placeholder="ex. 8080 ou 60000-60050" required>
             </div>
             <div class="field">
-              <label for="op-protocol">Protocole</label>
+              <label for="op-protocol">{{ t('label_protocol') }}</label>
               <select id="op-protocol" name="protocol">
                 <option value="tcp">TCP</option>
                 <option value="udp">UDP</option>
@@ -94,17 +94,17 @@
             </div>
           </div>
           <div class="field" style="margin-bottom: 0.75rem;">
-            <label for="op-comment">Commentaire</label>
-            <input type="text" id="op-comment" name="comment" placeholder="ex. nom de l'app">
+            <label for="op-comment">{{ t('label_comment') }}</label>
+            <input type="text" id="op-comment" name="comment" placeholder="{{ t('placeholder_comment_app_name') }}">
           </div>
           <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; margin-bottom: 0.5rem;" id="op-upnp-label">
-            <input type="checkbox" id="op-upnp" name="upnp"> Transférer aussi ce port via UPnP
+            <input type="checkbox" id="op-upnp" name="upnp"> {{ t('label_also_forward_upnp') }}
           </label>
                     <label style="display: none; align-items: center; gap: 0.4rem; font-size: 0.85rem; margin-bottom: 1rem;" id="op-upnp-only-label">
-            <input type="checkbox" id="op-upnp-only" name="upnp_only"> Retirer seulement le transfert UPnP (sans fermer le port)
+            <input type="checkbox" id="op-upnp-only" name="upnp_only"> {{ t('label_remove_upnp_only') }}
           </label>
           <div>
-            <button type="submit" class="btn">Appliquer</button>
+            <button type="submit" class="btn">{{ t('btn_apply') }}</button>
           </div>
         </form>
       </div>
@@ -114,12 +114,12 @@
       <div class="card-header"><h3>UPnP</h3></div>
       <div class="card-body">
         <p class="field-info" style="margin: 0 0 1rem;">
-          L'UPnP est {{ 'activé' if rules.upnp_enabled else 'désactivé' }} — permet à Wappos de demander à votre routeur d'ouvrir automatiquement les ports transférés ci-dessus.
+          {{ t('upnp_status_text', state=(t('upnp_state_enabled') if rules.upnp_enabled else t('upnp_state_disabled'))) }}
         </p>
         <form method="post" action="{{ url_for('set_upnp', enabled='false' if rules.upnp_enabled else 'true') }}"
-              onsubmit="return confirm('Voulez-vous vraiment {{ 'désactiver' if rules.upnp_enabled else 'activer' }} l\'UPnP ?');">
+              onsubmit="return confirm({{ t('confirm_toggle_upnp', action=(t('upnp_action_disable') if rules.upnp_enabled else t('upnp_action_enable')))|tojson }});">
           <button type="submit" class="btn {{ 'btn-danger' if rules.upnp_enabled else '' }}">
-            {{ 'Désactiver' if rules.upnp_enabled else 'Activer' }}
+            {{ t('btn_disable') if rules.upnp_enabled else t('btn_enable') }}
           </button>
         </form>
       </div>
@@ -148,6 +148,16 @@
 {% endblock %}
 
 {% block extra_script %}
+    var FW_I18N = {{ {
+      'confirm_open': t('option_open'),
+      'confirm_close': t('option_close'),
+      'confirm_action_port_protocol': t('confirm_action_port_protocol')
+    }|tojson }};
+    function wappasFormat(template) {
+      var args = Array.prototype.slice.call(arguments, 1);
+      var i = 0;
+      return template.replace(/%s/g, function () { return args[i++]; });
+    }
     document.querySelectorAll('.firewall-edit-btn').forEach(function (btn) {
       btn.addEventListener('click', function () {
         var d = btn.dataset;
@@ -171,10 +181,10 @@
     wappasToggleUpnpOnly();
 
     document.getElementById('fw-operations-form').addEventListener('submit', function (e) {
-      var action = document.getElementById('op-action').value === 'open' ? 'Ouvrir' : 'Fermer';
+      var action = document.getElementById('op-action').value === 'open' ? FW_I18N.confirm_open : FW_I18N.confirm_close;
       var port = document.getElementById('op-port').value;
       var protocol = document.getElementById('op-protocol').value.toUpperCase();
-      if (!confirm(action + ' le port ' + port + '/' + protocol + ' ?')) {
+      if (!confirm(wappasFormat(FW_I18N.confirm_action_port_protocol, action, port, protocol))) {
         e.preventDefault();
       }
     });

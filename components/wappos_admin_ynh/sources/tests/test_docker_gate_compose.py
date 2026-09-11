@@ -67,7 +67,7 @@ def test_create_docker_app_writes_config_files_and_builds_compose(monkeypatch, t
     monkeypatch.setattr(dg, "_load_state", lambda: [])
     monkeypatch.setattr(dg, "_save_state", lambda apps: None)
     monkeypatch.setattr(dg, "_compose_dir", lambda slug: tmp_path / slug)
-    monkeypatch.setattr(dg, "_pick_free_port", lambda: 9100)
+    monkeypatch.setattr(dg, "_pick_free_port", lambda **kwargs: 9100)
 
     with patch.object(dg, "_run_docker_compose") as run_compose:
         entry = dg.create_docker_app(

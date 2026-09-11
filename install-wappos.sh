@@ -53,8 +53,15 @@ success_line() { echo -e "${green}✓ $1${reset}"; }
 warn_line() { echo -e "${yellow}$1${reset}"; }
 error_line() { echo -e "${red}$1${reset}"; }
 
-box_start() { echo -e "${blue}╔══════════════════════════════════════════════════════════╗${reset}"; }
-box_end() { echo -e "${blue}╚══════════════════════════════════════════════════════════╝${reset}"; }
+box_start() { echo -e "${1:-$blue}╔══════════════════════════════════════════════════════════╗${reset}"; }
+box_end() { echo -e "${1:-$blue}╚══════════════════════════════════════════════════════════╝${reset}"; }
+box_line() {
+    local color="$1" text="$2" width=56
+    local pad=$(( width - ${#text} ))
+    (( pad < 0 )) && pad=0
+    printf "%b║ %s%*s ║%b\n" "$color" "$text" "$pad" "" "$reset"
+}
+box_blank() { printf "%b║%*s║%b\n" "${1:-$blue}" 58 "" "$reset"; }
 
 read_with_countdown() {
     local timeout="$1" varname="$2"
@@ -122,9 +129,9 @@ t() {
             finalize_open_browser) echo "Ouvrez un navigateur sur une autre machine du meme reseau et allez sur :" ;;
             finalize_follow1) echo "Suivez les instructions a l'ecran. Cette etape reprend automatiquement" ;;
             finalize_follow2) echo "des que vous avez valide le formulaire, sans rien taper ici." ;;
-            finalize_dont_leave1) echo "Ne fermez pas l'onglet du navigateur avant la fin de l'installation." ;;
-            finalize_dont_leave2) echo "Une fois le formulaire valide, la suite de l'installation (plusieurs minutes)" ;;
-            finalize_dont_leave3) echo "s'affiche automatiquement dans le navigateur, en temps reel." ;;
+            finalize_dont_leave1) echo "Ne fermez pas l'onglet du navigateur." ;;
+            finalize_dont_leave2) echo "L'installation continue ici automatiquement," ;;
+            finalize_dont_leave3) echo "en temps reel (plusieurs minutes)." ;;
             finalize_waiting) echo "En attente de la finalisation depuis votre navigateur..." ;;
             finalize_done) echo "Configuration initiale terminee" ;;
             step_base_installed_title) echo "Systeme de base installe et configure" ;;
@@ -166,7 +173,7 @@ t() {
             final_admin_label) echo "Administration" ;;
             final_or) echo "ou" ;;
             final_username_label) echo ">>> IDENTIFIANT :" ;;
-            final_password_label) echo ">>> MOT DE PASSE : celui que vous venez de definir ci-dessus" ;;
+            final_password_label) echo ">>> MOT DE PASSE : celui que vous venez de definir precedemment" ;;
             ssh_disabled_default1) echo "Acces SSH desactive par defaut." ;;
             ssh_disabled_default2) echo "Si vous en avez besoin plus tard, connectez-vous en console (identifiant/mot de passe ci-dessus) puis executez :" ;;
             ssh_disabled_default3) echo "Pensez a la desactiver a nouveau une fois votre cle SSH ajoutee :" ;;
@@ -215,9 +222,9 @@ t() {
             finalize_open_browser) echo "Open a browser on another machine on the same network and go to:" ;;
             finalize_follow1) echo "Follow the on-screen instructions. This step resumes automatically" ;;
             finalize_follow2) echo "once you've submitted the form, nothing to type here." ;;
-            finalize_dont_leave1) echo "Do not close the browser tab before the installation finishes." ;;
-            finalize_dont_leave2) echo "Once the form is submitted, the rest of the installation (several minutes)" ;;
-            finalize_dont_leave3) echo "is shown automatically in the browser, in real time." ;;
+            finalize_dont_leave1) echo "Do not close the browser tab." ;;
+            finalize_dont_leave2) echo "The installation continues automatically here," ;;
+            finalize_dont_leave3) echo "in real time (several minutes)." ;;
             finalize_waiting) echo "Waiting for finalization from your browser..." ;;
             finalize_done) echo "Initial configuration complete" ;;
             step_base_installed_title) echo "Base system installed and configured" ;;
@@ -294,10 +301,10 @@ else
     clear
     echo
     box_start
-    echo -e "${blue}${bold}${underline}  Language / Langue :${reset}"
-    echo
-    echo -e "  ${bold}[1] English (default)${reset}"
-    echo -e "  ${bold}[2] Francais${reset}"
+    box_line "${blue}${bold}${underline}" "Language / Langue :"
+    box_blank
+    box_line "$bold" "[1] English (default)"
+    box_line "$bold" "[2] Francais"
     box_end
     echo
     read_with_countdown 45 lang_choice || lang_choice=""
@@ -440,11 +447,11 @@ if [ ! -f /etc/yunohost/installed ]; then
     echo "$(t finalize_follow1)"
     echo "$(t finalize_follow2)"
     echo
-    echo -e "${yellow}╔══════════════════════════════════════════════════════════╗${reset}"
-    echo -e "${yellow}${bold}  $(t finalize_dont_leave1)${reset}"
-    echo -e "${yellow}  $(t finalize_dont_leave2)${reset}"
-    echo -e "${yellow}  $(t finalize_dont_leave3)${reset}"
-    echo -e "${yellow}╚══════════════════════════════════════════════════════════╝${reset}"
+    box_start "$yellow"
+    box_line "${yellow}${bold}" "$(t finalize_dont_leave1)"
+    box_line "$yellow" "$(t finalize_dont_leave2)"
+    box_line "$yellow" "$(t finalize_dont_leave3)"
+    box_end "$yellow"
     echo
 
     i=0
@@ -628,8 +635,12 @@ box_end
 echo
 echo -e "${bold}$(t final_done)${reset} $(t final_connect)"
 echo
-printf "  %-${label_width}s : ${bold}https://%s/wappos-portal/${reset}  (%s https://%s/wappos-portal/)\n" "$portal_label" "$main_domain" "$(t final_or)" "$final_ip"
-printf "  %-${label_width}s : ${bold}https://%s/wappos-admin/${reset}  (%s https://%s/wappos-admin/)\n" "$admin_label" "$main_domain" "$(t final_or)" "$final_ip"
+url_indent=$((label_width + 5))
+printf "  %-${label_width}s : ${bold}https://%s/wappos-portal/${reset}\n" "$portal_label" "$main_domain"
+printf "%*s(%s https://%s/wappos-portal/)\n" "$url_indent" "" "$(t final_or)" "$final_ip"
+echo
+printf "  %-${label_width}s : ${bold}https://%s/wappos-admin/${reset}\n" "$admin_label" "$main_domain"
+printf "%*s(%s https://%s/wappos-admin/)\n" "$url_indent" "" "$(t final_or)" "$final_ip"
 echo
 echo -e "${blue}${bold}  $(t final_username_label) ${admin_username}${reset}"
 echo -e "${blue}${bold}  $(t final_password_label)${reset}"
@@ -682,10 +693,16 @@ else:
 
 anchor = "Local IP: ${local_ip:-(no ip detected?)}"
 label_width = max(len(portal_label), len(admin_label), len(username_label))
+url_indent = " " * (label_width + 4)
+or_word = "ou" if lang == "fr" else "or"
 block = (
     "\n"
-    f" {portal_label.ljust(label_width)} : https://{domain}/wappos-portal/ ({'ou' if lang == 'fr' else 'or'} https://{ip}/wappos-portal/)\n"
-    f" {admin_label.ljust(label_width)} : https://{domain}/wappos-admin/ ({'ou' if lang == 'fr' else 'or'} https://{ip}/wappos-admin/)\n"
+    f" {portal_label.ljust(label_width)} : https://{domain}/wappos-portal/\n"
+    f"{url_indent}({or_word} https://{ip}/wappos-portal/)\n"
+    "\n"
+    f" {admin_label.ljust(label_width)} : https://{domain}/wappos-admin/\n"
+    f"{url_indent}({or_word} https://{ip}/wappos-admin/)\n"
+    "\n"
     f" {username_label.ljust(label_width)} : {username}"
 )
 if ssh_disabled:

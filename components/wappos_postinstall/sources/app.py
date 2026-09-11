@@ -40,12 +40,30 @@ def get_lang() -> str:
         return i18n.DEFAULT_LANG
 
 
+_NOISE_LINE_RE = re.compile(r"^[-\\|/]\s")
+_RETRY_LINE_RE = re.compile(r"nouvelle tentative dans|retrying in", re.I)
+
+
+def _is_noise_line(ansi_line: str) -> bool:
+    plain = _ANSI_CODE_RE.sub("", ansi_line).strip()
+    if not plain:
+        return False
+    if _NOISE_LINE_RE.match(plain):
+        return True
+    if _RETRY_LINE_RE.search(plain):
+        return True
+    return False
+
+
 def _collapse_carriage_returns(raw: str) -> str:
     lines = []
     for line in raw.split("\n"):
         if "\r" in line:
             line = line.split("\r")[-1]
-        lines.append(_CLEAR_EOL_RE.sub("", line))
+        line = _CLEAR_EOL_RE.sub("", line)
+        if _is_noise_line(line):
+            continue
+        lines.append(line)
     return "\n".join(lines)
 
 

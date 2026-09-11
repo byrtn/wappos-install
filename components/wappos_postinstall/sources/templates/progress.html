@@ -80,7 +80,7 @@
 
     .intro { text-align: center; font-size: 0.92rem; color: var(--color-text-muted); margin-bottom: 1.5rem; }
 
-    .banner { padding: 0.9rem 1.1rem; border-radius: 10px; font-size: 0.95rem; text-align: center; margin-bottom: 1.25rem; }
+    .banner { padding: 0.9rem 1.1rem; border-radius: 10px; font-size: 0.95rem; text-align: center; margin-top: 1.25rem; }
     .banner.success { background: var(--color-success-bg); color: var(--color-success-text); }
     .banner.error { background: var(--color-error-bg); color: var(--color-error-text); }
     .banner[hidden] { display: none; }
@@ -120,6 +120,13 @@
 
       <div class="intro">{{ t('progress_intro') }}</div>
 
+      <div id="spinner-row" class="spinner-row">
+        <div class="spinner"></div>
+        <div>{{ t('loading_title') }}</div>
+      </div>
+
+      <div id="terminal" class="terminal" aria-live="polite"></div>
+
       <div id="banner-success" class="banner success" hidden>
         <div>{{ t('progress_done_title') }} {{ t('progress_done_text') }}</div>
         <a class="btn-portal" href="/wappos-portal/">{{ t('btn_go_to_portal') }}</a>
@@ -128,12 +135,6 @@
         <div>{{ t('progress_failed_title') }}</div>
         <div>{{ t('progress_failed_text') }}</div>
       </div>
-      <div id="spinner-row" class="spinner-row">
-        <div class="spinner"></div>
-        <div>{{ t('loading_title') }}</div>
-      </div>
-
-      <div id="terminal" class="terminal" aria-live="polite"></div>
 
       <div class="page-footer"><span class="wappos-brand-mark">WAPPOS</span> — © 2026 <a href="https://byrtn.fr" target="_blank" rel="noopener">BYRTN</a></div>
     </div>

@@ -3,6 +3,15 @@
 set -euo pipefail
 trap '' PIPE
 
+export DEBIAN_FRONTEND=noninteractive
+export NEEDRESTART_MODE=l
+export NEEDRESTART_SUSPEND=1
+mkdir -p /etc/needrestart/conf.d
+cat > /etc/needrestart/conf.d/wappos-no-auto-restart.conf <<'NEEDRESTART_EOF'
+$nrconf{restart} = 'l';
+$nrconf{kernelhints} = 0;
+NEEDRESTART_EOF
+
 clear
 
 console_log="/var/log/wappos-install-console.log"

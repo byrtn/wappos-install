@@ -20,6 +20,7 @@ from wappos_api.connectors import adguard as adguard_connector
 from wappos_api.connectors import admin as admin_connector
 from wappos_api.connectors import domains_public as domains_public_connector
 from wappos_api.connectors import portal as portal_connector
+from wappos_api.connectors import ssh_access as ssh_access_connector
 from wappos_api.errors import UpstreamValidationError, WapposApiError
 from wappos_api.schemas.adguard import AdguardRewrite, AdguardRewriteRequest, AdguardStatus
 from wappos_api.schemas.admin import (
@@ -48,6 +49,7 @@ from wappos_api.schemas.permission import (
 )
 from wappos_api.schemas.portal import PortalLoginRequest, PortalLogoutResponse, PortalTokenResponse
 from wappos_api.schemas.service import ServiceInfo
+from wappos_api.schemas.ssh_access import SshAccessStatus
 from wappos_api.schemas.storage import DiskInfo, MountInfo, SmartReport
 from wappos_api.schemas.system import SystemHealth, WapposComponentVersion
 from wappos_api.schemas.tools import (
@@ -511,6 +513,28 @@ def admin_adguard_rewrites(x_admin_token: str = Header()) -> list[AdguardRewrite
         return adguard_connector.list_rewrites()
     except WapposApiError as exc:
         _raise_as_http(exc)
+
+
+@app.get("/admin/ssh-access", response_model=SshAccessStatus)
+def admin_ssh_access_status(x_admin_token: str = Header()) -> SshAccessStatus:
+    try:
+        admin_connector.list_domain_names(x_admin_token)
+        return SshAccessStatus(password_auth_enabled=ssh_access_connector.password_auth_enabled())
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.put("/admin/ssh-access", status_code=204)
+def admin_ssh_access_set(payload: SshAccessStatus, x_admin_token: str = Header()) -> Response:
+    try:
+        admin_connector.list_domain_names(x_admin_token)
+        if payload.password_auth_enabled:
+            ssh_access_connector.enable_password_auth()
+        else:
+            ssh_access_connector.disable_password_auth()
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return Response(status_code=204)
 
 
 @app.post("/admin/adguard/rewrites", status_code=204)

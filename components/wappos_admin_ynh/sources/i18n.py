@@ -52,6 +52,23 @@ STRINGS = {
     "msg_shutdown_in_progress": {"fr": "Extinction du serveur en cours.", "en": "Server shutdown in progress."},
 
     "title_system": {"fr": "Système", "en": "System"},
+    "title_security": {"fr": "Sécurité", "en": "Security"},
+    "breadcrumb_security": {"fr": "Sécurité", "en": "Security"},
+    "h3_ssh_access": {"fr": "Connexion SSH par mot de passe (root)", "en": "SSH password login (root)"},
+    "ssh_access_explain": {
+        "fr": "Par défaut, seules les clés SSH sont acceptées pour la connexion root — c'est plus sûr. N'activez la connexion par mot de passe que temporairement, le temps d'ajouter une clé, puis désactivez-la à nouveau.",
+        "en": "By default, only SSH keys are accepted for root login — this is safer. Only enable password login temporarily, long enough to add a key, then disable it again.",
+    },
+    "ssh_access_status_enabled": {"fr": "Activée actuellement.", "en": "Currently enabled."},
+    "ssh_access_status_disabled": {"fr": "Désactivée actuellement.", "en": "Currently disabled."},
+    "btn_ssh_access_enable": {"fr": "Activer temporairement", "en": "Enable temporarily"},
+    "btn_ssh_access_disable": {"fr": "Désactiver", "en": "Disable"},
+    "confirm_ssh_access_enable": {
+        "fr": "Activer la connexion SSH par mot de passe pour root ? N'oubliez pas de la désactiver une fois votre clé SSH ajoutée.",
+        "en": "Enable SSH password login for root? Remember to disable it again once your SSH key has been added.",
+    },
+    "msg_ssh_access_enabled": {"fr": "Connexion par mot de passe activée.", "en": "Password login enabled."},
+    "msg_ssh_access_disabled": {"fr": "Connexion par mot de passe désactivée.", "en": "Password login disabled."},
     "breadcrumb_updates": {"fr": "Mises à jour", "en": "Updates"},
     "banner_api_restarting": {
         "fr": "L'API Wappos redémarre suite à la mise à jour — rafraîchissement automatique dans {countdown}s.",
@@ -970,6 +987,7 @@ STRINGS = {
     "nav_performance": {"fr": "Performances", "en": "Performance"},
     "nav_storage": {"fr": "Stockage", "en": "Storage"},
     "nav_logs": {"fr": "Journaux", "en": "Logs"},
+    "nav_security": {"fr": "Sécurité", "en": "Security"},
     "nav_app_map": {"fr": "Correspondance URL &harr; app", "en": "URL &harr; app mapping"},
 
     "title_storage": {"fr": "Stockage", "en": "Storage"},

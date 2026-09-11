@@ -38,6 +38,11 @@ chmod 440 "/etc/sudoers.d/${app}_domains_public"
 chown root:root "/etc/sudoers.d/${app}_domains_public"
 visudo -c -f "/etc/sudoers.d/${app}_domains_public"
 
+sed "s/__APP__/$app/g" "$pkg_dir/standalone/conf/wappos_api_ssh_access.sudoers" > "/etc/sudoers.d/${app}_ssh_access"
+chmod 440 "/etc/sudoers.d/${app}_ssh_access"
+chown root:root "/etc/sudoers.d/${app}_ssh_access"
+visudo -c -f "/etc/sudoers.d/${app}_ssh_access"
+
 sed -e "s/__APP__/$app/g" -e "s#__INSTALL_DIR__#$install_dir#g" -e "s/__PORT__/$port/g" \
     "$pkg_dir/standalone/conf/systemd.service" > "/etc/systemd/system/$app.service"
 sed -e "s/__APP__/$app/g" -e "s/__PORT__/$port/g" \

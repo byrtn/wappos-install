@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set active_tab = "system" %}
+{% block title %}{{ t('title_security') }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('breadcrumb_security') }}</span>{% endblock %}
+
+{% block content %}
+    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
+    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+
+    <div class="card">
+      <div class="card-header"><h3>{{ t('h3_ssh_access') }}</h3></div>
+      <p>{{ t('ssh_access_explain') }}</p>
+      {% if ssh_password_auth_enabled is none %}
+        <p>{{ t('err_api_unreachable') }}</p>
+      {% else %}
+        <p>
+          <strong>
+            {{ t('ssh_access_status_enabled') if ssh_password_auth_enabled else t('ssh_access_status_disabled') }}
+          </strong>
+        </p>
+        {% if ssh_password_auth_enabled %}
+          <form method="post" action="{{ url_for('security_ssh_access_set') }}">
+            <input type="hidden" name="enabled" value="0">
+            <button type="submit" class="btn">{{ t('btn_ssh_access_disable') }}</button>
+          </form>
+        {% else %}
+          <form method="post" action="{{ url_for('security_ssh_access_set') }}" id="ssh-access-enable-form">
+            <input type="hidden" name="enabled" value="1">
+            <button type="submit" class="btn">{{ t('btn_ssh_access_enable') }}</button>
+          </form>
+          <script>
+            (function () {
+              var confirmMsg = {{ t('confirm_ssh_access_enable')|tojson }};
+              var form = document.getElementById('ssh-access-enable-form');
+              form.addEventListener('submit', function (e) {
+                if (!confirm(confirmMsg)) e.preventDefault();
+              });
+            })();
+          </script>
+        {% endif %}
+      {% endif %}
+    </div>
+{% endblock %}

@@ -721,6 +721,26 @@ def _wappos_api_adguard_status(token: str) -> dict:
     return resp.json()
 
 
+def _wappos_api_ssh_access_status(token: str) -> dict:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/ssh-access",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=10,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_set_ssh_access(token: str, enabled: bool) -> None:
+    resp = requests.put(
+        f"{WAPPOS_API_BASE}/admin/ssh-access",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        json={"password_auth_enabled": enabled},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+
+
 def _wappos_api_add_local_domain(token: str, domain: str) -> dict:
     resp = requests.post(
         f"{WAPPOS_API_BASE}/admin/local-domains",
@@ -1747,6 +1767,42 @@ def system_menu():
     if not user:
         return "Unauthorized", 401
     return render_template("system_menu.html", user=user, app_version=APP_VERSION)
+
+
+@app.route("/security")
+def security_page():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    try:
+        status = _wappos_api_ssh_access_status(token)
+    except requests.exceptions.RequestException:
+        return render_template(
+            "security.html", user=user, ssh_password_auth_enabled=None,
+            error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
+        ), 503
+    return render_template(
+        "security.html", user=user,
+        ssh_password_auth_enabled=status.get("password_auth_enabled", False),
+        error=request.args.get("error"), message=request.args.get("msg"),
+        app_version=APP_VERSION,
+    )
+
+
+@app.route("/security/ssh-access", methods=["POST"])
+def security_ssh_access_set():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    enabled = request.form.get("enabled") == "1"
+    try:
+        _wappos_api_set_ssh_access(token, enabled)
+    except requests.exceptions.HTTPError as e:
+        return redirect(url_for("security_page", error=_error_message(e)))
+    except requests.exceptions.RequestException:
+        return redirect(url_for("security_page", error=i18n.t("err_api_unreachable", get_lang())))
+    msg_key = "msg_ssh_access_enabled" if enabled else "msg_ssh_access_disabled"
+    return redirect(url_for("security_page", msg=i18n.t(msg_key, get_lang())))
 
 
 @app.route("/users")

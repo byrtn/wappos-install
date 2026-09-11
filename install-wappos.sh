@@ -63,15 +63,13 @@ success_line() { echo -e "${green}✓ $1${reset}"; }
 warn_line() { echo -e "${yellow}$1${reset}"; }
 error_line() { echo -e "${red}$1${reset}"; }
 
-box_start() { echo -e "${1:-$blue}╔══════════════════════════════════════════════════════════╗${reset}"; }
-box_end() { echo -e "${1:-$blue}╚══════════════════════════════════════════════════════════╝${reset}"; }
+box_start() { echo -e "${1:-$blue}════════════════════════════════════════════════════════════${reset}"; }
+box_end() { echo -e "${1:-$blue}════════════════════════════════════════════════════════════${reset}"; }
 box_line() {
-    local color="$1" text="$2" width=56
-    local pad=$(( width - ${#text} ))
-    (( pad < 0 )) && pad=0
-    printf "%b║ %s%*s ║%b\n" "$color" "$text" "$pad" "" "$reset"
+    local color="$1" text="$2"
+    printf "%b %s%b\n" "$color" "$text" "$reset"
 }
-box_blank() { printf "%b║%*s║%b\n" "${1:-$blue}" 58 "" "$reset"; }
+box_blank() { echo; }
 
 read_with_countdown() {
     local timeout="$1" varname="$2"
@@ -172,10 +170,7 @@ t() {
             ssh_key_present1) echo "Une cle SSH est deja enregistree pour root." ;;
             ssh_key_present2) echo "Rien a faire, vous pouvez vous connecter normalement." ;;
             ssh_no_key1) echo "Aucune cle SSH enregistree pour root." ;;
-            ssh_no_key2) echo "Activer la connexion par mot de passe le temps d'en ajouter une ? [o/N] (20 secondes, sinon N par defaut)" ;;
-            ssh_enabled1) echo "Connexion par mot de passe activee." ;;
-            ssh_enabled2) echo "Le mot de passe root est celui que vous venez de choisir pour l'administrateur Wappos ci-dessus." ;;
-            ssh_enabled3) echo "Pensez a la desactiver a nouveau une fois votre cle ajoutee." ;;
+            ssh_no_key2) echo "Vous pourrez l'activer temporairement depuis l'administration Wappos (Systeme > Securite) si besoin." ;;
             final_ready) echo "Wappos est pret" ;;
             final_done) echo "L'installation est terminee." ;;
             final_connect) echo "Connectez-vous avec :" ;;
@@ -184,9 +179,8 @@ t() {
             final_or) echo "ou" ;;
             final_username_label) echo ">>> IDENTIFIANT :" ;;
             final_password_label) echo ">>> MOT DE PASSE : celui que vous venez de definir precedemment" ;;
-            ssh_disabled_default1) echo "Acces SSH desactive par defaut." ;;
-            ssh_disabled_default2) echo "Si vous en avez besoin plus tard, connectez-vous en console (identifiant/mot de passe ci-dessus) puis executez :" ;;
-            ssh_disabled_default3) echo "Pensez a la desactiver a nouveau une fois votre cle SSH ajoutee :" ;;
+            ssh_disabled_default1) echo "Acces SSH par mot de passe desactive par defaut." ;;
+            ssh_disabled_default2) echo "Si vous en avez besoin, activez-le temporairement depuis l'administration Wappos (Systeme > Securite)." ;;
             progress_start) echo "Demarrage..." ;;
             progress_base_update) echo "Mise a jour du systeme de base..." ;;
             progress_deps) echo "Installation des dependances necessaires..." ;;
@@ -265,10 +259,7 @@ t() {
             ssh_key_present1) echo "An SSH key is already registered for root." ;;
             ssh_key_present2) echo "Nothing to do, you can log in normally." ;;
             ssh_no_key1) echo "No SSH key registered for root." ;;
-            ssh_no_key2) echo "Enable password login long enough to add one? [y/N] (20 seconds, N by default)" ;;
-            ssh_enabled1) echo "Password login enabled." ;;
-            ssh_enabled2) echo "The root password is the one you just chose for the Wappos administrator above." ;;
-            ssh_enabled3) echo "Remember to disable it again once your key has been added." ;;
+            ssh_no_key2) echo "You can enable it temporarily from the Wappos admin (System > Security) if needed." ;;
             final_ready) echo "Wappos is ready" ;;
             final_done) echo "Installation complete." ;;
             final_connect) echo "Log in with:" ;;
@@ -277,9 +268,8 @@ t() {
             final_or) echo "or" ;;
             final_username_label) echo ">>> USERNAME:" ;;
             final_password_label) echo ">>> PASSWORD: the one you just set above" ;;
-            ssh_disabled_default1) echo "SSH access disabled by default." ;;
-            ssh_disabled_default2) echo "If you need it later, log in via console (username/password above) then run:" ;;
-            ssh_disabled_default3) echo "Remember to disable it again once your SSH key has been added:" ;;
+            ssh_disabled_default1) echo "SSH password login disabled by default." ;;
+            ssh_disabled_default2) echo "If you need it, enable it temporarily from the Wappos admin (System > Security)." ;;
             progress_start) echo "Starting..." ;;
             progress_base_update) echo "Updating the base system..." ;;
             progress_deps) echo "Installing required dependencies..." ;;
@@ -615,18 +605,6 @@ if [ ! -f "$security_configured_marker" ]; then
     else
         echo -e "${bold}$(t ssh_no_key1)${reset}"
         echo "$(t ssh_no_key2)"
-        read_with_countdown 20 enable_ssh_password || enable_ssh_password="n"
-
-        case "$enable_ssh_password" in
-            y|Y|o|O)
-                cp /etc/ssh/sshd_config "/etc/ssh/sshd_config.bak-$(date +%Y%m%d)"
-                sed -i 's/^#\?PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config
-                sshd -t
-                systemctl reload sshd
-                echo -e "${bold}$(t ssh_enabled1)${reset} $(t ssh_enabled2)"
-                echo "$(t ssh_enabled3)"
-                ;;
-        esac
     fi
     echo
 
@@ -657,12 +635,8 @@ echo -e "${blue}${bold}  $(t final_password_label)${reset}"
 echo
 
 if grep -q "^PasswordAuthentication no" /etc/ssh/sshd_config 2>/dev/null; then
-    echo -e "${bold}$(t ssh_disabled_default1)${reset} $(t ssh_disabled_default2)"
-    echo
-    echo -e "  ${bold}sed -i 's/^PasswordAuthentication no/PasswordAuthentication yes/' /etc/ssh/sshd_config && systemctl reload ssh${reset}"
-    echo
-    echo "$(t ssh_disabled_default3)"
-    echo -e "  ${bold}sed -i 's/^PasswordAuthentication yes/PasswordAuthentication no/' /etc/ssh/sshd_config && systemctl reload ssh${reset}"
+    echo -e "${bold}$(t ssh_disabled_default1)${reset}"
+    echo "$(t ssh_disabled_default2)"
     echo
 fi
 

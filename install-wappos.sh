@@ -131,6 +131,7 @@ t() {
             step_nftables_why) echo "Evite un bug connu qui pourrait couper Docker apres un redemarrage reseau." ;;
             step_alert_account_title) echo "Creation du compte technique d'alertes" ;;
             step_alert_account_why) echo "Un compte interne pour les notifications systeme, pas pour vous connecter." ;;
+            success_alert_account) echo "Compte technique d'alertes cree" ;;
             step_components_title) echo "Installation des composants Wappos" ;;
             step_components_why) echo "Installe le portail, l'administration et les autres briques propres a Wappos." ;;
             installing_component_fmt) echo "  Installation de %s..." ;;
@@ -223,6 +224,7 @@ t() {
             step_nftables_why) echo "Avoids a known bug that could take Docker down after a network restart." ;;
             step_alert_account_title) echo "Creating the technical alert account" ;;
             step_alert_account_why) echo "An internal account for system notifications, not for you to log in with." ;;
+            success_alert_account) echo "Technical alert account created" ;;
             step_components_title) echo "Installing Wappos components" ;;
             step_components_why) echo "Installs the portal, administration, and other Wappos-specific building blocks." ;;
             installing_component_fmt) echo "  Installing %s..." ;;
@@ -511,7 +513,8 @@ admin_username="$(yunohost user list --output-as json | python3 -c "import json,
 
 if ! yunohost user list --output-as json | python3 -c "import json,sys; sys.exit(0 if '$alert_box_user' in json.load(sys.stdin)['users'] else 1)"; then
     step "$(t step_alert_account_title)" "$(t step_alert_account_why)"
-    yunohost user create "$alert_box_user" -F "SYSTEME - NE PAS SUPPRIMER" -d "$main_domain" -p "$(openssl rand -base64 24)"
+    quiet yunohost user create "$alert_box_user" -F "SYSTEME - NE PAS SUPPRIMER" -d "$main_domain" -p "$(openssl rand -base64 24)"
+    success_line "$(t success_alert_account)"
 fi
 
 step "$(t step_components_title)" "$(t step_components_why)"
@@ -519,6 +522,7 @@ for component in wappos_api_ynh wappos_sso_bypass wappos_admin_ynh wappos_portal
     printf "$(t installing_component_fmt)\n" "$component"
     quiet bash "$release_dir/$component/standalone/install.sh"
     success_line "$(printf "$(t component_installed_fmt)" "$component")"
+    echo
 done
 
 if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'rspamd' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then

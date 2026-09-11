@@ -4,7 +4,7 @@ LANGS = ("fr", "en")
 STRINGS = {
     "page_title": {"fr": "Wappos — Configuration initiale", "en": "Wappos — Initial setup"},
     "subtitle": {"fr": "Configuration initiale", "en": "Initial setup"},
-    "success_configured_connect": {"fr": "Wappos est configuré. Connectez-vous sur", "en": "Wappos is configured. Log in at"},
+    "success_configured_connect": {"fr": "Configuration enregistrée. L'installation de Wappos se poursuit maintenant sur l'écran de la console (plusieurs minutes) — vous pourrez vous connecter une fois terminé, sur", "en": "Configuration saved. Wappos installation now continues on the console screen (several minutes) — you'll be able to log in once it's done, at"},
     "success_already_configured": {"fr": "Wappos est déjà configuré sur ce serveur.", "en": "Wappos is already configured on this server."},
     "loading_title": {"fr": "Configuration de Wappos en cours...", "en": "Setting up Wappos..."},
     "loading_subtext": {"fr": "Cela peut prendre plusieurs minutes, merci de patienter sans recharger ni fermer cette page.", "en": "This can take several minutes, please wait without reloading or closing this page."},

@@ -1,6 +1,7 @@
 #!/bin/bash
 # Auteur : Patrick Ritaine
 set -euo pipefail
+trap '' PIPE
 
 clear
 
@@ -343,25 +344,25 @@ quiet_with_progress() {
             local new_content
             new_content="$(tail -n "+$((seen_line + 1))" "$install_log" 2>/dev/null)"
             seen_line=$total_lines
-            if echo "$new_content" | grep -q "1/5"; then
+            if grep -q "1/5" <<< "$new_content"; then
                 phase="$(t progress_base_update)"
-            elif echo "$new_content" | grep -q "2/5"; then
+            elif grep -q "2/5" <<< "$new_content"; then
                 phase="$(t progress_deps)"
-            elif echo "$new_content" | grep -q "3/5"; then
+            elif grep -q "3/5" <<< "$new_content"; then
                 phase="$(t progress_prep)"
-            elif echo "$new_content" | grep -q "4/5"; then
+            elif grep -q "4/5" <<< "$new_content"; then
                 phase="$(t progress_sources)"
-            elif echo "$new_content" | grep -q "5/5"; then
+            elif grep -q "5/5" <<< "$new_content"; then
                 phase="$(t progress_core)"
-            elif echo "$new_content" | grep -q "Setting up slapd ("; then
+            elif grep -q "Setting up slapd (" <<< "$new_content"; then
                 phase="$(t progress_slapd)"
-            elif echo "$new_content" | grep -q "Setting up postfix ("; then
+            elif grep -q "Setting up postfix (" <<< "$new_content"; then
                 phase="$(t progress_postfix)"
-            elif echo "$new_content" | grep -q "Setting up nginx"; then
+            elif grep -q "Setting up nginx" <<< "$new_content"; then
                 phase="$(t progress_nginx)"
-            elif echo "$new_content" | grep -q "Setting up fail2ban ("; then
+            elif grep -q "Setting up fail2ban (" <<< "$new_content"; then
                 phase="$(t progress_fail2ban)"
-            elif echo "$new_content" | grep -q "Setting up yunohost ("; then
+            elif grep -q "Setting up yunohost (" <<< "$new_content"; then
                 phase="$(t progress_yunohost)"
             fi
         fi

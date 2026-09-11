@@ -28,8 +28,6 @@
       --color-link: #016f93;
       --color-error-bg: #fbe9e7;
       --color-error-text: #7a1f00;
-      --color-success-bg: #e6f4ea;
-      --color-success-text: #1e4620;
       --color-text-faint: #999;
     }
     html[data-theme="dark"] {
@@ -46,8 +44,6 @@
       --color-link: #2a9dc4;
       --color-error-bg: #3a1f18;
       --color-error-text: #f5b7a8;
-      --color-success-bg: #1c3324;
-      --color-success-text: #a8e6bc;
       --color-text-faint: #969696;
     }
     @font-face {
@@ -97,9 +93,6 @@
     .login-submit:hover { background: var(--color-btn-bg-hover); }
 
     .error { background: var(--color-error-bg); color: var(--color-error-text); padding: 0.6rem 0.75rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; }
-    .success { background: var(--color-success-bg); color: var(--color-success-text); padding: 0.9rem 1rem; border-radius: 8px; font-size: 0.95rem; text-align: center; }
-    .success a { color: inherit; }
-
     .login-footer { margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--color-text-faint); }
     .login-footer a { color: var(--color-link); }
 
@@ -126,16 +119,6 @@
       <div id="login-fallback-text" class="wappos-brand-mark">WAPPOS</div>
       <div class="login-subtitle"><span class="login-subtitle-rule"></span>{{ t('subtitle') }}<span class="login-subtitle-rule"></span></div>
 
-      {% if done %}
-        <div class="success">
-          {% if domain %}
-            {{ t('success_configured_connect') }}<br>
-            <strong><a href="https://{{ domain }}/wappos-portal/">https://{{ domain }}/wappos-portal/</a></strong>
-          {% else %}
-            {{ t('success_already_configured') }}
-          {% endif %}
-        </div>
-      {% else %}
         {% if error %}<div class="error">{{ error }}</div>{% endif %}
         <div id="loading-state" class="loading-state">
           <div class="spinner"></div>
@@ -175,7 +158,6 @@
 
           <button type="submit" class="login-submit">{{ t('btn_configure') }}</button>
         </form>
-      {% endif %}
 
       <div class="login-footer"><span class="wappos-brand-mark">WAPPOS</span> — © 2026 <a href="https://byrtn.fr" target="_blank" rel="noopener">BYRTN</a></div>
     </div>

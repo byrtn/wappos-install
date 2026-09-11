@@ -4,6 +4,12 @@ set -euo pipefail
 
 clear
 
+console_log="/var/log/wappos-install-console.log"
+mkdir -p "$(dirname "$console_log")"
+: > "$console_log"
+chmod 644 "$console_log"
+exec > >(tee -a "$console_log") 2>&1
+
 bold="\033[1m"
 underline="\033[4m"
 reset="\033[0m"
@@ -400,6 +406,7 @@ if ! command -v yunohost >/dev/null 2>&1; then
         if [ "$tries" -ge 4 ]; then
             error_line "$(t err_after_retries)"
             tail -n 40 "$install_log"
+            echo "===WAPPOS_INSTALL_FAILED==="
             exit 1
         fi
         warn_line "$(printf "$(t warn_retry_fmt)" "$tries")"
@@ -483,6 +490,7 @@ if ! command -v docker >/dev/null 2>&1; then
         if [ "$tries" -ge 4 ]; then
             error_line "$(t err_after_retries)"
             tail -n 40 "$install_log"
+            echo "===WAPPOS_INSTALL_FAILED==="
             exit 1
         fi
         warn_line "$(printf "$(t warn_retry_fmt)" "$tries")"
@@ -693,3 +701,6 @@ if anchor in content:
 PYEOF
     systemctl restart yunoprompt.service
 fi
+
+echo "===WAPPOS_INSTALL_COMPLETE==="
+systemctl disable --now wappos_postinstall.service wappos_postinstall.socket >/dev/null 2>&1 || true

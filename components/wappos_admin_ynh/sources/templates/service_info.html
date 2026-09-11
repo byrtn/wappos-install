@@ -12,18 +12,18 @@
         <div class="service-actions">
           {% if info.status in ("running", "exited") %}
             <form method="post" action="{{ url_for('run_service_action', name=info.name, action='restart') }}"
-                  onsubmit="return confirm({{ t('confirm_restart_service', name=info.name)|tojson }});">
+                  data-confirm="{{ t('confirm_restart_service', name=info.name) }}">
               <button type="submit" class="btn btn-warning">{{ t('btn_restart') }}</button>
             </form>
             {% if not is_critical %}
               <form method="post" action="{{ url_for('run_service_action', name=info.name, action='stop') }}"
-                    onsubmit="return confirm({{ t('confirm_stop_service', name=info.name)|tojson }});">
+                    data-confirm="{{ t('confirm_stop_service', name=info.name) }}">
                 <button type="submit" class="btn btn-danger">{{ t('btn_stop') }}</button>
               </form>
             {% endif %}
           {% else %}
             <form method="post" action="{{ url_for('run_service_action', name=info.name, action='start') }}"
-                  onsubmit="return confirm({{ t('confirm_start_service', name=info.name)|tojson }});">
+                  data-confirm="{{ t('confirm_start_service', name=info.name) }}">
               <button type="submit" class="btn btn-success">{{ t('btn_start') }}</button>
             </form>
           {% endif %}
@@ -44,7 +44,7 @@
         </span>
                         {% if info.start_on_boot == "enabled" %}
           <form method="post" action="{{ url_for('run_service_action', name=info.name, action='disable') }}" class="service-inline-form"
-                onsubmit="return confirm({{ (t('confirm_disable_critical_service', name=info.name) if is_critical else t('confirm_disable_service', name=info.name))|tojson }});">
+                data-confirm="{{ t('confirm_disable_critical_service', name=info.name) if is_critical else t('confirm_disable_service', name=info.name) }}">
             {% if is_critical %}<input type="hidden" name="confirm" value="1">{% endif %}
             <button type="submit" class="diag-ignore-btn">{{ t('btn_disable') }}</button>
           </form>

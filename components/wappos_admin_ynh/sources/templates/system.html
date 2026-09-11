@@ -148,8 +148,7 @@
         {% endfor %}
       {% endif %}
 
-      <form method="post" action="{{ url_for('run_system_upgrade') }}" style="margin-top: 1rem;"
-            onsubmit="return confirm({{ t('confirm_run_upgrade_dialog')|tojson }}) &amp;&amp; (document.getElementById('confirm-upgrade-word').value === {{ t('confirm_word_upgrade')|tojson }} || (alert({{ t('alert_type_word_upgrade', word=t('confirm_word_upgrade'))|tojson }}), false));">
+      <form method="post" action="{{ url_for('run_system_upgrade') }}" style="margin-top: 1rem;" id="system-upgrade-form">
         <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; white-space: nowrap;">
           <input type="radio" name="target" value="apps" checked> {{ t('radio_applications') }}
         </label>
@@ -229,7 +228,7 @@
       <div class="card-body">
 
       <form method="post" action="{{ url_for('reboot_system') }}" style="margin-bottom: 1.5rem;"
-            onsubmit="return confirm({{ t('confirm_reboot_dialog')|tojson }});">
+            data-confirm="{{ t('confirm_reboot_dialog') }}">
         <div class="confirm-row">
           <p class="confirm-row-text">
             {{ t('type_word_to_confirm_reboot', word=t('confirm_word_reboot')) }}
@@ -241,7 +240,7 @@
       </form>
 
       <form method="post" action="{{ url_for('shutdown_system') }}"
-            onsubmit="return confirm({{ t('confirm_shutdown_dialog')|tojson }});">
+            data-confirm="{{ t('confirm_shutdown_dialog') }}">
         <div class="confirm-row">
           <p class="confirm-row-text">
             {{ t('type_word_to_confirm_shutdown', word=t('confirm_word_shutdown')) }}
@@ -296,6 +295,20 @@
 {% endblock %}
 
 {% block extra_script %}
+    (function () {
+      var form = document.getElementById('system-upgrade-form');
+      if (!form) return;
+      var confirmMsg = {{ t('confirm_run_upgrade_dialog')|tojson }};
+      var expectedWord = {{ t('confirm_word_upgrade')|tojson }};
+      var mismatchMsg = {{ t('alert_type_word_upgrade', word=t('confirm_word_upgrade'))|tojson }};
+      form.addEventListener('submit', function (e) {
+        if (!confirm(confirmMsg)) { e.preventDefault(); return; }
+        if (document.getElementById('confirm-upgrade-word').value !== expectedWord) {
+          alert(mismatchMsg);
+          e.preventDefault();
+        }
+      });
+    })();
     {% if api_restart %}
       (function () {
         var seconds = 15;

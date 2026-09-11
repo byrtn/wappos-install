@@ -741,6 +741,16 @@ def _wappos_api_set_ssh_access(token: str, enabled: bool) -> None:
     _raise_for_status(resp)
 
 
+def _wappos_api_security_overview(token: str) -> dict:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/security-overview",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
 def _wappos_api_add_local_domain(token: str, domain: str) -> dict:
     resp = requests.post(
         f"{WAPPOS_API_BASE}/admin/local-domains",
@@ -1778,12 +1788,17 @@ def security_page():
         status = _wappos_api_ssh_access_status(token)
     except requests.exceptions.RequestException:
         return render_template(
-            "security.html", user=user, ssh_password_auth_enabled=None,
+            "security.html", user=user, ssh_password_auth_enabled=None, overview=None,
             error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
         ), 503
+    try:
+        overview = _wappos_api_security_overview(token)
+    except requests.exceptions.RequestException:
+        overview = None
     return render_template(
         "security.html", user=user,
         ssh_password_auth_enabled=status.get("password_auth_enabled", False),
+        overview=overview,
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )

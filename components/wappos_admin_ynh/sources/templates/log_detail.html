@@ -52,7 +52,7 @@
     <div class="card">
       <h2 style="margin: 0; padding: 1.25rem 1.5rem;">{{ t('h2_log') }}</h2>
       <form method="post" action="{{ url_for('share_log', name=detail.name) }}" style="padding: 0 1.5rem 1rem;"
-            onsubmit="return confirm({{ t('confirm_share_log')|tojson }});">
+            data-confirm="{{ t('confirm_share_log') }}">
         <button type="submit" class="btn">{{ t('btn_share_online') }}</button>
       </form>
       {% if detail.more_logs_available %}

@@ -1,0 +1,1 @@
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/security_status.py overview

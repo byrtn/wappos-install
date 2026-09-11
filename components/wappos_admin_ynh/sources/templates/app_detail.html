@@ -116,13 +116,13 @@
             {% if raw_setting_value is none %}<em>{{ t('value_undefined') }}</em>{% else %}<code>{{ raw_setting_value }}</code>{% endif %}
           </p>
           <form method="post" action="{{ url_for('app_setting_set', app_id=detail.id) }}" class="form-row"
-                onsubmit="return confirm({{ t('confirm_modify_raw_setting', key='%s')|tojson }}.replace('%s', {{ raw_setting_key|tojson }}));">
+                data-confirm="{{ t('confirm_modify_raw_setting', key=raw_setting_key) }}">
             <input type="hidden" name="key" value="{{ raw_setting_key }}">
             <input type="text" name="value" value="{{ raw_setting_value or '' }}" placeholder="{{ t('label_new_value') }}">
             <button type="submit" class="btn btn-warning">{{ t('btn_modify') }}</button>
           </form>
           <form method="post" action="{{ url_for('app_setting_delete', app_id=detail.id) }}" style="margin-top: 0.4rem;"
-                onsubmit="return confirm({{ t('confirm_delete_raw_setting', key='%s')|tojson }}.replace('%s', {{ raw_setting_key|tojson }}));">
+                data-confirm="{{ t('confirm_delete_raw_setting', key=raw_setting_key) }}">
             <input type="hidden" name="key" value="{{ raw_setting_key }}">
             <button type="submit" class="btn btn-danger">{{ t('btn_delete_this_setting') }}</button>
           </form>
@@ -195,7 +195,7 @@
         <div class="card-header"><h3 style="color: var(--color-danger);">{{ t('h3_danger_zone') }}</h3></div>
         <div class="card-body">
         <form method="post" action="{{ url_for('app_remove_action', app_id=detail.id) }}"
-              onsubmit="return confirm({{ t('confirm_uninstall_app', label=detail.label)|tojson }});">
+              data-confirm="{{ t('confirm_uninstall_app', label=detail.label) }}">
           {% if detail.supports_purge %}
             <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; margin-bottom: 0.5rem;">
               <input type="checkbox" name="purge" value="1"> {{ t('checkbox_purge_app_data') }}

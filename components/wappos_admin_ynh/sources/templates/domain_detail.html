@@ -20,7 +20,7 @@
           </div>
           {% if not detail.main %}
             <form method="post" action="{{ url_for('domain_set_main', domain=detail.name) }}" style="margin-left: auto;"
-                  onsubmit="return confirm({{ t('confirm_set_main_domain', domain=detail.name)|tojson }});">
+                  data-confirm="{{ t('confirm_set_main_domain', domain=detail.name) }}">
               <button type="submit" class="btn">{{ t('btn_set_main_domain') }}</button>
             </form>
           {% endif %}
@@ -118,7 +118,7 @@
                 <div class="card-body">
                                 <form method="post" action="{{ url_for('domain_cert_install', domain=detail.name) }}" class="form-row"
                       {% if cert_ns.acme_eligible is sameas false %}
-                      onsubmit="return this.no_checks.checked || confirm({{ t('confirm_cert_not_eligible')|tojson }});"
+                      data-confirm="{{ t('confirm_cert_not_eligible') }}" data-confirm-unless-checked="no_checks"
                       {% endif %}>
                   <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
                     <input type="checkbox" name="force" value="1"> {{ t('checkbox_force_replace_cert') }}
@@ -208,7 +208,7 @@
                       {% endfor %}
                     </table>
                     <form method="post" action="{{ url_for('domain_dns_push_submit', domain=detail.name) }}" class="form-row" style="margin-top: 0.75rem;"
-                          onsubmit="return confirm({{ t('confirm_dns_push', domain=detail.name)|tojson }});">
+                          data-confirm="{{ t('confirm_dns_push', domain=detail.name) }}">
                       {% if has_unmanaged %}
                         <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
                           <input type="checkbox" name="force" value="1"> {{ t('checkbox_force_include_unmanaged') }}
@@ -254,8 +254,7 @@
             {% endfor %}
           </ul>
         {% else %}
-          <form method="post" action="{{ url_for('domain_remove', domain=detail.name) }}" class="form-row"
-                onsubmit="return confirm({{ t('confirm_delete_domain', domain=detail.name)|tojson }}) &amp;&amp; (document.getElementById('confirm-domain-name').value === {{ detail.name|tojson }} || (alert({{ t('alert_type_domain_name', domain=detail.name)|tojson }}), false));">
+          <form method="post" action="{{ url_for('domain_remove', domain=detail.name) }}" class="form-row" id="domain-remove-form">
             {% if detail.name.endswith('.nohost.me') or detail.name.endswith('.noho.st') or detail.name.endswith('.ynh.fr') %}
                             <label style="display: flex; align-items: center; gap: 0.4rem; font-size: 0.85rem;">
                 <input type="checkbox" name="ignore_dyndns" value="1">
@@ -379,4 +378,19 @@
       form.addEventListener('input', function () { wappasApplyVisibility(form); });
       form.addEventListener('change', function () { wappasApplyVisibility(form); });
     });
+
+    (function () {
+      var form = document.getElementById('domain-remove-form');
+      if (!form) return;
+      var confirmMsg = {{ t('confirm_delete_domain', domain=detail.name)|tojson if detail else '""' }};
+      var expectedName = {{ detail.name|tojson if detail else '""' }};
+      var mismatchMsg = {{ t('alert_type_domain_name', domain=detail.name)|tojson if detail else '""' }};
+      form.addEventListener('submit', function (e) {
+        if (!confirm(confirmMsg)) { e.preventDefault(); return; }
+        if (document.getElementById('confirm-domain-name').value !== expectedName) {
+          alert(mismatchMsg);
+          e.preventDefault();
+        }
+      });
+    })();
 {% endblock %}

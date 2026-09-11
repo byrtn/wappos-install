@@ -23,7 +23,7 @@
                   <span class="link-list-sub">{{ c.status }} — {{ c.image|join(', ') if c.image else t('unknown_image') }}</span>
                 </span>
                 <form method="post" action="{{ url_for('docker_audit_remove_container', name=c.name) }}" style="margin: 0;"
-                      onsubmit="return confirm({{ t('confirm_delete_container', name=c.name)|tojson }});">
+                      data-confirm="{{ t('confirm_delete_container', name=c.name) }}">
                   <button type="submit" class="btn btn-danger">{{ t('btn_delete_short') }}</button>
                 </form>
               </div>
@@ -45,7 +45,7 @@
               <div class="link-list-item" style="cursor: default;">
                 <span class="link-list-text"><span class="link-list-main"><strong>{{ v.name }}</strong></span></span>
                 <form method="post" action="{{ url_for('docker_audit_remove_volume', name=v.name) }}" style="margin: 0;"
-                      onsubmit="return confirm({{ t('confirm_delete_volume', name=v.name)|tojson }});">
+                      data-confirm="{{ t('confirm_delete_volume', name=v.name) }}">
                   <button type="submit" class="btn btn-danger">{{ t('btn_delete_short') }}</button>
                 </form>
               </div>
@@ -66,7 +66,7 @@
               <div class="link-list-item" style="cursor: default;">
                 <span class="link-list-text"><span class="link-list-main"><strong>{{ n.name }}</strong></span></span>
                 <form method="post" action="{{ url_for('docker_audit_remove_network', name=n.name) }}" style="margin: 0;"
-                      onsubmit="return confirm({{ t('confirm_delete_network', name=n.name)|tojson }});">
+                      data-confirm="{{ t('confirm_delete_network', name=n.name) }}">
                   <button type="submit" class="btn btn-danger">{{ t('btn_delete_short') }}</button>
                 </form>
               </div>
@@ -86,7 +86,7 @@
             {{ t('images_total_size', n=(dangling_images|length), size=(dangling_images|sum(attribute='size_mb')|round(1))) }}
           </p>
           <form method="post" action="{{ url_for('docker_audit_prune_images') }}"
-                onsubmit="return confirm({{ t('confirm_prune_images', n=(dangling_images|length))|tojson }});">
+                data-confirm="{{ t('confirm_prune_images', n=(dangling_images|length)) }}">
             <button type="submit" class="btn btn-danger">{{ t('btn_prune_images') }}</button>
           </form>
         {% else %}
@@ -133,7 +133,7 @@
             {{ t('docker_ce_uninstall_warning') }}
           </div>
           <form method="post" action="{{ url_for('docker_audit_uninstall_docker_ce') }}"
-                onsubmit="return confirm({{ t('confirm_uninstall_docker_ce')|tojson }});">
+                data-confirm="{{ t('confirm_uninstall_docker_ce') }}">
             <button type="submit" class="btn btn-danger">{{ t('btn_uninstall_docker_ce') }}</button>
           </form>
         {% else %}

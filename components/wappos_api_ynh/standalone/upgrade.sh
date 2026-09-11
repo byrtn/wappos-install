@@ -43,6 +43,11 @@ chmod 440 "/etc/sudoers.d/${app}_ssh_access"
 chown root:root "/etc/sudoers.d/${app}_ssh_access"
 visudo -c -f "/etc/sudoers.d/${app}_ssh_access"
 
+sed "s/__APP__/$app/g" "$pkg_dir/standalone/conf/wappos_api_security_status.sudoers" > "/etc/sudoers.d/${app}_security_status"
+chmod 440 "/etc/sudoers.d/${app}_security_status"
+chown root:root "/etc/sudoers.d/${app}_security_status"
+visudo -c -f "/etc/sudoers.d/${app}_security_status"
+
 sed -e "s/__APP__/$app/g" -e "s#__INSTALL_DIR__#$install_dir#g" -e "s/__PORT__/$port/g" \
     "$pkg_dir/standalone/conf/systemd.service" > "/etc/systemd/system/$app.service"
 sed -e "s/__APP__/$app/g" -e "s/__PORT__/$port/g" \

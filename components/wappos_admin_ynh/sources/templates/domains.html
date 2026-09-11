@@ -48,7 +48,7 @@
               <li class="local-domain-item">
                 <span>{{ d }}</span>
                 <form method="post" action="{{ url_for('local_domain_remove', domain=d) }}"
-                      onsubmit="return confirm({{ t('confirm_remove_local_domain', domain=d)|tojson }});">
+                      data-confirm="{{ t('confirm_remove_local_domain', domain=d) }}">
                   <button type="submit" class="btn btn-danger">{{ t('btn_remove') }}</button>
                 </form>
               </li>

@@ -5,40 +5,119 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('breadcrumb_security') }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
+    {% if error %}<div class="error">{{ error }}</div>{% endif %}
+    {% if message %}<div class="message">{{ message }}</div>{% endif %}
 
     <div class="card">
       <div class="card-header"><h3>{{ t('h3_ssh_access') }}</h3></div>
-      <p>{{ t('ssh_access_explain') }}</p>
-      {% if ssh_password_auth_enabled is none %}
-        <p>{{ t('err_api_unreachable') }}</p>
-      {% else %}
-        <p>
-          <strong>
-            {{ t('ssh_access_status_enabled') if ssh_password_auth_enabled else t('ssh_access_status_disabled') }}
-          </strong>
-        </p>
-        {% if ssh_password_auth_enabled %}
-          <form method="post" action="{{ url_for('security_ssh_access_set') }}">
-            <input type="hidden" name="enabled" value="0">
-            <button type="submit" class="btn">{{ t('btn_ssh_access_disable') }}</button>
-          </form>
+      <div class="card-body">
+        <p class="field-info">{{ t('ssh_access_explain') }}</p>
+        {% if ssh_password_auth_enabled is none %}
+          <p class="sec-status sec-status-unknown">{{ t('err_api_unreachable') }}</p>
         {% else %}
-          <form method="post" action="{{ url_for('security_ssh_access_set') }}" id="ssh-access-enable-form">
-            <input type="hidden" name="enabled" value="1">
-            <button type="submit" class="btn">{{ t('btn_ssh_access_enable') }}</button>
-          </form>
-          <script>
-            (function () {
-              var confirmMsg = {{ t('confirm_ssh_access_enable')|tojson }};
-              var form = document.getElementById('ssh-access-enable-form');
-              form.addEventListener('submit', function (e) {
-                if (!confirm(confirmMsg)) e.preventDefault();
-              });
-            })();
-          </script>
+          <div class="sec-row">
+            <span class="sec-status {{ 'sec-status-on' if ssh_password_auth_enabled else 'sec-status-off' }}">
+              <span class="sec-status-dot"></span>
+              {{ t('ssh_access_status_enabled') if ssh_password_auth_enabled else t('ssh_access_status_disabled') }}
+            </span>
+            {% if ssh_password_auth_enabled %}
+              <form method="post" action="{{ url_for('security_ssh_access_set') }}">
+                <input type="hidden" name="enabled" value="0">
+                <button type="submit" class="btn btn-danger">{{ t('btn_ssh_access_disable') }}</button>
+              </form>
+            {% else %}
+              <form method="post" action="{{ url_for('security_ssh_access_set') }}" data-confirm="{{ t('confirm_ssh_access_enable') }}">
+                <input type="hidden" name="enabled" value="1">
+                <button type="submit" class="btn">{{ t('btn_ssh_access_enable') }}</button>
+              </form>
+            {% endif %}
+          </div>
         {% endif %}
-      {% endif %}
+      </div>
     </div>
+
+    <div class="card">
+      <div class="card-header"><h3>{{ t('h3_root_password_age') }}</h3></div>
+      <div class="card-body">
+        {% if overview is none %}
+          <p class="sec-status sec-status-unknown">{{ t('err_api_unreachable') }}</p>
+        {% else %}
+          <p class="field-info" style="margin: 0;">
+            {{ t('root_password_changed_relative', when=(overview.root_password.last_changed_epoch|relative_fr)) }}
+          </p>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>{{ t('h3_fail2ban') }}</h3></div>
+      <div class="card-body">
+        {% if overview is none %}
+          <p class="sec-status sec-status-unknown">{{ t('err_api_unreachable') }}</p>
+        {% elif not overview.fail2ban.available %}
+          <p class="field-info" style="margin: 0;">{{ t('fail2ban_unavailable') }}</p>
+        {% else %}
+          <p class="sec-status {{ 'sec-status-on' if overview.fail2ban.total_banned > 0 else 'sec-status-off' }}" style="margin: 0 0 0.75rem;">
+            <span class="sec-status-dot"></span>
+            {{ t('fail2ban_total_banned', n=overview.fail2ban.total_banned, s=('s' if overview.fail2ban.total_banned > 1 else '')) }}
+          </p>
+          {% if overview.fail2ban.total_banned > 0 %}
+            <table>
+              <thead><tr><th>{{ t('th_fail2ban_jail') }}</th><th>{{ t('th_fail2ban_banned_ips') }}</th></tr></thead>
+              <tbody>
+                {% for jail, ips in overview.fail2ban.jails.items() if ips %}
+                  <tr><td>{{ jail }}</td><td>{{ ips|join(', ') }}</td></tr>
+                {% endfor %}
+              </tbody>
+            </table>
+          {% endif %}
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>{{ t('h3_root_ssh_keys') }}</h3></div>
+      <div class="card-body">
+        <p class="field-info">{{ t('root_ssh_keys_explain') }}</p>
+        {% if overview is none %}
+          <p class="sec-status sec-status-unknown">{{ t('err_api_unreachable') }}</p>
+        {% elif not overview.root_ssh_keys %}
+          <p class="field-info" style="margin: 0;">{{ t('no_root_ssh_key') }}</p>
+        {% else %}
+          <table>
+            <thead><tr><th>{{ t('th_comment') }}</th><th>{{ t('th_key_type') }}</th><th>{{ t('th_fingerprint') }}</th></tr></thead>
+            <tbody>
+              {% for k in overview.root_ssh_keys %}
+                <tr>
+                  <td>{{ k.comment or "—" }}</td>
+                  <td>{{ k.type }}</td>
+                  <td style="font-family: monospace; font-size: 0.8rem;">{{ k.fingerprint }}</td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="card-header"><h3>{{ t('h3_diagnosis_shortcut') }}</h3></div>
+      <div class="card-body">
+        <p class="field-info" style="margin: 0 0 0.75rem;">{{ t('diagnosis_shortcut_explain') }}</p>
+        <a href="{{ url_for('diagnosis') }}" class="btn">{{ t('btn_go_to_diagnosis') }}</a>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .card { margin-bottom: 1.25rem; }
+    .field-info { color: var(--color-text-muted); font-size: 0.85rem; margin: 0 0 1.1rem; }
+    .sec-row { display: flex; align-items: center; justify-content: space-between; gap: 1rem; flex-wrap: wrap; }
+    .sec-status { display: inline-flex; align-items: center; gap: 0.5rem; font-weight: 600; font-size: 0.92rem; }
+    .sec-status-dot { width: 0.55rem; height: 0.55rem; border-radius: 50%; flex-shrink: 0; }
+    .sec-status-on { color: var(--color-text-danger); }
+    .sec-status-on .sec-status-dot { background: var(--color-danger); }
+    .sec-status-off { color: var(--color-text-success); }
+    .sec-status-off .sec-status-dot { background: var(--color-success); }
+    .sec-status-unknown { color: var(--color-text-muted); }
 {% endblock %}

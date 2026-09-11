@@ -19,12 +19,12 @@
                 <td class="fw-col-switch">
                   {% if p.open %}
                     <form method="post" action="{{ url_for('close_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form"
-                          onsubmit="return confirm({{ t('confirm_close_port', port=p.port, protocol=protocol|upper)|tojson }});">
+                          data-confirm="{{ t('confirm_close_port', port=p.port, protocol=protocol|upper) }}">
                       <button type="submit" class="fw-switch fw-switch-on" aria-label="{{ t('aria_close_port', port=p.port) }}"><span class="fw-switch-thumb"></span></button>
                     </form>
                   {% else %}
                                         <form method="post" action="{{ url_for('open_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form"
-                          onsubmit="return confirm({{ t('confirm_open_port', port=p.port, protocol=protocol|upper)|tojson }});">
+                          data-confirm="{{ t('confirm_open_port', port=p.port, protocol=protocol|upper) }}">
                       <input type="hidden" name="comment" value="{{ p.comment }}">
                       {% if p.upnp %}<input type="hidden" name="upnp" value="on">{% endif %}
                       <button type="submit" class="fw-switch fw-switch-off" aria-label="{{ t('aria_open_port', port=p.port) }}"><span class="fw-switch-thumb"></span></button>
@@ -117,7 +117,7 @@
           {{ t('upnp_status_text', state=(t('upnp_state_enabled') if rules.upnp_enabled else t('upnp_state_disabled'))) }}
         </p>
         <form method="post" action="{{ url_for('set_upnp', enabled='false' if rules.upnp_enabled else 'true') }}"
-              onsubmit="return confirm({{ t('confirm_toggle_upnp', action=(t('upnp_action_disable') if rules.upnp_enabled else t('upnp_action_enable')))|tojson }});">
+              data-confirm="{{ t('confirm_toggle_upnp', action=(t('upnp_action_disable') if rules.upnp_enabled else t('upnp_action_enable'))) }}">
           <button type="submit" class="btn {{ 'btn-danger' if rules.upnp_enabled else '' }}">
             {{ t('btn_disable') if rules.upnp_enabled else t('btn_enable') }}
           </button>

@@ -17,7 +17,7 @@
           </span>
           {% if not g.is_special %}
             <form method="post" action="{{ url_for('delete_group', groupname=g.name) }}"
-                  onsubmit="return confirm({{ t('confirm_delete_group', name=g.name)|tojson }});" class="group-delete-form">
+                  data-confirm="{{ t('confirm_delete_group', name=g.name) }}" class="group-delete-form">
               <button type="submit" class="btn btn-danger">{{ t('btn_delete_short') }}</button>
             </form>
           {% endif %}
@@ -41,7 +41,7 @@
               {% endif %}
               {% if g.name == "admins" or not g.is_special %}
                 <form method="post" action="{{ url_for('update_group_members', groupname=g.name) }}"
-                      onsubmit="return wappasConfirmGroupMembers(this, {{ g.name|tojson }});">
+                      data-groupname="{{ g.name }}" onsubmit="return wappasConfirmGroupMembers(this, this.dataset.groupname);">
                   <div class="tag-checklist">
                     {% for username in user_options %}
                       <label class="tag-checkbox">
@@ -62,7 +62,7 @@
             <strong class="group-row-label">{{ t('label_permissions') }}</strong>
             <div class="group-row-content">
               <form method="post" action="{{ url_for('update_group_permissions', groupname=g.name) }}"
-                    onsubmit="return wappasConfirmGroupPermissions(this, {{ g.name|tojson }});">
+                    data-groupname="{{ g.name }}" onsubmit="return wappasConfirmGroupPermissions(this, this.dataset.groupname);">
                 <div class="tag-checklist">
                   {% for p in permission_options %}
                                         {% set forbidden = (g.name == 'visitors' and p.protected) or (g.name in ('all_users', 'admins') and p.id in ('ssh.main', 'sftp.main')) %}
@@ -104,7 +104,7 @@
             <strong class="group-row-label">{{ g.name }}</strong>
             <div class="group-row-content">
               <form method="post" action="{{ url_for('update_group_permissions', groupname=g.name) }}"
-                    onsubmit="return wappasConfirmGroupPermissions(this, {{ g.name|tojson }});">
+                    data-groupname="{{ g.name }}" onsubmit="return wappasConfirmGroupPermissions(this, this.dataset.groupname);">
                 <div class="tag-checklist">
                   {% for p in permission_options %}
                                         {% set forbidden = (g.name == 'visitors' and p.protected) or (g.name in ('all_users', 'admins') and p.id in ('ssh.main', 'sftp.main')) %}

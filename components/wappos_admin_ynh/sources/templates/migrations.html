@@ -17,7 +17,7 @@
 
     {% if pending %}
       <form method="post" action="{{ url_for('run_migrations') }}" style="margin-bottom: 1.25rem;"
-            onsubmit="return confirm({{ t('confirm_run_pending_migrations')|tojson }});">
+            data-confirm="{{ t('confirm_run_pending_migrations') }}">
         <input type="hidden" name="auto" value="1">
         <button type="submit" class="btn">{{ t('btn_run_pending_migrations') }}</button>
       </form>
@@ -33,7 +33,7 @@
           {% if m.disclaimer %}
             <div class="alert alert-warning migration-disclaimer">{{ m.disclaimer }}</div>
             <form method="post" action="{{ url_for('run_migrations') }}" class="migration-run-form"
-                  onsubmit="return confirm({{ t('confirm_run_migration_disclaimer', name=m.description)|tojson }});">
+                  data-confirm="{{ t('confirm_run_migration_disclaimer', name=m.description) }}">
               <input type="hidden" name="target" value="{{ m.id }}">
               <label style="display: flex; align-items: center; gap: 0.5rem; font-size: 0.9rem; margin-bottom: 0.75rem;">
                 <input type="checkbox" name="accept_disclaimer" value="1" required> {{ t('label_accept_disclaimer') }}
@@ -42,7 +42,7 @@
             </form>
           {% else %}
             <form method="post" action="{{ url_for('run_migrations') }}" class="migration-run-form"
-                  onsubmit="return confirm({{ t('confirm_run_migration', name=m.description)|tojson }});">
+                  data-confirm="{{ t('confirm_run_migration', name=m.description) }}">
               <input type="hidden" name="target" value="{{ m.id }}">
               <button type="submit" class="btn">{{ t('btn_run_migration') }}</button>
             </form>

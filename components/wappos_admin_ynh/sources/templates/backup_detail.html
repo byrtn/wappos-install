@@ -31,8 +31,7 @@
       <div class="card-header"><h3>{{ t('h3_restore') }}</h3></div>
       <div class="card-body">
         <p class="field-info">{{ t('help_restore_destructive') }}</p>
-        <form method="post" action="{{ url_for('restore_backup', name=name) }}"
-              onsubmit="return confirm({{ t('confirm_restore_backup', name=name)|tojson }}) &amp;&amp; (document.getElementById('confirm-backup-name').value === {{ name|tojson }} || (alert({{ t('alert_type_exact_name_to_restore', name=name)|tojson }}), false));">
+        <form method="post" action="{{ url_for('restore_backup', name=name) }}" id="backup-restore-form">
                     {% if info.get('apps') %}
             <div class="field" style="margin-bottom: 0.5rem;">
               <label style="display: block; font-size: 0.85rem; color: var(--color-text-dim); margin-bottom: 0.25rem;">{{ t('label_apps_to_restore') }}</label>
@@ -69,7 +68,7 @@
       <div class="card-header"><h3 style="color: var(--color-danger);">{{ t('h3_danger_zone') }}</h3></div>
       <div class="card-body">
         <form method="post" action="{{ url_for('delete_backup', name=name) }}"
-              onsubmit="return confirm({{ t('confirm_delete_archive', name=name)|tojson }});">
+              data-confirm="{{ t('confirm_delete_archive', name=name) }}">
           <button type="submit" class="btn btn-danger">{{ t('btn_delete_this_archive') }}</button>
         </form>
       </div>
@@ -88,4 +87,21 @@
       .confirm-row .btn { width: 100%; }
       .confirm-row-text input { width: 100%; margin-top: 0.4rem; box-sizing: border-box; }
     }
+{% endblock %}
+
+{% block extra_script %}
+    (function () {
+      var form = document.getElementById('backup-restore-form');
+      if (!form) return;
+      var confirmMsg = {{ t('confirm_restore_backup', name=name)|tojson }};
+      var expectedName = {{ name|tojson }};
+      var mismatchMsg = {{ t('alert_type_exact_name_to_restore', name=name)|tojson }};
+      form.addEventListener('submit', function (e) {
+        if (!confirm(confirmMsg)) { e.preventDefault(); return; }
+        if (document.getElementById('confirm-backup-name').value !== expectedName) {
+          alert(mismatchMsg);
+          e.preventDefault();
+        }
+      });
+    })();
 {% endblock %}

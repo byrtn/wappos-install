@@ -56,7 +56,7 @@
                 <button type="submit" class="btn">{{ t('btn_restart') }}</button>
               </form>
               <form method="post" action="{{ url_for('docker_remove', slug=a.slug) }}"
-                    onsubmit="return confirm({{ t('confirm_delete_docker_app', slug=a.slug)|tojson }});" style="margin: 0;">
+                    data-confirm="{{ t('confirm_delete_docker_app', slug=a.slug) }}" style="margin: 0;">
                 <label style="display: inline-flex; align-items: center; gap: 0.3rem; font-size: 0.78rem; margin-right: 0.5rem;">
                   <input type="checkbox" name="delete_data"> {{ t('checkbox_purge_data') }}
                 </label>

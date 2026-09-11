@@ -20,6 +20,7 @@ from wappos_api.connectors import adguard as adguard_connector
 from wappos_api.connectors import admin as admin_connector
 from wappos_api.connectors import domains_public as domains_public_connector
 from wappos_api.connectors import portal as portal_connector
+from wappos_api.connectors import security_status as security_status_connector
 from wappos_api.connectors import ssh_access as ssh_access_connector
 from wappos_api.errors import UpstreamValidationError, WapposApiError
 from wappos_api.schemas.adguard import AdguardRewrite, AdguardRewriteRequest, AdguardStatus
@@ -49,6 +50,7 @@ from wappos_api.schemas.permission import (
 )
 from wappos_api.schemas.portal import PortalLoginRequest, PortalLogoutResponse, PortalTokenResponse
 from wappos_api.schemas.service import ServiceInfo
+from wappos_api.schemas.security_status import SecurityOverview
 from wappos_api.schemas.ssh_access import SshAccessStatus
 from wappos_api.schemas.storage import DiskInfo, MountInfo, SmartReport
 from wappos_api.schemas.system import SystemHealth, WapposComponentVersion
@@ -535,6 +537,15 @@ def admin_ssh_access_set(payload: SshAccessStatus, x_admin_token: str = Header()
     except WapposApiError as exc:
         _raise_as_http(exc)
     return Response(status_code=204)
+
+
+@app.get("/admin/security-overview", response_model=SecurityOverview)
+def admin_security_overview(x_admin_token: str = Header()) -> SecurityOverview:
+    try:
+        admin_connector.list_domain_names(x_admin_token)
+        return SecurityOverview(**security_status_connector.overview())
+    except WapposApiError as exc:
+        _raise_as_http(exc)
 
 
 @app.post("/admin/adguard/rewrites", status_code=204)

@@ -131,7 +131,7 @@
                 <td style="font-family: monospace; font-size: 0.78rem; word-break: break-all;">{{ k.key }}</td>
                 <td>
                   <form method="post" action="{{ url_for('remove_ssh_key', username=detail.username) }}"
-                        onsubmit="return confirm({{ t('confirm_delete_ssh_key')|tojson }});">
+                        data-confirm="{{ t('confirm_delete_ssh_key') }}">
                     <input type="hidden" name="key" value="{{ k.key }}">
                     <button type="submit" class="btn btn-danger">{{ t('btn_delete_short') }}</button>
                   </form>

@@ -69,6 +69,33 @@ STRINGS = {
     },
     "msg_ssh_access_enabled": {"fr": "Connexion par mot de passe activée.", "en": "Password login enabled."},
     "msg_ssh_access_disabled": {"fr": "Connexion par mot de passe désactivée.", "en": "Password login disabled."},
+    "h3_root_password_age": {"fr": "Mot de passe root", "en": "Root password"},
+    "root_password_changed_relative": {
+        "fr": "Dernière modification : {when}",
+        "en": "Last changed: {when}",
+    },
+    "h3_fail2ban": {"fr": "Protection contre les tentatives de connexion (fail2ban)", "en": "Login attempt protection (fail2ban)"},
+    "fail2ban_unavailable": {"fr": "fail2ban n'est pas disponible sur ce serveur.", "en": "fail2ban is not available on this server."},
+    "fail2ban_total_banned": {
+        "fr": "{n} IP{s} actuellement bannie{s}",
+        "en": "{n} IP{s} currently banned",
+    },
+    "th_fail2ban_jail": {"fr": "Service protégé", "en": "Protected service"},
+    "th_fail2ban_banned_ips": {"fr": "Adresses bannies", "en": "Banned addresses"},
+    "h3_root_ssh_keys": {"fr": "Clés SSH autorisées (root)", "en": "Authorized SSH keys (root)"},
+    "root_ssh_keys_explain": {
+        "fr": "Ces clés peuvent se connecter en SSH en tant que root, même quand la connexion par mot de passe est désactivée. Liste en lecture seule.",
+        "en": "These keys can log in via SSH as root, even while password login is disabled. Read-only list.",
+    },
+    "no_root_ssh_key": {"fr": "Aucune clé SSH enregistrée pour root.", "en": "No SSH key registered for root."},
+    "th_key_type": {"fr": "Type", "en": "Type"},
+    "th_fingerprint": {"fr": "Empreinte", "en": "Fingerprint"},
+    "h3_diagnosis_shortcut": {"fr": "Diagnostic de sécurité", "en": "Security diagnosis"},
+    "diagnosis_shortcut_explain": {
+        "fr": "Ports ouverts, certificats, mises à jour de sécurité en attente : le diagnostic complet de l'installation se trouve dans Diagnostic.",
+        "en": "Open ports, certificates, pending security updates: the full installation diagnosis is available on the Diagnosis page.",
+    },
+    "btn_go_to_diagnosis": {"fr": "Aller au diagnostic", "en": "Go to diagnosis"},
     "breadcrumb_updates": {"fr": "Mises à jour", "en": "Updates"},
     "banner_api_restarting": {
         "fr": "L'API Wappos redémarre suite à la mise à jour — rafraîchissement automatique dans {countdown}s.",

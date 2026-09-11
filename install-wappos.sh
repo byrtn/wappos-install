@@ -122,9 +122,9 @@ t() {
             finalize_open_browser) echo "Ouvrez un navigateur sur une autre machine du meme reseau et allez sur :" ;;
             finalize_follow1) echo "Suivez les instructions a l'ecran. Cette etape reprend automatiquement" ;;
             finalize_follow2) echo "des que vous avez valide le formulaire, sans rien taper ici." ;;
-            finalize_dont_leave1) echo "NE FERMEZ PAS CETTE FENETRE ET NE TOUCHEZ A RIEN ICI." ;;
-            finalize_dont_leave2) echo "Remplir le formulaire dans le navigateur ne termine PAS l'installation :" ;;
-            finalize_dont_leave3) echo "l'installation continue ensuite ICI, sur cet ecran, automatiquement." ;;
+            finalize_dont_leave1) echo "Ne fermez pas l'onglet du navigateur avant la fin de l'installation." ;;
+            finalize_dont_leave2) echo "Une fois le formulaire valide, la suite de l'installation (plusieurs minutes)" ;;
+            finalize_dont_leave3) echo "s'affiche automatiquement dans le navigateur, en temps reel." ;;
             finalize_waiting) echo "En attente de la finalisation depuis votre navigateur..." ;;
             finalize_done) echo "Configuration initiale terminee" ;;
             step_base_installed_title) echo "Systeme de base installe et configure" ;;
@@ -215,9 +215,9 @@ t() {
             finalize_open_browser) echo "Open a browser on another machine on the same network and go to:" ;;
             finalize_follow1) echo "Follow the on-screen instructions. This step resumes automatically" ;;
             finalize_follow2) echo "once you've submitted the form, nothing to type here." ;;
-            finalize_dont_leave1) echo "DO NOT CLOSE THIS WINDOW AND DO NOT TOUCH ANYTHING HERE." ;;
-            finalize_dont_leave2) echo "Submitting the browser form does NOT finish the installation:" ;;
-            finalize_dont_leave3) echo "the installation then continues HERE, on this screen, automatically." ;;
+            finalize_dont_leave1) echo "Do not close the browser tab before the installation finishes." ;;
+            finalize_dont_leave2) echo "Once the form is submitted, the rest of the installation (several minutes)" ;;
+            finalize_dont_leave3) echo "is shown automatically in the browser, in real time." ;;
             finalize_waiting) echo "Waiting for finalization from your browser..." ;;
             finalize_done) echo "Initial configuration complete" ;;
             step_base_installed_title) echo "Base system installed and configured" ;;
@@ -440,11 +440,11 @@ if [ ! -f /etc/yunohost/installed ]; then
     echo "$(t finalize_follow1)"
     echo "$(t finalize_follow2)"
     echo
-    echo -e "${red}${bold}╔══════════════════════════════════════════════════════════╗${reset}"
-    echo -e "${red}${bold}  $(t finalize_dont_leave1)${reset}"
-    echo -e "${red}  $(t finalize_dont_leave2)${reset}"
-    echo -e "${red}  $(t finalize_dont_leave3)${reset}"
-    echo -e "${red}${bold}╚══════════════════════════════════════════════════════════╝${reset}"
+    echo -e "${yellow}╔══════════════════════════════════════════════════════════╗${reset}"
+    echo -e "${yellow}${bold}  $(t finalize_dont_leave1)${reset}"
+    echo -e "${yellow}  $(t finalize_dont_leave2)${reset}"
+    echo -e "${yellow}  $(t finalize_dont_leave3)${reset}"
+    echo -e "${yellow}╚══════════════════════════════════════════════════════════╝${reset}"
     echo
 
     i=0
@@ -703,4 +703,5 @@ PYEOF
 fi
 
 echo "===WAPPOS_INSTALL_COMPLETE==="
+sleep 20
 systemctl disable --now wappos_postinstall.service wappos_postinstall.socket >/dev/null 2>&1 || true

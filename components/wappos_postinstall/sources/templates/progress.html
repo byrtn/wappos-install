@@ -150,19 +150,31 @@
       return term.scrollHeight - term.scrollTop - term.clientHeight < 60;
     }
 
+    function showDone() {
+      polling = false;
+      spinnerRow.hidden = true;
+      bannerSuccess.hidden = false;
+    }
+
     function poll() {
       if (!polling) return;
       fetch('/progress-log', { cache: 'no-store' })
-        .then(function (r) { return r.json(); })
+        .then(function (r) {
+          var contentType = r.headers.get('content-type') || '';
+          if (!contentType.includes('application/json')) {
+            showDone();
+            return null;
+          }
+          return r.json();
+        })
         .then(function (data) {
+          if (!data) return;
           var stick = isNearBottom();
           term.innerHTML = data.html;
           if (stick) term.scrollTop = term.scrollHeight;
 
           if (data.done) {
-            polling = false;
-            spinnerRow.hidden = true;
-            bannerSuccess.hidden = false;
+            showDone();
           } else if (data.failed) {
             polling = false;
             spinnerRow.hidden = true;

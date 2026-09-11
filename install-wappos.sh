@@ -2,7 +2,10 @@
 # Auteur : Patrick Ritaine
 set -euo pipefail
 
+clear
+
 bold="\033[1m"
+underline="\033[4m"
 reset="\033[0m"
 blue="\033[1;36m"
 green="\033[1;32m"
@@ -52,9 +55,9 @@ read_with_countdown() {
     local input="" ch remaining="$timeout" started=0
     while true; do
         if [ "$started" = 0 ]; then
-            printf "\r${blue}${bold}> (%2ds restantes)${reset} " "$remaining"
+            printf "\r\033[K${blue}${bold}> (%2ds restantes)${reset} " "$remaining"
         else
-            printf "\r> %s   " "$input"
+            printf "\r\033[K> %s" "$input"
         fi
         if IFS= read -r -s -n1 -t 1 ch; then
             if [ -z "$ch" ]; then
@@ -274,12 +277,16 @@ wappos_lang_file="/etc/wappos/language"
 if [ -f "$wappos_lang_file" ]; then
     WAPPOS_LANG="$(cat "$wappos_lang_file")"
 else
+    clear
     echo
-    echo -e "${bold}Language / Langue :${reset}"
-    echo "  [1] English (default)"
-    echo "  [2] Francais"
+    box_start
+    echo -e "${blue}${bold}${underline}  Language / Langue :${reset}"
     echo
-    read_with_countdown 15 lang_choice || lang_choice=""
+    echo -e "  ${bold}[1] English (default)${reset}"
+    echo -e "  ${bold}[2] Francais${reset}"
+    box_end
+    echo
+    read_with_countdown 45 lang_choice || lang_choice=""
     case "$lang_choice" in
         2|f|F) WAPPOS_LANG="fr" ;;
         *) WAPPOS_LANG="en" ;;
@@ -390,6 +397,7 @@ if ! command -v yunohost >/dev/null 2>&1; then
         warn_line "$(printf "$(t warn_retry_fmt)" "$tries")"
         sleep 10
     done
+    echo
     success_line "$(t success_engine_installed)"
 fi
 
@@ -644,11 +652,12 @@ else:
     ssh_disabled_label = "SSH access disabled - to enable it, run:"
 
 anchor = "Local IP: ${local_ip:-(no ip detected?)}"
+label_width = max(len(portal_label), len(admin_label), len(username_label))
 block = (
     "\n"
-    f" {portal_label}        : https://{domain}/wappos-portal/ ({'ou' if lang == 'fr' else 'or'} https://{ip}/wappos-portal/)\n"
-    f" {admin_label} : https://{domain}/wappos-admin/ ({'ou' if lang == 'fr' else 'or'} https://{ip}/wappos-admin/)\n"
-    f" {username_label} : {username}"
+    f" {portal_label.ljust(label_width)} : https://{domain}/wappos-portal/ ({'ou' if lang == 'fr' else 'or'} https://{ip}/wappos-portal/)\n"
+    f" {admin_label.ljust(label_width)} : https://{domain}/wappos-admin/ ({'ou' if lang == 'fr' else 'or'} https://{ip}/wappos-admin/)\n"
+    f" {username_label.ljust(label_width)} : {username}"
 )
 if ssh_disabled:
     block += (

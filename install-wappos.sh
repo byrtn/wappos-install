@@ -467,6 +467,8 @@ fi
 
 step "$(t step_base_installed_title)" "$(t step_base_installed_why)"
 
+quiet yunohost settings set security.ssh.ssh_password_authentication -v off
+
 if [ -f /usr/bin/yunoprompt ] && ! grep -q "W A P P O S" /usr/bin/yunoprompt; then
     python3 - <<'PYEOF'
 import re

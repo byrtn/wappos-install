@@ -23,30 +23,7 @@ cp "$pkg_dir/manifest.toml" "$install_dir/.package/manifest.toml"
 chown -R "$app:$app" "$install_dir"
 chmod 750 "$install_dir"
 
-sed "s/__APP__/$app/g" "$pkg_dir/standalone/conf/wappos_api_du.sudoers" > "/etc/sudoers.d/${app}_du"
-chmod 440 "/etc/sudoers.d/${app}_du"
-chown root:root "/etc/sudoers.d/${app}_du"
-visudo -c -f "/etc/sudoers.d/${app}_du"
-
-sed "s/__APP__/$app/g" "$pkg_dir/standalone/conf/wappos_api_adguard.sudoers" > "/etc/sudoers.d/${app}_adguard"
-chmod 440 "/etc/sudoers.d/${app}_adguard"
-chown root:root "/etc/sudoers.d/${app}_adguard"
-visudo -c -f "/etc/sudoers.d/${app}_adguard"
-
-sed "s/__APP__/$app/g" "$pkg_dir/standalone/conf/wappos_api_domains_public.sudoers" > "/etc/sudoers.d/${app}_domains_public"
-chmod 440 "/etc/sudoers.d/${app}_domains_public"
-chown root:root "/etc/sudoers.d/${app}_domains_public"
-visudo -c -f "/etc/sudoers.d/${app}_domains_public"
-
-sed "s/__APP__/$app/g" "$pkg_dir/standalone/conf/wappos_api_ssh_access.sudoers" > "/etc/sudoers.d/${app}_ssh_access"
-chmod 440 "/etc/sudoers.d/${app}_ssh_access"
-chown root:root "/etc/sudoers.d/${app}_ssh_access"
-visudo -c -f "/etc/sudoers.d/${app}_ssh_access"
-
-sed "s/__APP__/$app/g" "$pkg_dir/standalone/conf/wappos_api_security_status.sudoers" > "/etc/sudoers.d/${app}_security_status"
-chmod 440 "/etc/sudoers.d/${app}_security_status"
-chown root:root "/etc/sudoers.d/${app}_security_status"
-visudo -c -f "/etc/sudoers.d/${app}_security_status"
+bash "$(dirname "${BASH_SOURCE[0]}")/install_sudoers.sh"
 
 sed -e "s/__APP__/$app/g" -e "s#__INSTALL_DIR__#$install_dir#g" -e "s/__PORT__/$port/g" \
     "$pkg_dir/standalone/conf/systemd.service" > "/etc/systemd/system/$app.service"

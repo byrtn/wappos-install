@@ -70,9 +70,13 @@ STRINGS = {
     "msg_ssh_access_enabled": {"fr": "Connexion par mot de passe activée.", "en": "Password login enabled."},
     "msg_ssh_access_disabled": {"fr": "Connexion par mot de passe désactivée.", "en": "Password login disabled."},
     "h3_root_password_age": {"fr": "Mot de passe root", "en": "Root password"},
-    "root_password_changed_relative": {
+    "root_password_changed_on": {
         "fr": "Dernière modification : {when}",
         "en": "Last changed: {when}",
+    },
+    "root_password_changed_unknown": {
+        "fr": "Date de dernière modification inconnue.",
+        "en": "Last changed date unknown.",
     },
     "h3_fail2ban": {"fr": "Protection contre les tentatives de connexion (fail2ban)", "en": "Login attempt protection (fail2ban)"},
     "fail2ban_unavailable": {"fr": "fail2ban n'est pas disponible sur ce serveur.", "en": "fail2ban is not available on this server."},

@@ -41,9 +41,11 @@
       <div class="card-body">
         {% if overview is none %}
           <p class="sec-status sec-status-unknown">{{ t('err_api_unreachable') }}</p>
+        {% elif root_password_changed_display is none %}
+          <p class="field-info" style="margin: 0;">{{ t('root_password_changed_unknown') }}</p>
         {% else %}
           <p class="field-info" style="margin: 0;">
-            {{ t('root_password_changed_relative', when=(overview.root_password.last_changed_epoch|relative_fr)) }}
+            {{ t('root_password_changed_on', when=root_password_changed_display) }}
           </p>
         {% endif %}
       </div>

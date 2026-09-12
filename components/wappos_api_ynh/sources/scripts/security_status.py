@@ -2,6 +2,7 @@
 # Auteur : Patrick Ritaine
 
 import ast
+import datetime
 import json
 import subprocess
 import sys
@@ -17,9 +18,9 @@ def root_password_last_changed() -> dict:
         fields = line.split(":")
         if fields[0] == "root" and len(fields) > 2 and fields[2]:
             days_since_epoch = int(fields[2])
-            changed_at = days_since_epoch * 86400
-            return {"last_changed_epoch": changed_at}
-    return {"last_changed_epoch": None}
+            changed_date = datetime.date(1970, 1, 1) + datetime.timedelta(days=days_since_epoch)
+            return {"last_changed_date": changed_date.isoformat()}
+    return {"last_changed_date": None}
 
 
 def fail2ban_summary() -> dict:

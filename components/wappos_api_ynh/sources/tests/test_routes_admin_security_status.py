@@ -26,7 +26,7 @@ def test_security_overview_route(admin_login_url: str, monkeypatch: pytest.Monke
     domains_url = admin_login_url.replace("/login", "/domains")
     respx.get(domains_url).mock(return_value=Response(200, json={"domains": ["byrtn.fr"], "main": "byrtn.fr"}))
     overview = {
-        "root_password": {"last_changed_epoch": 1752019200},
+        "root_password": {"last_changed_date": "2026-07-09"},
         "fail2ban": {"available": True, "jails": {"sshd": []}, "total_banned": 0},
         "root_ssh_keys": [
             {"bits": "256", "fingerprint": "SHA256:abc", "comment": "patrick-mint", "type": "ED25519"}

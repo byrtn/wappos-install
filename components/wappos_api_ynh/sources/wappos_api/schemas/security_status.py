@@ -5,7 +5,7 @@ from pydantic import BaseModel
 
 
 class RootPasswordStatus(BaseModel):
-    last_changed_epoch: int | None
+    last_changed_date: str | None
 
 
 class Fail2banStatus(BaseModel):

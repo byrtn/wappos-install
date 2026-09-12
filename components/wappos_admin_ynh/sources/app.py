@@ -262,6 +262,18 @@ def _backup_date_fr(value) -> str:
     return local.strftime("%b %d, %Y %H:%M")
 
 
+def _format_iso_date(value: str | None) -> str | None:
+    if not value:
+        return None
+    try:
+        parsed = datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return value
+    if get_lang() == "fr":
+        return parsed.strftime("%d/%m/%Y")
+    return parsed.strftime("%b %d, %Y")
+
+
 def _day_label_fr(day_key: str) -> str:
     try:
         d = datetime.strptime(day_key, "%Y-%m-%d")
@@ -1795,10 +1807,14 @@ def security_page():
         overview = _wappos_api_security_overview(token)
     except requests.exceptions.RequestException:
         overview = None
+    root_password_changed_display = None
+    if overview:
+        root_password_changed_display = _format_iso_date(overview.get("root_password", {}).get("last_changed_date"))
     return render_template(
         "security.html", user=user,
         ssh_password_auth_enabled=status.get("password_auth_enabled", False),
         overview=overview,
+        root_password_changed_display=root_password_changed_display,
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )

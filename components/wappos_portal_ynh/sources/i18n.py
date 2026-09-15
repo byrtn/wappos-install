@@ -55,6 +55,7 @@ STRINGS = {
         "fr": "Connecte-toi pour accéder à cette page.",
         "en": "Log in to access this page.",
     },
+    "login_card_title": {"fr": "Connexion", "en": "Log in"},
     "msg_protected_app": {
         "fr": "Connecte-toi pour accéder à {app}.",
         "en": "Log in to access {app}.",

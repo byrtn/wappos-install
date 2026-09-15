@@ -612,6 +612,8 @@ if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(
     step "$(t step_agenda_title)" "$(t step_agenda_why)"
     quiet yunohost app install nextcloud --args "domain=$main_domain&path=/nextcloud&admin=$admin_username&user_home=0"
 
+    sudo -u nextcloud php /var/www/nextcloud/occ user:disable "$alert_box_user" >/dev/null 2>&1 || true
+
     bash "$script_dir/branding/nextcloud/restrict-to-essentiel.sh"
 
     success_line "$(t success_agenda)"

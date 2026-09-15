@@ -1,0 +1,15 @@
+<?xml version="1.0"?>
+<info xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" xsi:noNamespaceSchemaLocation="https://apps.nextcloud.com/schema/apps/info.xsd">
+	<id>wappos_polish</id>
+	<name>Wappos Polish</name>
+	<summary>Ajustements visuels Wappos</summary>
+	<description>Petits ajustements visuels de l'interface Wappos qui doivent survivre aux mises a jour des autres applications.</description>
+	<version>1.0.1</version>
+	<licence>agpl</licence>
+	<author>Patrick Ritaine</author>
+	<namespace>WapposPolish</namespace>
+	<category>customization</category>
+	<dependencies>
+		<nextcloud min-version="30" max-version="35" />
+	</dependencies>
+</info>

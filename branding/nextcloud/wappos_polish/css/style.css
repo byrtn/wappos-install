@@ -1,0 +1,7 @@
+.cm-settings-item:has(a[href="https://www.buymeacoffee.com/deblan"]) {
+  display: none !important;
+}
+
+h2:has(+ .cm-settings-item a[href="https://www.buymeacoffee.com/deblan"]) {
+  display: none !important;
+}

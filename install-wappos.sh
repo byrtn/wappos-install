@@ -617,6 +617,7 @@ if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(
     bash "$script_dir/branding/nextcloud/restrict-to-essentiel.sh"
     bash "$script_dir/branding/nextcloud/apply-theming.sh" "$main_domain"
     bash "$script_dir/branding/nextcloud/configure-skeleton.sh"
+    bash "$script_dir/branding/nextcloud/apply-polish.sh"
 
     success_line "$(t success_agenda)"
 fi

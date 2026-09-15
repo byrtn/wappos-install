@@ -946,6 +946,11 @@ STRINGS = {
     },
     "label_app_label": {"fr": "Libellé de l'app", "en": "App label"},
     "checkbox_force_insufficient_ram": {"fr": "Forcer l'installation malgré la RAM insuffisante", "en": "Force installation despite insufficient RAM"},
+    "checkbox_all_domains": {"fr": "Rendre accessible sur tous les domaines", "en": "Make accessible on all domains"},
+    "checkbox_all_domains_help": {
+        "fr": "L'app reste installée sur le domaine choisi ci-dessus, mais sa tuile et son URL fonctionneront aussi sur vos autres domaines (actuels et futurs).",
+        "en": "The app stays installed on the domain chosen above, but its tile and URL will also work on your other domains (current and future).",
+    },
     "app_not_found_in_catalog": {"fr": "App introuvable dans le catalogue.", "en": "App not found in the catalog."},
     "address_available": {"fr": "Adresse disponible.", "en": "Address available."},
     "address_already_used": {"fr": "Adresse déjà utilisée par une autre app.", "en": "Address already used by another app."},

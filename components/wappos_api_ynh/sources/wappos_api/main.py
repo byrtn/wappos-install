@@ -20,6 +20,7 @@ from wappos_api.connectors import adguard as adguard_connector
 from wappos_api.connectors import admin as admin_connector
 from wappos_api.connectors import domains_public as domains_public_connector
 from wappos_api.connectors import portal as portal_connector
+from wappos_api.connectors import cross_domain as cross_domain_connector
 from wappos_api.connectors import security_status as security_status_connector
 from wappos_api.connectors import ssh_access as ssh_access_connector
 from wappos_api.errors import UpstreamValidationError, WapposApiError
@@ -50,6 +51,7 @@ from wappos_api.schemas.permission import (
 )
 from wappos_api.schemas.portal import PortalLoginRequest, PortalLogoutResponse, PortalTokenResponse
 from wappos_api.schemas.service import ServiceInfo
+from wappos_api.schemas.cross_domain import CrossDomainStatus
 from wappos_api.schemas.security_status import SecurityOverview
 from wappos_api.schemas.ssh_access import SshAccessStatus
 from wappos_api.schemas.storage import DiskInfo, MountInfo, SmartReport
@@ -676,6 +678,30 @@ def admin_change_app_label(
 def admin_dismiss_app_notification(app_id: str, name: str, x_admin_token: str = Header()) -> Response:
     try:
         admin_connector.dismiss_app_notification(x_admin_token, app_id, name)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return Response(status_code=204)
+
+
+@app.get("/admin/apps/{app_id}/cross-domain", response_model=CrossDomainStatus)
+def admin_app_cross_domain_status(app_id: str, x_admin_token: str = Header()) -> CrossDomainStatus:
+    try:
+        admin_connector.list_domain_names(x_admin_token)
+        return CrossDomainStatus(enabled=cross_domain_connector.status(app_id))
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.put("/admin/apps/{app_id}/cross-domain", status_code=204)
+def admin_app_cross_domain_set(
+    app_id: str, payload: CrossDomainStatus, x_admin_token: str = Header()
+) -> Response:
+    try:
+        admin_connector.list_domain_names(x_admin_token)
+        if payload.enabled:
+            cross_domain_connector.enable(app_id)
+        else:
+            cross_domain_connector.disable(app_id)
     except WapposApiError as exc:
         _raise_as_http(exc)
     return Response(status_code=204)

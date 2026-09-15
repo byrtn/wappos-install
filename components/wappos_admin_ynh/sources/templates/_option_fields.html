@@ -10,7 +10,7 @@
     {% elif otype == 'button' %}
           {% else %}
             {% if otype != 'boolean' %}
-        <label for="opt-{{ o.id }}">{{ o.ask }}{% if o.optional is defined and not o.optional %} *{% endif %}</label>
+        <label for="opt-{{ o.id }}">{{ o.ask }}</label>
       {% endif %}
       {% if otype == 'boolean' %}
                 {% set yes_val = o.yes if o.yes is defined and o.yes is not none else 1 %}
@@ -18,7 +18,7 @@
         <label class="checkbox-field" for="opt-{{ o.id }}">
           <input type="checkbox" id="opt-{{ o.id }}" name="{{ o.id }}" value="1" {{ "checked" if is_checked else "" }} {{ ro }}>
           <span>
-            {{ o.ask }}{% if o.optional is defined and not o.optional %} *{% endif %}
+            {{ o.ask }}
             {% if o.help %}<br><small class="field-info">{{ o.help }}</small>{% endif %}
           </span>
         </label>

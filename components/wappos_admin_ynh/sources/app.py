@@ -1100,6 +1100,16 @@ def _wappos_api_install_app(token: str, app_id: str, label: str | None, args: st
     return resp.json()
 
 
+def _wappos_api_set_cross_domain(token: str, app_id: str, enabled: bool) -> None:
+    resp = requests.put(
+        f"{WAPPOS_API_BASE}/admin/apps/{app_id}/cross-domain",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        json={"enabled": enabled},
+        timeout=60,
+    )
+    _raise_for_status(resp)
+
+
 def _wappos_api_remove_app(token: str, app_id: str, purge: bool) -> None:
     resp = requests.delete(
         f"{WAPPOS_API_BASE}/admin/apps/{app_id}",
@@ -2269,10 +2279,13 @@ def app_install_submit(app_id: str):
         return "Unauthorized", 401
     label = request.form.get("label", "").strip() or None
     force = request.form.get("force") == "on"
+    all_domains = request.form.get("all_domains") == "on"
     try:
         manifest = _wappos_api_app_manifest(token, app_id)
         args = _build_args_from_options(manifest.get("install", []), request.form, request.files)
         _wappos_api_install_app(token, app_id, label, args, force=force)
+        if all_domains:
+            _wappos_api_set_cross_domain(token, app_id, True)
     except requests.exceptions.HTTPError as e:
         return redirect(url_for("app_install_form", app_id=app_id, error=_error_message(e)))
     return _redirect_to_apps(message=i18n.t("msg_app_installed", get_lang(), label=(label or app_id)))

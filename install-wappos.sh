@@ -163,6 +163,9 @@ t() {
             step_roundcube_title) echo "Installation du webmail Wappos" ;;
             step_roundcube_why) echo "Permet de consulter vos mails depuis un navigateur." ;;
             success_roundcube) echo "Webmail installe" ;;
+            step_agenda_title) echo "Installation de l'agenda Wappos" ;;
+            step_agenda_why) echo "Permet de gerer vos rendez-vous et vos contacts." ;;
+            success_agenda) echo "Agenda installe" ;;
             step_prometheus_title) echo "Finalisation de la liaison Prometheus / wappos_admin" ;;
             step_prometheus_why) echo "Connecte le tableau de bord de performance a l'administration." ;;
             success_components) echo "Composants Wappos installes." ;;
@@ -255,6 +258,9 @@ t() {
             step_roundcube_title) echo "Installing the Wappos webmail" ;;
             step_roundcube_why) echo "Lets you read your mail from a browser." ;;
             success_roundcube) echo "Webmail installed" ;;
+            step_agenda_title) echo "Installing the Wappos calendar" ;;
+            step_agenda_why) echo "Lets you manage your appointments and contacts." ;;
+            success_agenda) echo "Calendar installed" ;;
             step_prometheus_title) echo "Finalizing the Prometheus / wappos_admin link" ;;
             step_prometheus_why) echo "Connects the performance dashboard to the admin panel." ;;
             success_components) echo "Wappos components installed." ;;
@@ -600,6 +606,15 @@ if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(
 CRON_EOF
 
     success_line "$(t success_roundcube)"
+fi
+
+if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'nextcloud' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then
+    step "$(t step_agenda_title)" "$(t step_agenda_why)"
+    quiet yunohost app install nextcloud --args "domain=$main_domain&path=/nextcloud&admin=$admin_username&user_home=0"
+
+    bash "$script_dir/nextcloud-restrict-to-essentiel.sh"
+
+    success_line "$(t success_agenda)"
 fi
 
 step "$(t step_prometheus_title)" "$(t step_prometheus_why)"

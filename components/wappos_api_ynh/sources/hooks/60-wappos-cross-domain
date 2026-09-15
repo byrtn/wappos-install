@@ -1,0 +1,7 @@
+#!/bin/bash
+set -eu
+
+domain="${1:-}"
+if [ -n "$domain" ]; then
+    python3 /opt/yunohost/wappos_api/scripts/cross_domain.py apply-to-new-domain "$domain" || true
+fi

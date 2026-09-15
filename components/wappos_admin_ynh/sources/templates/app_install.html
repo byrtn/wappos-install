@@ -70,6 +70,14 @@
           </div>
           {% for o in manifest.install %}{{ fields.render_option(o) }}{% endfor %}
           <p class="field-info" id="url-avail-status"></p>
+          {% if manifest.install | selectattr('id', 'equalto', 'domain') | list %}
+            <div class="field">
+              <label style="display: flex; align-items: flex-start; gap: 0.5rem; font-weight: normal;">
+                <input type="checkbox" name="all_domains" style="margin-top: 0.2rem;">
+                <span>{{ t('checkbox_all_domains') }}<br><span class="field-info">{{ t('checkbox_all_domains_help') }}</span></span>
+              </label>
+            </div>
+          {% endif %}
           {% if failed_reqs and not blocking_reqs %}
             <div class="field">
               <label>

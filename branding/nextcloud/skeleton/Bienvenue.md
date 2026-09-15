@@ -1,0 +1,13 @@
+# Bienvenue sur votre espace Wappos
+
+Cet espace héberge votre **agenda** et vos **contacts**, synchronisés automatiquement avec votre téléphone et vos logiciels de bureau — aucune donnée ne quitte votre serveur.
+
+Retrouvez toutes vos applications Wappos depuis le portail : cliquez sur le logo Wappos en haut à gauche.
+
+---
+
+# Welcome to your Wappos space
+
+This space hosts your **calendar** and **contacts**, automatically synced with your phone and desktop software — no data ever leaves your server.
+
+Find all your Wappos apps from the portal: click the Wappos logo in the top-left corner.

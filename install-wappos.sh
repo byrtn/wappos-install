@@ -615,6 +615,7 @@ if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(
     sudo -u nextcloud php /var/www/nextcloud/occ user:disable "$alert_box_user" >/dev/null 2>&1 || true
 
     bash "$script_dir/branding/nextcloud/restrict-to-essentiel.sh"
+    bash "$script_dir/branding/nextcloud/apply-theming.sh" "$main_domain"
 
     success_line "$(t success_agenda)"
 fi

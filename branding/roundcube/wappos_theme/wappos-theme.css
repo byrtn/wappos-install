@@ -44,3 +44,46 @@ a,
 .listing tr.selected td a {
   background-color: #016f93 !important;
 }
+
+#layout-menu .popover-header {
+  background-color: #fff !important;
+}
+
+html.dark-mode #layout-menu .popover-header,
+html.dark-mode.layout-phone #layout-menu .popover-header,
+html.dark-mode.layout-small #layout-menu .popover-header {
+  background-color: #1e2226 !important;
+}
+
+html.dark-mode a,
+html.dark-mode .btn-link {
+  color: #0195df !important;
+}
+
+html.dark-mode .btn-primary,
+html.dark-mode .ui-state-active {
+  background: #0195df !important;
+  border-color: #0195df !important;
+}
+
+html.dark-mode .btn-primary:hover,
+html.dark-mode .btn-primary:focus {
+  background: #0badfe !important;
+  border-color: #0badfe !important;
+}
+
+html.dark-mode #taskmenu .button.selected,
+html.dark-mode #taskmenu .button.selected:hover {
+  color: #0195df !important;
+}
+
+html.dark-mode .folder-selected,
+html.dark-mode .listing tr.selected td,
+html.dark-mode .listing tr.selected td a {
+  background-color: #0195df !important;
+}
+
+#pluginlist th:last-child,
+#pluginlist td:last-child {
+  display: none !important;
+}

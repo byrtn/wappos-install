@@ -100,6 +100,7 @@
       let touchTarget = null;
       let touchTimer = null;
       let touchDragging = false;
+      let touchMoved = false;
       let suppressClick = false;
 
       container.addEventListener('touchstart', (e) => {
@@ -109,6 +110,7 @@
         touchStartX = e.touches[0].clientX;
         touchStartY = e.touches[0].clientY;
         touchDragging = false;
+        touchMoved = false;
         touchTimer = setTimeout(() => {
           touchDragging = true;
           dragged = touchTarget;
@@ -139,6 +141,7 @@
         const overEl = document.elementFromPoint(x, y);
         const moved = moveDraggedOver(x, overEl);
         if (moved) {
+          touchMoved = true;
           touchStartX = x;
           touchStartY = y;
           dragged.style.transform = 'scale(1.15)';
@@ -155,8 +158,10 @@
           }
           document.body.style.userSelect = '';
           dragged = null;
-          suppressClick = true;
-          savedOrder();
+          if (touchMoved) {
+            suppressClick = true;
+            savedOrder();
+          }
         }
         touchTarget = null;
         touchDragging = false;

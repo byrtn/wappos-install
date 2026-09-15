@@ -65,10 +65,10 @@
       --color-card-header-bg: #262b30;
       --color-hover-bg: #262b30;
       --color-nav-hover-bg: #22272c;
-      --color-btn-bg: #016f93;
-      --color-btn-bg-hover: #0489b8;
+      --color-btn-bg: #0195df;
+      --color-btn-bg-hover: #0badfe;
       --color-btn-text: #fff;
-      --color-link: #2a9dc4;
+      --color-link: #0195df;
       --color-danger: #e07a7a;
       --color-danger-hover: #ec9a9a;
       --color-success: #3fbf7f;
@@ -347,14 +347,22 @@
     (function () {
       var logo = document.getElementById('header-logo');
       if (!logo) return;
+      var lightSrc = null;
+      var darkSrc = '{{ url_for('static', filename='wappos-logo-dark.png') }}';
+      function applyLogo() {
+        if (!lightSrc) return;
+        logo.src = document.documentElement.getAttribute('data-theme') === 'dark' ? darkSrc : lightSrc;
+      }
       fetch('{{ request.script_root }}/api/public-branding')
         .then(function (r) { return r.ok ? r.json() : null; })
         .then(function (data) {
           if (data && data.portal_logo) {
-            logo.src = '{{ request.script_root }}/assets/logo/' + data.portal_logo;
+            lightSrc = '{{ request.script_root }}/assets/logo/' + data.portal_logo;
+            applyLogo();
             logo.hidden = false;
             document.getElementById('header-fallback-text').hidden = true;
             document.getElementById('header-subtitle').hidden = false;
+            new MutationObserver(applyLogo).observe(document.documentElement, { attributes: true, attributeFilter: ['data-theme'] });
           }
         })
         .catch(function () {});

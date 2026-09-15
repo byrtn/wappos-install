@@ -40,7 +40,7 @@ PROGRESS_STEPS = [
     {"fr": "Attente du réseau", "en": "Waiting for network"},
     {"fr": "Installation du moteur système Wappos", "en": "Installing the Wappos system engine"},
     {"fr": "Interface graphique Wappos", "en": "Wappos graphical interface"},
-    {"fr": "Système de base installé et configuré", "en": "Base system installed and configured"},
+    {"fr": "Installation du système de base", "en": "Installing the base system"},
     {"fr": "Installation de Docker Engine", "en": "Installing Docker Engine"},
     {"fr": "Protection Docker contre les rechargements nftables", "en": "Protecting Docker from nftables reloads"},
     {"fr": "Création du compte technique d'alertes", "en": "Creating the technical alert account"},

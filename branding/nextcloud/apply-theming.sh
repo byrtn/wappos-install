@@ -19,5 +19,7 @@ fi
 $OCC theming:config logo "$DATA_DIR/wappos-logo-white.png"
 $OCC theming:config logoheader "$DATA_DIR/wappos-logo-white.png"
 $OCC theming:config favicon "$DATA_DIR/wappos-favicon.png"
+$OCC theming:config background backgroundColor
+$OCC theming:config background_color "#14171a"
 
 rm -f "$DATA_DIR/wappos-logo-white.png" "$DATA_DIR/wappos-favicon.png"

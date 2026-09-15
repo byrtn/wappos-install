@@ -145,17 +145,55 @@ def ansi_to_html(raw: str) -> str:
     return "".join(out)
 
 
+_STEP_HEADER_RE = re.compile(r"^(?:Etape|Step)\s+(\d+)\b", re.MULTILINE)
+
+
+def _parse_progress_steps(raw: str, lang: str) -> dict:
+    plain = _ANSI_CODE_RE.sub("", raw)
+    matches = _STEP_HEADER_RE.findall(plain)
+    current = int(matches[-1]) if matches else 0
+    done = SENTINEL_COMPLETE in raw
+    failed = SENTINEL_FAILED in raw
+
+    steps = []
+    for idx, entry in enumerate(i18n.PROGRESS_STEPS, start=1):
+        title = entry.get(lang) or entry.get(i18n.DEFAULT_LANG)
+        if done:
+            state = "done"
+        elif idx < current:
+            state = "done"
+        elif idx == current:
+            state = "failed" if failed else "current"
+        else:
+            state = "pending"
+        steps.append({"title": title, "state": state})
+
+    long_hint = None
+    if not done and not failed and current in i18n.PROGRESS_LONG_STEP_INDEXES:
+        long_hint = i18n.t("progress_long_step_hint", lang)
+
+    return {"steps": steps, "current": current, "total": len(i18n.PROGRESS_STEPS), "long_hint": long_hint}
+
+
 @app.route("/progress-log")
 def progress_log():
+    lang = get_lang()
     try:
         with open(CONSOLE_LOG, encoding="utf-8", errors="replace") as f:
             raw = f.read()
     except OSError:
         raw = ""
+    progress = _parse_progress_steps(raw, lang)
+    step_label = None
+    if progress["current"]:
+        step_label = i18n.t("progress_step_label", lang, current=progress["current"], total=progress["total"])
     return jsonify(
         html=ansi_to_html(raw),
         done=SENTINEL_COMPLETE in raw,
         failed=SENTINEL_FAILED in raw,
+        steps=progress["steps"],
+        step_label=step_label,
+        long_hint=progress["long_hint"],
     )
 
 

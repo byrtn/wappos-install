@@ -55,6 +55,13 @@ STRINGS = {
         "fr": "Connecte-toi pour accéder à cette page.",
         "en": "Log in to access this page.",
     },
+    "msg_protected_app": {
+        "fr": "Connecte-toi pour accéder à {app}.",
+        "en": "Log in to access {app}.",
+    },
+    "dest_webmail": {"fr": "Webmail", "en": "Webmail"},
+    "dest_nextcloud": {"fr": "Nextcloud", "en": "Nextcloud"},
+    "dest_admin": {"fr": "l'Administration", "en": "Administration"},
 
     "title_profile": {"fr": "Éditer mon profil — WAPPOS PORTAL", "en": "Edit my profile — WAPPOS PORTAL"},
     "h1_edit_profile": {"fr": "Éditer mon profil", "en": "Edit my profile"},

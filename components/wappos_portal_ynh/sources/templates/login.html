@@ -51,6 +51,7 @@
       <div class="login-subtitle"><span class="login-subtitle-rule"></span>P O R T A L<span class="login-subtitle-rule"></span></div>
 
       {% if error %}<div class="error">{{ error }}</div>
+      {% elif r and protected_dest %}<div class="message">{{ t('msg_protected_app', app=protected_dest) }}</div>
       {% elif r %}<div class="message">{{ t('msg_protected') }}</div>{% endif %}
 
             <form id="login-form" method="post" action="{{ url_for('login') }}" class="login-form-grid">

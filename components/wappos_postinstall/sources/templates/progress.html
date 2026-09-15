@@ -99,13 +99,35 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
+    .step-label { text-align: center; font-size: 0.85rem; color: var(--color-text-muted); margin-bottom: 1rem; }
+    .step-label[hidden] { display: none; }
+
+    .steps { list-style: none; margin: 0 0 1.25rem; padding: 0; border: 1px solid var(--color-border); border-radius: 12px; overflow: hidden; }
+    .steps[hidden] { display: none; }
+    .step-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.7rem 1rem; border-bottom: 1px solid var(--color-border); font-size: 0.9rem; }
+    .step-row:last-child { border-bottom: none; }
+    .step-row.done { background: var(--color-success-bg); color: var(--color-success-text); }
+    .step-row.current { background: var(--color-bg); font-weight: 600; }
+    .step-row.failed { background: var(--color-error-bg); color: var(--color-error-text); }
+    .step-row.pending { color: var(--color-text-faint); }
+    .step-icon { width: 20px; height: 20px; flex: 0 0 auto; display: flex; align-items: center; justify-content: center; font-size: 0.95rem; }
+    .step-icon .dot { border: 1.5px solid var(--color-border-strong); border-radius: 50%; width: 14px; height: 14px; }
+    .step-icon .spinner { width: 15px; height: 15px; }
+
+    .long-hint { text-align: center; font-size: 0.85rem; color: var(--color-text-muted); margin: -0.5rem 0 1.25rem; }
+    .long-hint[hidden] { display: none; }
+
+    .log-detail { border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 1rem; }
+    .log-detail summary { padding: 0.6rem 1rem; cursor: pointer; font-size: 0.85rem; color: var(--color-text-muted); }
+    .log-detail summary:hover { color: var(--color-text); }
+
     .terminal {
       background: var(--color-term-bg); color: var(--color-term-text);
-      border: 1px solid var(--color-term-border); border-radius: 10px;
+      border-top: 1px solid var(--color-term-border);
       padding: 1rem 1.1rem; font-size: 0.82rem; line-height: 1.5;
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       white-space: pre-wrap; word-break: break-word;
-      max-height: 55vh; overflow-y: auto;
+      max-height: 40vh; overflow-y: auto;
     }
 
     .page-footer { margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--color-text-faint); }
@@ -125,7 +147,14 @@
         <div>{{ t('loading_title') }}</div>
       </div>
 
-      <div id="terminal" class="terminal" aria-live="polite"></div>
+      <div id="step-label" class="step-label" hidden></div>
+      <ul id="steps-list" class="steps" aria-live="polite" hidden></ul>
+      <div id="long-hint" class="long-hint" hidden></div>
+
+      <details class="log-detail">
+        <summary>{{ t('detail_technique') }}</summary>
+        <div id="terminal" class="terminal" aria-live="polite"></div>
+      </details>
 
       <div id="banner-success" class="banner success" hidden>
         <div>{{ t('progress_done_title') }} {{ t('progress_done_text') }}</div>
@@ -143,6 +172,9 @@
   <script>
     var term = document.getElementById('terminal');
     var spinnerRow = document.getElementById('spinner-row');
+    var stepLabel = document.getElementById('step-label');
+    var stepsList = document.getElementById('steps-list');
+    var longHint = document.getElementById('long-hint');
     var bannerSuccess = document.getElementById('banner-success');
     var bannerError = document.getElementById('banner-error');
     var polling = true;
@@ -155,6 +187,25 @@
       polling = false;
       spinnerRow.hidden = true;
       bannerSuccess.hidden = false;
+    }
+
+    function renderSteps(data) {
+      if (!data.steps || !data.steps.length) return;
+      spinnerRow.hidden = true;
+      stepLabel.hidden = !data.step_label;
+      stepLabel.textContent = data.step_label || '';
+      longHint.hidden = !data.long_hint;
+      longHint.textContent = data.long_hint || '';
+
+      stepsList.hidden = false;
+      stepsList.innerHTML = data.steps.map(function (step) {
+        var icon = '<span class="dot"></span>';
+        if (step.state === 'done') icon = '✓';
+        else if (step.state === 'current') icon = '<div class="spinner"></div>';
+        else if (step.state === 'failed') icon = '✕';
+        return '<li class="step-row ' + step.state + '"><span class="step-icon">' + icon + '</span><span>' +
+          step.title.replace(/</g, '&lt;') + '</span></li>';
+      }).join('');
     }
 
     function poll() {
@@ -173,6 +224,7 @@
           var stick = isNearBottom();
           term.innerHTML = data.html;
           if (stick) term.scrollTop = term.scrollHeight;
+          renderSteps(data);
 
           if (data.done) {
             showDone();

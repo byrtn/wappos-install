@@ -27,7 +27,32 @@ STRINGS = {
     "err_password_too_similar": {"fr": "Le mot de passe ne peut pas etre identique a l'identifiant, au nom ou au domaine.", "en": "The password cannot be identical to the username, name, or domain."},
     "err_unknown_setup_failure": {"fr": "Echec inconnu de la configuration.", "en": "Unknown setup failure."},
     "default_fullname": {"fr": "Administrateur", "en": "Administrator"},
+    "progress_step_label": {"fr": "Étape {current} sur {total}", "en": "Step {current} of {total}"},
+    "progress_long_step_hint": {
+        "fr": "Cette étape peut prendre plusieurs minutes, c'est normal.",
+        "en": "This step can take several minutes, that's normal.",
+    },
+    "detail_technique": {"fr": "Détail technique", "en": "Technical detail"},
 }
+
+PROGRESS_STEPS = [
+    {"fr": "Configuration réseau", "en": "Network configuration"},
+    {"fr": "Attente du réseau", "en": "Waiting for network"},
+    {"fr": "Installation du moteur système Wappos", "en": "Installing the Wappos system engine"},
+    {"fr": "Interface graphique Wappos", "en": "Wappos graphical interface"},
+    {"fr": "Système de base installé et configuré", "en": "Base system installed and configured"},
+    {"fr": "Installation de Docker Engine", "en": "Installing Docker Engine"},
+    {"fr": "Protection Docker contre les rechargements nftables", "en": "Protecting Docker from nftables reloads"},
+    {"fr": "Création du compte technique d'alertes", "en": "Creating the technical alert account"},
+    {"fr": "Installation des composants Wappos", "en": "Installing Wappos components"},
+    {"fr": "Installation de Rspamd (antispam)", "en": "Installing Rspamd (antispam)"},
+    {"fr": "Installation du webmail Wappos", "en": "Installing the Wappos webmail"},
+    {"fr": "Installation de l'agenda Wappos", "en": "Installing the Wappos calendar"},
+    {"fr": "Finalisation de la liaison Prometheus / wappos_admin", "en": "Finalizing the Prometheus / wappos_admin link"},
+    {"fr": "Connexion SSH par mot de passe", "en": "SSH password login"},
+]
+
+PROGRESS_LONG_STEP_INDEXES = {9, 10, 11, 12}
 
 
 def t(key, lang, **kwargs):

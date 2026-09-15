@@ -165,6 +165,24 @@ def _safe_r_redirect(raw: str | None) -> str | None:
     return decoded
 
 
+_R_DESTINATION_PATHS = {
+    "/webmail/": "dest_webmail",
+    "/nextcloud/": "dest_nextcloud",
+    "/wappos-admin/": "dest_admin",
+}
+
+
+def _r_destination_key(raw: str | None) -> str | None:
+    target = _safe_r_redirect(raw)
+    if not target:
+        return None
+    path = urlparse(target).path
+    for prefix, key in _R_DESTINATION_PATHS.items():
+        if path.startswith(prefix):
+            return key
+    return None
+
+
 class SessionExpiredError(Exception):
     pass
 
@@ -452,9 +470,11 @@ def index():
     user = _current_user()
     r_param = request.args.get("r")
     if not user:
+        dest_key = _r_destination_key(r_param)
         return render_template(
             "login.html", user=None, app_version=APP_VERSION, year=date.today().year,
             hide_chrome=True, next=_safe_next_path(request.args.get("next")), r=r_param,
+            protected_dest=i18n.t(dest_key, get_lang()) if dest_key else None,
             **_anonymous_context(),
         )
 

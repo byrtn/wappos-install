@@ -1,5 +1,4 @@
 # Auteur : Patrick Ritaine
-import html
 import os
 import re
 import subprocess
@@ -19,13 +18,6 @@ SENTINEL_COMPLETE = "===WAPPOS_INSTALL_COMPLETE==="
 SENTINEL_FAILED = "===WAPPOS_INSTALL_FAILED==="
 
 _ANSI_CODE_RE = re.compile(r"\033\[([0-9;]*)m")
-_CSI_NON_SGR_RE = re.compile(r"\033\[[0-9;]*[^0-9;m]")
-_ANSI_COLORS = {
-    "31": "#e5534b",
-    "32": "#3fb950",
-    "33": "#d29922",
-    "36": "#58a6ff",
-}
 
 
 def already_installed() -> bool:
@@ -38,111 +30,6 @@ def get_lang() -> str:
             return i18n.normalize_lang(f.read().strip())
     except OSError:
         return i18n.DEFAULT_LANG
-
-
-_NOISE_LINE_RE = re.compile(r"^[-\\|/]\s")
-_RETRY_LINE_RE = re.compile(r"nouvelle tentative dans|retrying in", re.I)
-_COUNTDOWN_LINE_RE = re.compile(r"^>\s*\(\s*\d+s (restantes|remaining)\)\s*$")
-_COUNTDOWN_TEMPLATE_RE = re.compile(r"\d+s (restantes|remaining)")
-
-
-def _is_noise_line(ansi_line: str) -> bool:
-    plain = _ANSI_CODE_RE.sub("", ansi_line).strip()
-    if not plain:
-        return False
-    if _NOISE_LINE_RE.match(plain):
-        return True
-    if _RETRY_LINE_RE.search(plain):
-        return True
-    return False
-
-
-_PROMPT_LINE_RE = re.compile(r"^>\s")
-
-
-def _dedupe_countdown_runs(lines: list) -> list:
-    out = []
-    for line in lines:
-        plain = _ANSI_CODE_RE.sub("", line).strip()
-        if out and _PROMPT_LINE_RE.match(plain):
-            prev_plain = _ANSI_CODE_RE.sub("", out[-1]).strip()
-            if _PROMPT_LINE_RE.match(prev_plain):
-                same_countdown = (
-                    _COUNTDOWN_LINE_RE.match(plain)
-                    and _COUNTDOWN_LINE_RE.match(prev_plain)
-                    and _COUNTDOWN_TEMPLATE_RE.sub("", plain) == _COUNTDOWN_TEMPLATE_RE.sub("", prev_plain)
-                )
-                if same_countdown or plain == prev_plain:
-                    out[-1] = line
-                    continue
-        out.append(line)
-    return out
-
-
-def _collapse_carriage_returns(raw: str) -> str:
-    lines = []
-    for line in raw.split("\n"):
-        if "\r" in line:
-            line = line.split("\r")[-1]
-        line = _CSI_NON_SGR_RE.sub("", line)
-        if _is_noise_line(line):
-            continue
-        lines.append(line)
-    lines = _dedupe_countdown_runs(lines)
-    return "\n".join(lines)
-
-
-def ansi_to_html(raw: str) -> str:
-    text = _collapse_carriage_returns(raw)
-    text = text.replace(SENTINEL_COMPLETE, "").replace(SENTINEL_FAILED, "")
-    out = []
-    pos = 0
-    bold = False
-    underline = False
-    color = None
-    open_span = False
-
-    def close_span():
-        nonlocal open_span
-        if open_span:
-            out.append("</span>")
-            open_span = False
-
-    def emit(chunk: str):
-        nonlocal open_span
-        if not chunk:
-            return
-        close_span()
-        if bold or underline or color:
-            styles = []
-            if bold:
-                styles.append("font-weight:700")
-            if underline:
-                styles.append("text-decoration:underline")
-            if color:
-                styles.append(f"color:{color}")
-            out.append(f'<span style="{";".join(styles)}">')
-            open_span = True
-        out.append(html.escape(chunk))
-
-    for m in _ANSI_CODE_RE.finditer(text):
-        emit(text[pos:m.start()])
-        codes = m.group(1).split(";") if m.group(1) else ["0"]
-        for code in codes:
-            if code in ("", "0"):
-                bold = underline = False
-                color = None
-            elif code == "1":
-                bold = True
-            elif code == "4":
-                underline = True
-            elif code in _ANSI_COLORS:
-                color = _ANSI_COLORS[code]
-        pos = m.end()
-
-    emit(text[pos:])
-    close_span()
-    return "".join(out)
 
 
 _STEP_HEADER_RE = re.compile(r"^(?:Etape|Step)\s+(\d+)\b", re.MULTILINE)
@@ -188,7 +75,6 @@ def progress_log():
     if progress["current"]:
         step_label = i18n.t("progress_step_label", lang, current=progress["current"], total=progress["total"])
     return jsonify(
-        html=ansi_to_html(raw),
         done=SENTINEL_COMPLETE in raw,
         failed=SENTINEL_FAILED in raw,
         steps=progress["steps"],

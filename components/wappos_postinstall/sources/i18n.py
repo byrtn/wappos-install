@@ -32,7 +32,6 @@ STRINGS = {
         "fr": "Cette étape peut prendre plusieurs minutes, c'est normal.",
         "en": "This step can take several minutes, that's normal.",
     },
-    "detail_technique": {"fr": "Détail technique", "en": "Technical detail"},
 }
 
 PROGRESS_STEPS = [

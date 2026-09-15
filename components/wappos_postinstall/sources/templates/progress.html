@@ -30,9 +30,6 @@
       --color-success-bg: #e6f4ea;
       --color-success-text: #1e4620;
       --color-text-faint: #999;
-      --color-term-bg: #14171a;
-      --color-term-text: #d6d6d6;
-      --color-term-border: #2c3036;
     }
     html[data-theme="dark"] {
       color-scheme: dark;
@@ -50,9 +47,6 @@
       --color-success-bg: #1c3324;
       --color-success-text: #a8e6bc;
       --color-text-faint: #969696;
-      --color-term-bg: #0a0c0e;
-      --color-term-text: #d6d6d6;
-      --color-term-border: #2c3036;
     }
     @font-face {
       font-family: 'Montserrat';
@@ -117,19 +111,6 @@
     .long-hint { text-align: center; font-size: 0.85rem; color: var(--color-text-muted); margin: -0.5rem 0 1.25rem; }
     .long-hint[hidden] { display: none; }
 
-    .log-detail { border: 1px solid var(--color-border); border-radius: 10px; overflow: hidden; margin-bottom: 1rem; }
-    .log-detail summary { padding: 0.6rem 1rem; cursor: pointer; font-size: 0.85rem; color: var(--color-text-muted); }
-    .log-detail summary:hover { color: var(--color-text); }
-
-    .terminal {
-      background: var(--color-term-bg); color: var(--color-term-text);
-      border-top: 1px solid var(--color-term-border);
-      padding: 1rem 1.1rem; font-size: 0.82rem; line-height: 1.5;
-      font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
-      white-space: pre-wrap; word-break: break-word;
-      max-height: 40vh; overflow-y: auto;
-    }
-
     .page-footer { margin-top: 1.5rem; text-align: center; font-size: 0.85rem; color: var(--color-text-faint); }
     .page-footer a { color: var(--color-link); }
   </style>
@@ -151,11 +132,6 @@
       <ul id="steps-list" class="steps" aria-live="polite" hidden></ul>
       <div id="long-hint" class="long-hint" hidden></div>
 
-      <details class="log-detail">
-        <summary>{{ t('detail_technique') }}</summary>
-        <div id="terminal" class="terminal" aria-live="polite"></div>
-      </details>
-
       <div id="banner-success" class="banner success" hidden>
         <div>{{ t('progress_done_title') }} {{ t('progress_done_text') }}</div>
         <a class="btn-portal" href="/wappos-portal/">{{ t('btn_go_to_portal') }}</a>
@@ -170,7 +146,6 @@
   </div>
 
   <script>
-    var term = document.getElementById('terminal');
     var spinnerRow = document.getElementById('spinner-row');
     var stepLabel = document.getElementById('step-label');
     var stepsList = document.getElementById('steps-list');
@@ -178,10 +153,6 @@
     var bannerSuccess = document.getElementById('banner-success');
     var bannerError = document.getElementById('banner-error');
     var polling = true;
-
-    function isNearBottom() {
-      return term.scrollHeight - term.scrollTop - term.clientHeight < 60;
-    }
 
     function showDone() {
       polling = false;
@@ -221,9 +192,6 @@
         })
         .then(function (data) {
           if (!data) return;
-          var stick = isNearBottom();
-          term.innerHTML = data.html;
-          if (stick) term.scrollTop = term.scrollHeight;
           renderSteps(data);
 
           if (data.done) {

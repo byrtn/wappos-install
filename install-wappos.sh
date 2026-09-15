@@ -160,6 +160,9 @@ t() {
             step_rspamd_title) echo "Installation de Rspamd (antispam)" ;;
             step_rspamd_why) echo "Protege vos boites mail contre le spam." ;;
             success_rspamd) echo "Rspamd installe" ;;
+            step_roundcube_title) echo "Installation du webmail Wappos" ;;
+            step_roundcube_why) echo "Permet de consulter vos mails depuis un navigateur." ;;
+            success_roundcube) echo "Webmail installe" ;;
             step_prometheus_title) echo "Finalisation de la liaison Prometheus / wappos_admin" ;;
             step_prometheus_why) echo "Connecte le tableau de bord de performance a l'administration." ;;
             success_components) echo "Composants Wappos installes." ;;
@@ -249,6 +252,9 @@ t() {
             step_rspamd_title) echo "Installing Rspamd (antispam)" ;;
             step_rspamd_why) echo "Protects your mailboxes against spam." ;;
             success_rspamd) echo "Rspamd installed" ;;
+            step_roundcube_title) echo "Installing the Wappos webmail" ;;
+            step_roundcube_why) echo "Lets you read your mail from a browser." ;;
+            success_roundcube) echo "Webmail installed" ;;
             step_prometheus_title) echo "Finalizing the Prometheus / wappos_admin link" ;;
             step_prometheus_why) echo "Connects the performance dashboard to the admin panel." ;;
             success_components) echo "Wappos components installed." ;;
@@ -580,6 +586,20 @@ CRON_EOF
     fi
 
     success_line "$(t success_rspamd)"
+fi
+
+if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'roundcube' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then
+    step "$(t step_roundcube_title)" "$(t step_roundcube_why)"
+    quiet yunohost app install roundcube --args "domain=$main_domain&path=/webmail"
+
+    quiet yunohost user permission remove roundcube.main visitors
+
+    bash "$script_dir/branding/roundcube/apply-branding.sh"
+    cat > /etc/cron.d/wappos-roundcube-branding <<CRON_EOF
+@daily root bash $script_dir/branding/roundcube/apply-branding.sh >/dev/null 2>&1
+CRON_EOF
+
+    success_line "$(t success_roundcube)"
 fi
 
 step "$(t step_prometheus_title)" "$(t step_prometheus_why)"

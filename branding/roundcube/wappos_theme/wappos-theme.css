@@ -1,0 +1,46 @@
+@font-face {
+  font-family: 'Montserrat';
+  font-style: normal;
+  font-weight: 100 900;
+  font-display: swap;
+  src: url('Montserrat-Variable.woff2') format('woff2');
+}
+
+body,
+.rc-controls-toolbar,
+.toolbar,
+.footer,
+input,
+select,
+textarea,
+button {
+  font-family: 'Montserrat', "Helvetica Neue", Helvetica, Arial, sans-serif !important;
+}
+
+a,
+.btn-link {
+  color: #016f93 !important;
+}
+
+.btn-primary,
+.ui-state-active {
+  background: #016f93 !important;
+  border-color: #016f93 !important;
+}
+
+.btn-primary:hover,
+.btn-primary:focus {
+  background: #015a78 !important;
+  border-color: #015a78 !important;
+}
+
+#taskmenu .button.selected,
+#taskmenu .button.selected:hover {
+  color: #016f93 !important;
+}
+
+.folder-selected,
+.listing tr.selected td,
+.listing tr.selected td a {
+  background-color: #016f93 !important;
+}

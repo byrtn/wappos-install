@@ -1,0 +1,46 @@
+{% extends "base.html" %}
+{% block title %}{{ t('nav_database') }}{% endblock %}
+
+{% block content %}
+    <p class="hint-text">{{ t('database_connecting') }}</p>
+    <noscript><div class="flash flash-error">{{ t('database_connect_needs_js') }}</div></noscript>
+{% endblock %}
+
+{% block extra_script %}
+    (function () {
+      var adminerUrl = {{ adminer_url|tojson }};
+      var dbName = {{ db_name|tojson }};
+      var dbUser = {{ db_user|tojson }};
+      var dbPwd = {{ db_pwd|tojson }};
+
+      fetch(adminerUrl, { credentials: "include" })
+        .then(function (resp) { return resp.text(); })
+        .then(function (html) {
+          var match = html.match(/name=["']token["'] value=["']([^"']+)["']/);
+          if (!match) { throw new Error("token not found"); }
+          var form = document.createElement("form");
+          form.method = "POST";
+          form.action = adminerUrl;
+          var fields = {
+            "auth[driver]": "server",
+            "auth[server]": "localhost",
+            "auth[username]": dbUser,
+            "auth[password]": dbPwd,
+            "auth[db]": dbName,
+            "token": match[1],
+          };
+          Object.keys(fields).forEach(function (name) {
+            var input = document.createElement("input");
+            input.type = "hidden";
+            input.name = name;
+            input.value = fields[name];
+            form.appendChild(input);
+          });
+          document.body.appendChild(form);
+          form.submit();
+        })
+        .catch(function () {
+          document.querySelector(".hint-text").textContent = {{ t('database_connect_failed')|tojson }};
+        });
+    })();
+{% endblock %}

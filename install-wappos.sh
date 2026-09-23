@@ -617,6 +617,7 @@ fi
 if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'adminer' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then
     step "$(t step_adminer_title)" "$(t step_adminer_why)"
     quiet yunohost app install adminer --args "domain=$main_domain&path=/adminer&init_main_permission=admins"
+    quiet yunohost user permission update adminer.main --add wappos_domain_admins
 
     bash "$script_dir/branding/adminer/apply-branding.sh"
     cat > /etc/cron.d/wappos-adminer-branding <<CRON_EOF

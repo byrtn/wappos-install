@@ -1,0 +1,31 @@
+{% extends "base.html" %}
+{% set active_tab = "database" %}
+{% block title %}{{ t('nav_database') }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('nav_database') }}</span>{% endblock %}
+
+{% block content %}
+    {% if error %}<div class="flash flash-error">{{ error }}</div>{% endif %}
+    <p class="hint-text">{{ t('database_page_intro') }}</p>
+
+    {% if apps %}
+      <ul class="app-list">
+        {% for a in apps %}
+          <li class="app-item">
+            <div class="app-item-main">
+              <strong>{{ a.label }}</strong>
+              <span class="app-item-id">{{ a.db_name }}</span>
+            </div>
+            <div class="app-item-meta">
+              <span>{{ a.domain }}</span>
+            </div>
+            <form method="get" action="{{ url_for('database_connect', app_id=a.app_id) }}" target="_blank">
+              <button type="submit" class="btn btn-primary">{{ t('btn_database_connect') }}</button>
+            </form>
+          </li>
+        {% endfor %}
+      </ul>
+    {% else %}
+      <p class="hint-text">{{ t('database_no_apps') }}</p>
+    {% endif %}
+{% endblock %}

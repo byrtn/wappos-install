@@ -22,6 +22,7 @@ from wappos_api.connectors import domain_owners as domain_owners_connector
 from wappos_api.connectors import domains_public as domains_public_connector
 from wappos_api.connectors import portal as portal_connector
 from wappos_api.connectors import cross_domain as cross_domain_connector
+from wappos_api.connectors import db_access as db_access_connector
 from wappos_api.connectors import smtp_relay as smtp_relay_connector
 from wappos_api.connectors import security_status as security_status_connector
 from wappos_api.connectors import ssh_access as ssh_access_connector
@@ -62,6 +63,7 @@ from wappos_api.schemas.permission import (
 from wappos_api.schemas.portal import PortalLoginRequest, PortalLogoutResponse, PortalTokenResponse
 from wappos_api.schemas.service import ServiceInfo
 from wappos_api.schemas.cross_domain import CrossDomainStatus
+from wappos_api.schemas.db_access import DatabaseApp, DatabaseCredentials
 from wappos_api.schemas.security_status import SecurityOverview
 from wappos_api.schemas.smtp_relay import DomainSmtpRelay, DomainSmtpRelayRequest
 from wappos_api.schemas.ssh_access import SshAccessStatus
@@ -569,6 +571,39 @@ def admin_remove_domain(
         _raise_as_http(exc)
     domain_owners_connector.set_owners(domain, [])
     return Response(status_code=204)
+
+
+@app.get("/admin/database/apps", response_model=list[DatabaseApp])
+def admin_list_database_apps(x_admin_token: str = Header()) -> list[DatabaseApp]:
+    try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        apps = scope_module.filter_apps(admin_connector.list_apps(x_admin_token), scope)
+        db_map = db_access_connector.list_all()
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return [
+        DatabaseApp(
+            app_id=app.id,
+            label=app.label,
+            domain=app.domain_path.split("/", 1)[0],
+            db_name=db_map[app.id]["db_name"],
+        )
+        for app in apps
+        if app.domain_path and app.id in db_map
+    ]
+
+
+@app.get("/admin/database/apps/{app_id}/credentials", response_model=DatabaseCredentials)
+def admin_get_database_credentials(app_id: str, x_admin_token: str = Header()) -> DatabaseCredentials:
+    credentials = None
+    try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
+        credentials = db_access_connector.get_credentials(app_id)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    if credentials is None:
+        raise HTTPException(status_code=404, detail="This app has no database")
+    return DatabaseCredentials(**credentials)
 
 
 _LOCAL_DOMAIN_RE = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,61}[A-Za-z0-9])?\.lan$")

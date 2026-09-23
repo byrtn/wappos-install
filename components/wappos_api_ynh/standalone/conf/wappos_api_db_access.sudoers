@@ -1,0 +1,2 @@
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/db_access.py list-all
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/db_access.py get *

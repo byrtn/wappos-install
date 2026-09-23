@@ -868,6 +868,26 @@ def _wappos_api_certificates_status(token: str) -> dict:
     return resp.json()
 
 
+def _wappos_api_database_apps(token: str) -> list[dict]:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/database/apps",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_database_credentials(token: str, app_id: str) -> dict:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/database/apps/{app_id}/credentials",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
 def _wappos_api_adguard_status(token: str) -> dict:
     resp = requests.get(
         f"{WAPPOS_API_BASE}/admin/adguard/status",
@@ -3932,6 +3952,49 @@ def settings_submit(panel_key: str):
     return redirect(url_for(return_to, msg=i18n.t("msg_settings_applied", get_lang())))
 
 
+
+
+@app.route("/database")
+def database_page():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+
+    try:
+        apps = _wappos_api_database_apps(token)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load database apps for %r: %s", user, e)
+        return render_template(
+            "database.html", user=user, apps=[],
+            error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
+        ), 503
+
+    return render_template("database.html", user=user, apps=apps, error=None, app_version=APP_VERSION)
+
+
+@app.route("/database/connect/<app_id>")
+def database_connect(app_id: str):
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+
+    try:
+        credentials = _wappos_api_database_credentials(token, app_id)
+        adminer_domain_path = _wappos_api_app_detail(token, "adminer").get("domain_path")
+    except requests.exceptions.HTTPError as e:
+        return redirect(url_for("database_page", error=_error_message(e)))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to prepare database connection for %r/%s: %s", user, app_id, e)
+        return redirect(url_for("database_page", error=i18n.t("err_api_unreachable", get_lang())))
+
+    if not adminer_domain_path:
+        return redirect(url_for("database_page", error=i18n.t("database_adminer_not_installed", get_lang())))
+
+    return render_template(
+        "database_connect.html", user=user, app_version=APP_VERSION,
+        adminer_url=f"https://{adminer_domain_path}/",
+        db_name=credentials["db_name"], db_user=credentials["db_user"], db_pwd=credentials["db_pwd"],
+    )
 
 
 @app.route("/domains")

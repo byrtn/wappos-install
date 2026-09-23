@@ -11,3 +11,5 @@ __APP__ ALL=(root) NOPASSWD: /usr/bin/cat /opt/yunohost/wappos_api/.package/mani
 __APP__ ALL=(root) NOPASSWD: /usr/bin/cat /opt/yunohost/wappos_admin/.package/manifest.toml
 __APP__ ALL=(root) NOPASSWD: /usr/bin/cat /opt/yunohost/wappos_portal/.package/manifest.toml
 __APP__ ALL=(root) NOPASSWD: /usr/sbin/smartctl -a -j /dev/sda
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /var/www/*
+__APP__ ALL=(root) NOPASSWD: /usr/bin/du -sb /home/yunohost.app/*

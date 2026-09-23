@@ -1,0 +1,45 @@
+body {
+  background: #f4f3ee !important;
+}
+
+#h1 {
+  color: #016f93 !important;
+}
+
+#h1 img#logo {
+  content: url('wappos-logo.png');
+  height: 28px !important;
+  width: auto !important;
+}
+
+a,
+a:visited {
+  color: #016f93 !important;
+}
+
+input[type="submit"],
+input[type="image"] {
+  background: #016f93 !important;
+  border-color: #016f93 !important;
+  color: #fff !important;
+}
+
+input[type="submit"]:hover,
+input[type="image"]:hover {
+  background: #015a78 !important;
+  border-color: #015a78 !important;
+}
+
+#menu {
+  background: #fff !important;
+  border-right: 1px solid #dedad0 !important;
+}
+
+#menu .active {
+  background: #016f93 !important;
+  color: #fff !important;
+}
+
+#breadcrumb a {
+  color: #016f93 !important;
+}

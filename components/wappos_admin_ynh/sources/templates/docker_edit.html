@@ -5,15 +5,12 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">{{ t('nav_docker_apps') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('breadcrumb_edit_slug', slug=slug) }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
-    {% if message %}<div class="message" style="margin-bottom: 1.25rem;">{{ message }}</div>{% endif %}
-
     <div class="message" style="background: var(--color-warning-bg); color: var(--color-warning-text); margin-bottom: 1.25rem;">
       {{ t('warning_edit_restarts_container') }}
     </div>
 
     {% if supports_change_url %}
-      <div class="card create-card">
+      <div class="card create-card card-default-open">
         <div class="card-header"><h3>{{ t('h3_change_url') }}</h3></div>
         <div class="card-body">
           <p class="field-info" style="margin: 0 0 0.75rem;">{{ t('current_domain_path') }} <code>{{ entry.domain }}{{ entry.path }}</code></p>
@@ -29,7 +26,7 @@
     {% endif %}
 
     <form method="post" action="{{ url_for('docker_edit', slug=slug) }}">
-      <div class="card create-card">
+      <div class="card create-card card-default-open">
         <div class="card-header"><h3>{{ t('h3_params_of', slug=slug) }}</h3></div>
         <div class="card-body">
           <div class="fields">
@@ -69,6 +66,13 @@
           <div class="field" style="margin-top: 0.75rem;">
             <label><input type="checkbox" id="ldap_enabled" name="ldap_enabled" {{ "checked" if entry.ldap_enabled else "" }}> {{ t('label_ldap_capable') }}</label>
             <span class="field-help">{{ t('ldap_help') }}</span>
+            <div class="ldap-connection-box">
+              <p style="margin: 0 0 0.4rem;">{{ t('ldap_connection_details_title') }}</p>
+              <code>LDAP_HOST={{ ldap_connection.LDAP_HOST }}</code><br>
+              <code>LDAP_PORT={{ ldap_connection.LDAP_PORT }}</code><br>
+              <code>LDAP_BASE_DN={{ ldap_connection.LDAP_BASE_DN }}</code><br>
+              <span class="field-info">{{ t('ldap_connection_anonymous_bind') }}</span>
+            </div>
           </div>
 
           <button type="submit" class="btn" style="margin-top: 1rem;">{{ t('btn_save_and_restart') }}</button>
@@ -77,7 +81,7 @@
     </form>
 
     {% if app_permissions %}
-      <div class="card create-card">
+      <div class="card create-card card-default-open">
         <div class="card-header"><h3>{{ t('h3_access') }}</h3></div>
         <div class="card-body">
         {% for pid, p in app_permissions.items() %}
@@ -99,7 +103,7 @@
         </div>
       </div>
 
-      <div class="card create-card">
+      <div class="card create-card card-default-open">
         <div class="card-header"><h3>{{ t('h3_portal_tile_and_logo') }}</h3></div>
         <div class="card-body">
         {% for pid, p in app_permissions.items() %}
@@ -124,12 +128,14 @@
               <label for="logo-{{ pid }}">{{ t('label_logo_png') }}</label>
               <input type="file" id="logo-{{ pid }}" name="logo" accept="image/png">
             </div>
-            <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin: 0.6rem 1rem 0 0; font-size: 0.85rem;">
-              <input type="checkbox" name="show_tile" {{ "checked" if p.show_tile else "" }}> {{ t('checkbox_show_tile') }}
-            </label>
-            <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin-top: 0.6rem; font-size: 0.85rem;">
-              <input type="checkbox" name="hide_from_public" {{ "checked" if p.hide_from_public else "" }}> {{ t('checkbox_hide_from_public') }}
-            </label>
+            <div class="inline-field-row" style="margin-top: 0.6rem;">
+              <label class="checkbox-field">
+                <input type="checkbox" name="show_tile" {{ "checked" if p.show_tile else "" }}> <span>{{ t('checkbox_show_tile') }}</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="checkbox" name="hide_from_public" {{ "checked" if p.hide_from_public else "" }}> <span>{{ t('checkbox_hide_from_public') }}</span>
+              </label>
+            </div>
             <div style="margin-top: 0.75rem;">
               <button type="submit" class="btn">{{ t('btn_save') }}</button>
             </div>
@@ -142,6 +148,9 @@
 
 {% block extra_style %}
     .field-help { display: block; margin-top: 0.3rem; color: var(--color-text-muted); font-size: 0.78rem; }
+    .ldap-connection-box { margin-top: 0.5rem; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border);
+                     border-radius: 6px; background: var(--color-hover-bg); font-size: 0.78rem; }
+    .ldap-connection-box code { font-size: 0.78rem; }
     .card.create-card { margin-bottom: 1.25rem; }
     .tag-checklist { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-bottom: 0.5rem;
                       max-height: 180px; overflow-y: auto; padding: 0.5rem; border: 1px solid var(--color-border);

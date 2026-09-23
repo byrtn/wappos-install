@@ -5,11 +5,11 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('logs') }}">{{ t('title_logs') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ detail.description }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
-
-    <div class="card">
-      <h2 style="margin: 0; padding: 1.25rem 1.5rem 0;">{{ detail.description }}</h2>
+    <div class="card {{ 'log-card-error' if detail.error else 'log-card-ok' }}">
+      <h2 style="margin: 0; padding: 1.25rem 1.5rem 0;">
+        {{ detail.description }}
+        <span class="log-status-chip {{ 'log-status-error' if detail.error else 'log-status-ok' }}">{{ t('log_status_failed') if detail.error else t('log_status_ok') }}</span>
+      </h2>
       {% if detail.path %}
         <div class="log-info-row">
           <strong class="log-info-label">{{ t('th_path_generic') }}</strong>
@@ -51,10 +51,12 @@
 
     <div class="card">
       <h2 style="margin: 0; padding: 1.25rem 1.5rem;">{{ t('h2_log') }}</h2>
+      {% if is_superadmin %}
       <form method="post" action="{{ url_for('share_log', name=detail.name) }}" style="padding: 0 1.5rem 1rem;"
             data-confirm="{{ t('confirm_share_log') }}">
         <button type="submit" class="btn">{{ t('btn_share_online') }}</button>
       </form>
+      {% endif %}
       {% if detail.more_logs_available %}
         <a href="{{ url_for('log_detail', name=detail.name, n=number * 10) }}" class="btn log-more-btn">{{ t('btn_show_more_lines') }}</a>
       {% endif %}
@@ -65,13 +67,20 @@
 
 {% block extra_style %}
     .card { margin-bottom: 1.25rem; }
-    .log-info-row { display: flex; gap: 1rem; padding: 0.6rem 1.5rem; border-top: 1px solid #f0f0f0;
+    .log-card-error { border-left-color: var(--color-danger); }
+    .log-card-ok { border-left-color: var(--color-success); }
+    .log-status-chip { display: inline-block; font-size: 0.7rem; font-weight: 600; text-transform: uppercase;
+                     letter-spacing: 0.03em; border-radius: 999px; padding: 0.15rem 0.55rem; margin-left: 0.5rem; vertical-align: middle; }
+    .log-status-ok { background: var(--color-message-bg); color: var(--color-message-text); }
+    .log-status-error { background: var(--color-error-bg); color: var(--color-error-text); }
+    .log-info-row { display: flex; gap: 1rem; padding: 0.6rem 1.5rem; border-top: 1px solid var(--color-border);
                      font-size: 0.88rem; align-items: flex-start; }
     .log-info-label { flex: 0 0 160px; }
-    .log-info-path { font-family: monospace; font-size: 0.8rem; word-break: break-all; }
+    .log-info-path { font-family: monospace; font-size: 0.8rem; word-break: break-all;
+                     background: var(--color-info-bg); color: var(--color-info-text); border-radius: 5px; padding: 0.15rem 0.5rem; }
     .alert { padding: 1rem 1.25rem; border-radius: 8px; margin-bottom: 1.25rem; }
-    .alert-danger { background: #fbe9e7; color: #7a1f00; border: 1px solid #f3b7a6; }
-    .alert-success { background: #e8f5e9; color: #1a4d24; border: 1px solid #a8d5b0; }
+    .alert-danger { background: var(--color-error-bg); color: var(--color-error-text); border: 1px solid var(--color-danger); }
+    .alert-success { background: var(--color-message-bg); color: var(--color-message-text); border: 1px solid var(--color-success); }
     .log-more-btn { display: block; width: 100%; text-align: center; border-radius: 0; }
     .log-content { margin: 0; padding: 1.25rem 1.5rem; font-size: 0.78rem; background: #1e1e1e;
                     color: #ddd; overflow-x: auto; max-height: 600px; user-select: none; }

@@ -1,6 +1,7 @@
 from __future__ import annotations
 # Auteur : Patrick Ritaine
 
+import httpx
 import pytest
 import respx
 from httpx import Response
@@ -145,6 +146,41 @@ def test_set_domain_config_large_args_uses_multipart_not_json(admin_domain_url: 
     request = route.calls.last.request
     assert request.headers["content-type"].startswith("multipart/form-data")
     assert large_value.encode() in request.content
+
+
+@respx.mock
+def test_set_domain_config_uses_heavy_timeout(admin_domain_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    respx.put(f"{admin_domain_url}/config/feature").mock(return_value=Response(200, json={}))
+    captured = {}
+    real_put = httpx.put
+
+    def spy_put(*args, **kwargs):
+        captured["timeout"] = kwargs.get("timeout")
+        return real_put(*args, **kwargs)
+
+    monkeypatch.setattr(admin.httpx, "put", spy_put)
+
+    admin.set_domain_config("fake-session-token", "dev.byrtn.fr", "feature", "mail_in=1")
+
+    assert captured["timeout"] == admin._HEAVY_DOMAIN_OP_TIMEOUT_SECONDS
+
+
+@respx.mock
+def test_run_domain_action_uses_heavy_timeout(admin_login_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    action_url = admin_login_url.replace("/login", "/domain/dev.byrtn.fr/actions/reset")
+    respx.put(action_url).mock(return_value=Response(200, json={}))
+    captured = {}
+    real_put = httpx.put
+
+    def spy_put(*args, **kwargs):
+        captured["timeout"] = kwargs.get("timeout")
+        return real_put(*args, **kwargs)
+
+    monkeypatch.setattr(admin.httpx, "put", spy_put)
+
+    admin.run_domain_action("fake-session-token", "dev.byrtn.fr", "reset")
+
+    assert captured["timeout"] == admin._HEAVY_DOMAIN_OP_TIMEOUT_SECONDS
 
 
 @respx.mock

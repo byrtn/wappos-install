@@ -5,22 +5,32 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('backups_page') }}">{{ t('title_backups') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ name }}</span>{% endblock %}
 
 {% block content %}
-    <div class="card create-card">
+    <div class="card create-card card-default-open">
       <div class="card-header"><h2 style="font-size: 0.95rem;">{{ name }}</h2></div>
       <div class="card-body">
         <h3 style="font-size: 0.95rem; margin-top: 0;">{{ t('h3_information') }}</h3>
-        <table>
-          <tr><th>{{ t('th_created_on') }}</th><td>{{ info.get('created_at')|backup_date_fr }}</td></tr>
-          <tr><th>{{ t('th_description') }}</th><td>{{ info.get('description', t('value_dash')) }}</td></tr>
-          <tr><th>{{ t('th_size') }}</th><td>{{ info.get('size', t('value_dash')) }}</td></tr>
-          <tr><th>{{ t('th_path') }}</th><td>{{ info.get('path', t('value_dash')) }}</td></tr>
-          {% if info.get('apps') %}
-            <tr><th>{{ t('th_included_apps') }}</th><td>{{ info.apps.keys() | join(', ') }}</td></tr>
-          {% endif %}
-                    {% if info.get('system') %}
-            <tr><th>{{ t('th_included_system_components') }}</th><td>{{ info.system.keys() | join(', ') }}</td></tr>
-          {% endif %}
-        </table>
+        <div class="info-grid">
+          <div class="info-item"><span class="info-label">{{ t('th_created_on') }}</span><span class="info-chip">{{ info.get('created_at')|backup_date_fr }}</span></div>
+          <div class="info-item"><span class="info-label">{{ t('th_size') }}</span><span class="info-chip info-chip-accent">{{ info.get('size') or t('value_dash') }}</span></div>
+          <div class="info-item"><span class="info-label">{{ t('th_description') }}</span>
+            {% if info.get('description') %}<span class="info-chip">{{ info.description }}</span>{% else %}<span class="field-info">{{ t('value_dash') }}</span>{% endif %}
+          </div>
+          <div class="info-item"><span class="info-label">{{ t('th_path') }}</span>
+            {% if info.get('path') %}<span class="info-chip info-chip-path">{{ info.path }}</span>{% else %}<span class="field-info">{{ t('value_dash') }}</span>{% endif %}
+          </div>
+        </div>
+        {% if info.get('apps') %}
+          <div class="info-item info-item-block">
+            <span class="info-label">{{ t('th_included_apps') }}</span>
+            <div class="app-pill-list">{% for a in info.apps.keys() %}<span class="app-pill">{{ a }}</span>{% endfor %}</div>
+          </div>
+        {% endif %}
+        {% if info.get('system') %}
+          <div class="info-item info-item-block">
+            <span class="info-label">{{ t('th_included_system_components') }}</span>
+            <div class="app-pill-list">{% for s in info.system.keys() %}<span class="app-pill app-pill-system">{{ s }}</span>{% endfor %}</div>
+          </div>
+        {% endif %}
         <div style="margin-top: 0.75rem;">
           <a href="{{ url_for('download_backup', name=name) }}" class="btn">{{ t('btn_download') }}</a>
         </div>
@@ -64,8 +74,8 @@
       </div>
     </div>
 
-    <div class="card create-card">
-      <div class="card-header"><h3 style="color: var(--color-danger);">{{ t('h3_danger_zone') }}</h3></div>
+    <div class="card create-card danger-zone">
+      <div class="card-header"><h3>{{ t('h3_danger_zone') }}</h3></div>
       <div class="card-body">
         <form method="post" action="{{ url_for('delete_backup', name=name) }}"
               data-confirm="{{ t('confirm_delete_archive', name=name) }}">
@@ -78,7 +88,18 @@
 {% block extra_style %}
     .card.create-card { margin-bottom: 1.25rem; }
     .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
-        table th { text-align: left; padding-right: 1rem; color: var(--color-text-muted); font-weight: 500; background: none; }
+    .info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.9rem; margin-bottom: 0.5rem; }
+    .info-item { display: flex; flex-direction: column; gap: 0.3rem; }
+    .info-item-block { margin-top: 0.9rem; }
+    .info-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-faint); }
+    .info-chip { display: inline-block; align-self: flex-start; background: var(--color-hover-bg); color: var(--color-text);
+                 border-radius: 5px; padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+    .info-chip-accent { background: var(--color-info-bg); color: var(--color-info-text); font-weight: 600; }
+    .info-chip-path { font-family: monospace; font-size: 0.78rem; overflow-wrap: anywhere; }
+    .app-pill-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .app-pill { display: inline-block; border: 1px solid var(--color-border-strong); border-radius: 6px;
+                padding: 0.2rem 0.5rem; font-size: 0.78rem; color: var(--color-text); background: var(--color-hover-bg); }
+    .app-pill-system { background: var(--color-warning-bg); color: var(--color-text-warning); border-color: transparent; }
     .confirm-row { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between;
                    gap: 0.75rem; margin-top: 0.75rem; }
     .confirm-row-text { margin: 0; color: var(--color-text-muted); font-size: 0.85rem; }

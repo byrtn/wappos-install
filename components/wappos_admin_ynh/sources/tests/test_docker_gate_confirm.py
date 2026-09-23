@@ -98,6 +98,22 @@ def test_normalize_catalogue_entry_ghost_override_applies_regardless_of_tag():
     assert entry["env_vars"]["database__client"] == "sqlite3"
 
 
+def test_normalize_catalogue_entry_applies_domoticz_port_override():
+    entry = dg._normalize_catalogue_entry({
+        "type": 1, "title": "Domoticz", "image": "linuxserver/domoticz:latest",
+        "ports": ["1443:1443/tcp"],
+    })
+    assert entry["container_port"] == "8080"
+
+
+def test_normalize_catalogue_entry_domoticz_override_applies_regardless_of_tag():
+    entry = dg._normalize_catalogue_entry({
+        "type": 1, "title": "Domoticz", "image": "linuxserver/domoticz:2023.2.20231129",
+        "ports": ["1443:1443/tcp"],
+    })
+    assert entry["container_port"] == "8080"
+
+
 def test_base_image_name_strips_tag_and_registry():
     assert dg._base_image_name("ghost:latest") == "ghost"
     assert dg._base_image_name("lscr.io/linuxserver/heimdall:latest") == "heimdall"

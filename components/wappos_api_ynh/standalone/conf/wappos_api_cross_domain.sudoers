@@ -2,3 +2,6 @@ __APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/c
 __APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/cross_domain.py disable *
 __APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/cross_domain.py status *
 __APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/cross_domain.py apply-to-new-domain *
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/cross_domain.py add-domain *
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/cross_domain.py remove-domain *
+__APP__ ALL=(root) NOPASSWD: /usr/bin/python3 /opt/yunohost/wappos_api/scripts/cross_domain.py list-domains *

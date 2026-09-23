@@ -56,6 +56,22 @@ def test_domains_page_shows_certificate_validity(logged_in_client):
     assert b"42 days" in resp.data
 
 
+def test_domains_page_hides_local_network_card_for_domain_admin(client):
+    with client.session_transaction() as sess:
+        sess["user"] = "domain.admin"
+        sess["token"] = "test-token"
+        sess["is_superadmin"] = False
+        sess["owned_domains"] = ["dev.byrtn.fr"]
+    with patch.object(app, "_wappos_api_domains", return_value=["dev.byrtn.fr"]), \
+         patch.object(app, "_wappos_api_adguard_status") as mocked_adguard, \
+         patch.object(app, "_wappos_api_certificates_status", return_value={}):
+        resp = client.get("/domains")
+    body = resp.data.decode()
+    assert resp.status_code == 200
+    mocked_adguard.assert_not_called()
+    assert "Local network access" not in body
+
+
 def test_domain_add_success_redirects_to_detail(logged_in_client):
     with patch.object(app, "_wappos_api_add_domain", return_value=None):
         resp = logged_in_client.post("/domains/add", data={"domain": "new.byrtn.fr"})

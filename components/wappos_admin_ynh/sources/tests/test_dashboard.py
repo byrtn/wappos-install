@@ -148,3 +148,46 @@ def test_standalone_services_status_survives_subprocess_error():
     assert len(services) == len(app._STANDALONE_SERVICES)
     for s in services:
         assert s["installed"] is False
+
+
+def _domain_admin_client(client):
+    with client.session_transaction() as sess:
+        sess["user"] = "domain.admin"
+        sess["token"] = "test-token"
+        sess["is_superadmin"] = False
+        sess["owned_domains"] = ["dev.byrtn.fr"]
+    return client
+
+
+def test_home_route_skips_dashboard_calls_for_domain_admin(client):
+    domain_admin_client = _domain_admin_client(client)
+    with patch.object(app, "_dashboard_summary") as mock_dashboard:
+        resp = domain_admin_client.get("/")
+    assert resp.status_code == 200
+    mock_dashboard.assert_not_called()
+
+
+def test_home_route_hides_dashboard_tiles_for_domain_admin(client):
+    domain_admin_client = _domain_admin_client(client)
+    resp = domain_admin_client.get("/")
+    body = resp.data.decode()
+    assert "/backups" in body
+    assert "/diagnosis" in body
+    assert "/system-menu" in body
+    assert 'class="dashboard-grid"' not in body
+
+
+def test_home_route_shows_superadmin_only_nav_for_superadmin(logged_in_client):
+    patches = _patch_all_dashboard_calls()
+    for p in patches:
+        p.start()
+    try:
+        resp = logged_in_client.get("/")
+    finally:
+        for p in patches:
+            p.stop()
+    body = resp.data.decode()
+    assert "/backups" in body
+    assert "/diagnosis" in body
+    assert "/system-menu" in body
+    assert 'class="dashboard-grid"' in body

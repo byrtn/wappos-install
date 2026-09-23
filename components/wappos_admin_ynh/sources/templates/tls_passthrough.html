@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% set active_tab = "tls_passthrough" %}
+{% block title %}{{ t('title_tls_passthrough') }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_tls_passthrough') }}</span>{% endblock %}
+
+{% block content %}
+    <div class="card create-card">
+      <div class="card-body">
+        <p class="field-info" style="margin: 0;">{{ t('tls_passthrough_info') }}</p>
+      </div>
+    </div>
+
+    <div class="card fw-ports-card">
+      <div class="card-header"><h3>{{ t('title_tls_passthrough') }}</h3></div>
+      <ul class="fw-port-list">
+        {% for e in tls_passthrough.entries %}
+          <li class="fw-port-row">
+            <div class="fw-port-line">
+              <span class="fw-port-num">{{ e.domain }}</span>
+              <span class="fw-port-comment" style="margin: 0;">{{ e.destination }}:{{ e.port }}</span>
+              <form method="post" action="{{ url_for('remove_tls_passthrough_entry') }}" class="fw-switch-form" style="margin-left: auto;"
+                    data-confirm="{{ t('confirm_remove_tls_passthrough_entry', domain=e.domain) }}">
+                <input type="hidden" name="domain" value="{{ e.domain }}">
+                <input type="hidden" name="destination" value="{{ e.destination }}">
+                <input type="hidden" name="port" value="{{ e.port }}">
+                <button type="submit" class="btn btn-danger">{{ t('btn_remove_entry') }}</button>
+              </form>
+            </div>
+          </li>
+        {% else %}
+          <li class="fw-port-row fw-port-empty">{{ t('no_tls_passthrough_entry') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3 id="add-entry">{{ t('btn_add_entry') }}</h3></div>
+      <div class="card-body">
+        <form method="post" action="{{ url_for('add_tls_passthrough_entry') }}">
+          <div class="fields">
+            <div class="field">
+              <label for="tp-domain">{{ t('label_domain') }}</label>
+              <input type="text" id="tp-domain" name="domain" required>
+            </div>
+            <div class="field">
+              <label for="tp-destination">{{ t('label_destination') }}</label>
+              <input type="text" id="tp-destination" name="destination"
+                     placeholder="{{ t('placeholder_destination_local') }}" required>
+            </div>
+            <div class="field">
+              <label for="tp-port">{{ t('label_port') }}</label>
+              <input type="number" id="tp-port" name="port" min="1" max="65535" required>
+            </div>
+          </div>
+          <div>
+            <button type="submit" class="btn">{{ t('btn_add_entry') }}</button>
+          </div>
+        </form>
+      </div>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+        .card { margin-bottom: 1.25rem; }
+    .fw-ports-card { border-left: none; }
+    .field-info { color: var(--color-text-muted); font-size: 0.8rem; }
+    .fw-port-list { list-style: none; margin: 0; padding: 0.25rem 1.5rem 0.75rem; }
+    .fw-port-row { padding: 0.7rem 0; border-bottom: 1px solid var(--color-border); }
+    .fw-port-row:last-child { border-bottom: none; }
+    .fw-port-empty { color: var(--color-text-muted); font-size: 0.85rem; }
+    .fw-port-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.65rem; }
+    .fw-port-num { font-weight: 600; }
+    .fw-port-comment { font-size: 0.8rem; color: var(--color-text-dim); }
+{% endblock %}

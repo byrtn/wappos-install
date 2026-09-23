@@ -6,17 +6,15 @@
 
 {% block content %}
         {% for protocol, ports in [("tcp", rules.tcp), ("udp", rules.udp)] %}
-      <div class="card">
+      <div class="card fw-ports-card">
         <div class="card-header"><h3>{{ t('h3_ports_protocol', protocol=protocol|upper) }}</h3></div>
-        <table class="fw-table">
-          <thead>
-            <tr><th>{{ t('th_port') }}</th><th>{{ t('th_open') }}</th><th>{{ t('th_upnp') }}</th><th>{{ t('th_comment') }}</th><th></th></tr>
-          </thead>
-          <tbody>
-            {% for p in ports %}
-              <tr>
-                <td class="fw-col-port">{{ p.port }}</td>
-                <td class="fw-col-switch">
+        <ul class="fw-port-list">
+          {% for p in ports %}
+            <li class="fw-port-row">
+              <div class="fw-port-line">
+                <span class="fw-port-num">{{ p.port }}</span>
+                <span class="fw-port-switch">
+                  <span class="fw-switch-tag">{{ t('th_open') }}</span>
                   {% if p.open %}
                     <form method="post" action="{{ url_for('close_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form"
                           data-confirm="{{ t('confirm_close_port', port=p.port, protocol=protocol|upper) }}">
@@ -30,8 +28,10 @@
                       <button type="submit" class="fw-switch fw-switch-off" aria-label="{{ t('aria_open_port', port=p.port) }}"><span class="fw-switch-thumb"></span></button>
                     </form>
                   {% endif %}
-                </td>
-                <td class="fw-col-switch">
+                </span>
+                {% if is_superadmin %}
+                <span class="fw-port-switch">
+                  <span class="fw-switch-tag">{{ t('th_upnp') }}</span>
                   {% if p.open %}
                     {% if p.upnp %}
                       <form method="post" action="{{ url_for('close_firewall_port', protocol=protocol, port=p.port) }}" class="fw-switch-form">
@@ -48,23 +48,22 @@
                   {% else %}
                     <span class="fw-switch fw-switch-off fw-switch-disabled" title="{{ t('title_upnp_requires_open') }}"><span class="fw-switch-thumb"></span></span>
                   {% endif %}
-                </td>
-                <td class="fw-col-comment">{{ p.comment }}</td>
-                <td class="fw-col-edit">
-                  <button type="button" class="btn firewall-edit-btn"
-                          data-protocol="{{ protocol }}" data-port="{{ p.port }}"
-                          data-open="{{ 'true' if p.open else 'false' }}"
-                          data-upnp="{{ 'true' if p.upnp else 'false' }}"
-                          data-comment="{{ p.comment }}">
-                    {{ t('btn_edit') }}
-                  </button>
-                </td>
-              </tr>
-            {% else %}
-              <tr><td colspan="5">{{ t('no_port_registered', protocol=protocol|upper) }}</td></tr>
-            {% endfor %}
-          </tbody>
-        </table>
+                </span>
+                {% endif %}
+                <button type="button" class="btn fw-edit-btn firewall-edit-btn"
+                        data-protocol="{{ protocol }}" data-port="{{ p.port }}"
+                        data-open="{{ 'true' if p.open else 'false' }}"
+                        data-upnp="{{ 'true' if p.upnp else 'false' }}"
+                        data-comment="{{ p.comment }}">
+                  {{ t('btn_edit') }}
+                </button>
+              </div>
+              {% if p.comment %}<p class="fw-port-comment">{{ p.comment }}</p>{% endif %}
+            </li>
+          {% else %}
+            <li class="fw-port-row fw-port-empty">{{ t('no_port_registered', protocol=protocol|upper) }}</li>
+          {% endfor %}
+        </ul>
       </div>
     {% endfor %}
 
@@ -97,12 +96,14 @@
             <label for="op-comment">{{ t('label_comment') }}</label>
             <input type="text" id="op-comment" name="comment" placeholder="{{ t('placeholder_comment_app_name') }}">
           </div>
+          {% if is_superadmin %}
           <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; margin-bottom: 0.5rem;" id="op-upnp-label">
             <input type="checkbox" id="op-upnp" name="upnp"> {{ t('label_also_forward_upnp') }}
           </label>
                     <label style="display: none; align-items: center; gap: 0.4rem; font-size: 0.85rem; margin-bottom: 1rem;" id="op-upnp-only-label">
             <input type="checkbox" id="op-upnp-only" name="upnp_only"> {{ t('label_remove_upnp_only') }}
           </label>
+          {% endif %}
           <div>
             <button type="submit" class="btn">{{ t('btn_apply') }}</button>
           </div>
@@ -110,6 +111,7 @@
       </div>
     </div>
 
+    {% if is_superadmin %}
     <div class="card create-card">
       <div class="card-header"><h3>UPnP</h3></div>
       <div class="card-body">
@@ -124,17 +126,23 @@
         </form>
       </div>
     </div>
+    {% endif %}
 {% endblock %}
 
 {% block extra_style %}
         .card { margin-bottom: 1.25rem; }
+    .fw-ports-card { border-left: none; }
     .field-info { color: var(--color-text-muted); font-size: 0.8rem; }
-        .fw-table th, .fw-table td { padding: 0.5rem 0.5rem; }
-    .fw-col-port { width: 3rem; }
-    .fw-col-switch { width: 2.8rem; text-align: center; }
-    .fw-col-comment { word-break: break-word; }
-    .fw-col-edit { width: 1%; white-space: nowrap; }
-    .fw-table .btn { padding: 0.3rem 0.6rem; font-size: 0.78rem; }
+    .fw-port-list { list-style: none; margin: 0; padding: 0.25rem 1.5rem 0.75rem; }
+    .fw-port-row { padding: 0.7rem 0; border-bottom: 1px solid var(--color-border); }
+    .fw-port-row:last-child { border-bottom: none; }
+    .fw-port-empty { color: var(--color-text-muted); font-size: 0.85rem; }
+    .fw-port-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.4rem 0.65rem; }
+    .fw-port-num { font-weight: 600; min-width: 2.2rem; }
+    .fw-port-switch { display: inline-flex; align-items: center; gap: 0.35rem; }
+    .fw-switch-tag { font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-faint); }
+    .fw-edit-btn { margin-left: auto; padding: 0.3rem 0.7rem; font-size: 0.78rem; }
+    .fw-port-comment { margin: 0.3rem 0 0; font-size: 0.8rem; color: var(--color-text-dim); }
         .fw-switch-form { margin: 0; display: inline-block; }
     .fw-switch { position: relative; display: inline-block; width: 2.1rem; height: 1.1rem; border-radius: 999px;
                  border: none; padding: 0; cursor: pointer; background: var(--color-danger); vertical-align: middle; }
@@ -164,7 +172,8 @@
         document.getElementById('op-action').value = 'open';
         document.getElementById('op-port').value = d.port;
         document.getElementById('op-protocol').value = d.protocol;
-        document.getElementById('op-upnp').checked = d.upnp === 'true';
+        var opUpnp = document.getElementById('op-upnp');
+        if (opUpnp) { opUpnp.checked = d.upnp === 'true'; }
         document.getElementById('op-comment').value = d.comment;
         wappasToggleUpnpOnly();
         document.getElementById('operations').scrollIntoView({ behavior: 'smooth', block: 'start' });
@@ -174,8 +183,10 @@
 
     function wappasToggleUpnpOnly() {
       var isClose = document.getElementById('op-action').value === 'close';
-      document.getElementById('op-upnp-label').style.display = isClose ? 'none' : 'inline-flex';
-      document.getElementById('op-upnp-only-label').style.display = isClose ? 'inline-flex' : 'none';
+      var opUpnpLabel = document.getElementById('op-upnp-label');
+      var opUpnpOnlyLabel = document.getElementById('op-upnp-only-label');
+      if (opUpnpLabel) { opUpnpLabel.style.display = isClose ? 'none' : 'inline-flex'; }
+      if (opUpnpOnlyLabel) { opUpnpOnlyLabel.style.display = isClose ? 'inline-flex' : 'none'; }
     }
     document.getElementById('op-action').addEventListener('change', wappasToggleUpnpOnly);
     wappasToggleUpnpOnly();

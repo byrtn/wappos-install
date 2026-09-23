@@ -76,19 +76,19 @@
                     {% if smart.nvme_unsafe_shutdowns is not none %}<li>{{ t('smart_fact_nvme_unsafe_shutdowns', value=smart.nvme_unsafe_shutdowns) }}</li>{% endif %}
                   </ul>
                   {% if smart.attributes %}
-                    <table class="smart-attr-table">
+                    <table class="smart-attr-table responsive-table-compact">
                       <thead>
                         <tr><th>{{ t('smart_attr_table_id') }}</th><th>{{ t('smart_attr_table_name') }}</th><th>{{ t('smart_attr_table_value') }}</th><th>{{ t('smart_attr_table_worst') }}</th><th>{{ t('smart_attr_table_threshold') }}</th><th>{{ t('smart_attr_table_raw') }}</th></tr>
                       </thead>
                       <tbody>
                         {% for a in smart.attributes %}
                           <tr class="{{ 'smart-attr-failed' if a.when_failed }}">
-                            <td>{{ a.id }}</td>
-                            <td>{{ a.name }}</td>
-                            <td>{{ a.value }}</td>
-                            <td>{{ a.worst }}</td>
-                            <td>{{ a.threshold }}</td>
-                            <td>{{ a.raw_value }}</td>
+                            <td data-label="{{ t('smart_attr_table_id') }}">{{ a.id }}</td>
+                            <td data-label="{{ t('smart_attr_table_name') }}">{{ a.name }}</td>
+                            <td data-label="{{ t('smart_attr_table_value') }}">{{ a.value }}</td>
+                            <td data-label="{{ t('smart_attr_table_worst') }}">{{ a.worst }}</td>
+                            <td data-label="{{ t('smart_attr_table_threshold') }}">{{ a.threshold }}</td>
+                            <td data-label="{{ t('smart_attr_table_raw') }}">{{ a.raw_value }}</td>
                           </tr>
                         {% endfor %}
                       </tbody>
@@ -144,13 +144,13 @@
     .smart-panel { margin-top: 0.85rem; padding-top: 0.75rem; border-top: 1px solid var(--color-border-strong); }
     .smart-unavailable { font-size: 0.82rem; color: var(--color-text-faint); font-style: italic; }
     .smart-summary { font-size: 0.85rem; font-weight: 600; margin-bottom: 0.5rem; }
-    .smart-passed-yes { color: #1a7a3d; }
-    .smart-passed-no { color: #a33; }
+    .smart-passed-yes { color: var(--color-text-success); }
+    .smart-passed-no { color: var(--color-text-danger); }
     .smart-passed-unknown { color: var(--color-text-faint); }
     .smart-facts { list-style: none; margin: 0 0 0.6rem; padding: 0; font-size: 0.8rem; color: var(--color-text-dim);
                     display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; }
     .smart-attr-table { width: 100%; border-collapse: collapse; font-size: 0.75rem; margin-top: 0.5rem; }
     .smart-attr-table th, .smart-attr-table td { text-align: left; padding: 0.25rem 0.5rem;
                                                    border-bottom: 1px solid var(--color-border-strong); }
-    .smart-attr-failed { color: #a33; }
+    .smart-attr-failed { background: var(--color-error-bg); color: var(--color-error-text); }
 {% endblock %}

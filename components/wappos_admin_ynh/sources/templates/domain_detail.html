@@ -8,7 +8,7 @@
 {% block content %}
 
     {% if detail %}
-      <div class="card create-card">
+      <div class="card create-card card-default-open">
         <div class="card-header app-detail-header">
           <span class="domain-card-icon">&#127760;</span>
           <div>
@@ -18,7 +18,7 @@
             </h1>
             <a href="https://{{ detail.name }}" target="_blank" rel="noopener">https://{{ detail.name }}</a>
           </div>
-          {% if not detail.main %}
+          {% if not detail.main and is_superadmin %}
             <form method="post" action="{{ url_for('domain_set_main', domain=detail.name) }}" style="margin-left: auto;"
                   data-confirm="{{ t('confirm_set_main_domain', domain=detail.name) }}">
               <button type="submit" class="btn">{{ t('btn_set_main_domain') }}</button>
@@ -84,31 +84,33 @@
                       {% endif %}
                     {% endif %}
                   {% endfor %}
-                  <table>
+                  <div class="cert-info-grid">
                     {% for o in section.options if o.type not in ('button', 'alert', 'display_text', 'markdown') %}
-                      <tr>
-                        <td style="font-size: 0.85rem; color: var(--color-text-dim);">{{ o.ask }}</td>
-                        <td>
-                          {% set val = o.value if ('value' in o and o.value is not none) else o.default %}
-                          {% if o.type == 'boolean' %}
-                                                        {% set yes_val = o.yes if o.yes is defined and o.yes is not none else 1 %}
-                            {% set is_yes = val is not none and (val == yes_val or val|string == yes_val|string) %}
-                            {% if val is none %}
-                              {{ t('value_unknown') }}
-                            {% elif is_yes %}
-                              {{ t('value_yes') }}
-                            {% else %}
-                              {{ t('value_no') }}
-                            {% endif %}
-                          {% elif o.type == 'select' and o.choices is mapping %}
-                            {{ o.choices.get(val|string, val) }}
+                      <div class="cert-info-item">
+                        <span class="info-label">{{ o.ask }}</span>
+                        {% set val = o.value if ('value' in o and o.value is not none) else o.default %}
+                        {% if o.type == 'boolean' %}
+                                                    {% set yes_val = o.yes if o.yes is defined and o.yes is not none else 1 %}
+                          {% set is_yes = val is not none and (val == yes_val or val|string == yes_val|string) %}
+                          {% if val is none %}
+                            <span class="info-chip info-chip-unknown">{{ t('value_unknown') }}</span>
+                          {% elif is_yes %}
+                            <span class="info-chip info-chip-yes">{{ t('value_yes') }}</span>
                           {% else %}
-                            {{ val if val is not none and val != '' else '—' }}
+                            <span class="info-chip info-chip-no">{{ t('value_no') }}</span>
                           {% endif %}
-                        </td>
-                      </tr>
+                        {% elif o.type == 'select' and o.choices is mapping %}
+                          <span class="info-chip">{{ o.choices.get(val|string, val) }}</span>
+                        {% else %}
+                          {% if val is not none and val != '' %}
+                            <span class="info-chip">{{ val }}</span>
+                          {% else %}
+                            <span class="field-info">—</span>
+                          {% endif %}
+                        {% endif %}
+                      </div>
                     {% endfor %}
-                  </table>
+                  </div>
                   </div>
                 </div>
               {% endfor %}
@@ -197,12 +199,12 @@
                   {% else %}
                     {% set has_unmanaged = changes|selectattr('managed_by_yunohost', 'equalto', false)|list|length > 0 %}
                     <p class="field-info" style="margin: 0 0 0.75rem;">{{ t('dns_preview_summary', create=(creates|length), update=(updates|length), delete=(deletes|length)) }}</p>
-                    <table>
+                    <table class="responsive-table">
                       {% for label, records in ((t('word_create'), creates), (t('word_update'), updates), (t('word_delete'), deletes)) %}
                         {% for rec in records %}
                           <tr>
-                            <td style="font-size: 0.8rem; color: var(--color-text-dim);">{{ label }}</td>
-                            <td style="font-size: 0.82rem;">{{ rec.get('name') }} {{ rec.get('type') }} {{ rec.get('content') }}{% if not rec.get('managed_by_yunohost', true) %} <span class="text-warning">{{ t('not_managed_by_wappos') }}</span>{% endif %}</td>
+                            <td data-label="{{ t('th_action') }}" style="font-size: 0.8rem; color: var(--color-text-dim);">{{ label }}</td>
+                            <td data-label="{{ t('th_record') }}" style="font-size: 0.82rem;">{{ rec.get('name') }} {{ rec.get('type') }} {{ rec.get('content') }}{% if not rec.get('managed_by_yunohost', true) %} <span class="text-warning">{{ t('not_managed_by_wappos') }}</span>{% endif %}</td>
                           </tr>
                         {% endfor %}
                       {% endfor %}
@@ -239,8 +241,49 @@
         {% endfor %}
       {% endif %}
 
-      <div class="card create-card" style="border: 1px solid #f0c4c4; margin-top: 2rem;">
-        <div class="card-header"><h3 style="color: var(--color-danger);">{{ t('h3_danger_zone') }}</h3></div>
+      <div class="card create-card">
+        <div class="card-header"><h3>{{ t('h3_domain_smtp_relay') }}</h3></div>
+        <div class="card-body">
+          <p class="field-info">{{ t('domain_smtp_relay_help') }}</p>
+          {% if domain_smtp_relay %}
+            <p style="margin: 0.5rem 0;">
+              <span class="info-chip">{{ domain_smtp_relay.host }}:{{ domain_smtp_relay.port }}</span>
+              {% if domain_smtp_relay.user %}<span class="field-info">{{ t('label_relay_user') }} : {{ domain_smtp_relay.user }}</span>{% endif %}
+            </p>
+            <form method="post" action="{{ url_for('domain_smtp_relay_remove', domain=detail.name) }}"
+                  data-confirm="{{ t('confirm_remove_domain_smtp_relay') }}">
+              <button type="submit" class="btn btn-danger">{{ t('btn_remove_relay') }}</button>
+            </form>
+            <hr>
+          {% else %}
+            <p class="field-info">{{ t('no_domain_smtp_relay') }}</p>
+          {% endif %}
+          <form method="post" action="{{ url_for('domain_smtp_relay_set', domain=detail.name) }}">
+            <div class="fields">
+              <div class="field">
+                <label for="relay-host">{{ t('label_relay_host') }}</label>
+                <input type="text" id="relay-host" name="host" value="{{ domain_smtp_relay.host if domain_smtp_relay else '' }}" placeholder="smtp.example.com">
+              </div>
+              <div class="field">
+                <label for="relay-port">{{ t('label_relay_port') }}</label>
+                <input type="number" id="relay-port" name="port" min="1" max="65535" value="{{ domain_smtp_relay.port if domain_smtp_relay else 587 }}">
+              </div>
+              <div class="field">
+                <label for="relay-user">{{ t('label_relay_user') }}</label>
+                <input type="text" id="relay-user" name="user" value="{{ domain_smtp_relay.user if domain_smtp_relay else '' }}">
+              </div>
+              <div class="field">
+                <label for="relay-password">{{ t('label_relay_password') }}</label>
+                <input type="password" id="relay-password" name="password" placeholder="{{ t('placeholder_relay_password_unchanged') if domain_smtp_relay else '' }}">
+              </div>
+            </div>
+            <button type="submit" class="btn" style="margin-top: 0.5rem;">{{ t('btn_save_relay') }}</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card create-card danger-zone" style="margin-top: 2rem;">
+        <div class="card-header"><h3>{{ t('h3_danger_zone') }}</h3></div>
         <div class="card-body">
         {% if detail.main %}
           <p class="field-info" style="margin: 0;">{{ t('domain_is_main_note') }}</p>
@@ -299,6 +342,14 @@
     .app-pill { display: inline-block; border: 1px solid var(--color-border-strong); border-radius: 6px; padding: 0.3rem 0.6rem;
                 font-size: 0.82rem; color: var(--color-text); background: var(--color-hover-bg); }
     .app-pill:hover { background: var(--color-hover-bg); }
+    .cert-info-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 0.9rem; }
+    .cert-info-item { display: flex; flex-direction: column; gap: 0.3rem; }
+    .info-label { font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.03em; color: var(--color-text-faint); }
+    .info-chip { display: inline-block; align-self: flex-start; background: var(--color-hover-bg); color: var(--color-text);
+                 border-radius: 5px; padding: 0.25rem 0.6rem; font-size: 0.85rem; }
+    .info-chip-yes { background: var(--color-message-bg); color: var(--color-message-text); }
+    .info-chip-no { background: var(--color-error-bg); color: var(--color-error-text); }
+    .info-chip-unknown { background: var(--color-warning-bg); color: var(--color-text-warning); }
     table { width: 100%; }
     table td { padding: 0.4rem 1.25rem; border-bottom: 1px solid var(--color-border); font-size: 0.9rem; }
     .service-log-content { margin: 0; padding: 1.25rem 1.5rem; font-size: 0.78rem; background: #1e1e1e;

@@ -5,6 +5,8 @@ import yaml
 
 import docker_gate as dg
 
+_REAL_PROBE_APP_ENDPOINT = dg._probe_app_endpoint
+
 
 def _write_compose(path, services, volumes=None):
     path.parent.mkdir(parents=True, exist_ok=True)
@@ -34,6 +36,31 @@ def grafana_entry(tmp_path):
         "compose_file": str(compose_file),
     }
     return entry
+
+
+def test_probe_app_endpoint_ok_on_normal_status(monkeypatch):
+    fake_response = type("R", (), {"status_code": 302})()
+    monkeypatch.setattr(dg, "_probe_app_endpoint", _REAL_PROBE_APP_ENDPOINT)
+    monkeypatch.setattr(dg.requests, "get", lambda *a, **k: fake_response)
+    ok, status = dg._probe_app_endpoint(9101, "/grafana")
+    assert (ok, status) == (True, 302)
+
+
+def test_probe_app_endpoint_flags_suspicious_status(monkeypatch):
+    fake_response = type("R", (), {"status_code": 400})()
+    monkeypatch.setattr(dg, "_probe_app_endpoint", _REAL_PROBE_APP_ENDPOINT)
+    monkeypatch.setattr(dg.requests, "get", lambda *a, **k: fake_response)
+    ok, status = dg._probe_app_endpoint(9101, "/grafana")
+    assert (ok, status) == (False, 400)
+
+
+def test_probe_app_endpoint_returns_none_status_when_unreachable(monkeypatch):
+    def raise_it(*a, **k):
+        raise dg.requests.exceptions.ConnectionError("refused")
+    monkeypatch.setattr(dg, "_probe_app_endpoint", _REAL_PROBE_APP_ENDPOINT)
+    monkeypatch.setattr(dg.requests, "get", raise_it)
+    ok, status = dg._probe_app_endpoint(9101, "/grafana", attempts=1, delay_seconds=0)
+    assert (ok, status) == (False, None)
 
 
 def test_read_current_env_vars_empty_when_none_set(monkeypatch, grafana_entry):
@@ -81,6 +108,28 @@ def test_update_docker_app_changes_image_and_env(monkeypatch, grafana_entry):
     assert doc["services"]["app"]["image"] == "grafana/grafana:11.0.0"
     assert doc["services"]["app"]["environment"] == {"GF_LOG_LEVEL": "debug"}
     assert run_compose.call_count == 2
+
+
+def test_update_docker_app_warns_when_app_returns_error_status(monkeypatch, grafana_entry):
+    monkeypatch.setattr(dg, "_load_state", lambda: [grafana_entry])
+    monkeypatch.setattr(dg, "_save_state", lambda a: None)
+    monkeypatch.setattr(dg, "_probe_app_endpoint", lambda host_port, path, **k: (False, 400))
+
+    with patch.object(dg, "_run_docker_compose"):
+        entry = dg.update_docker_app("grafana", image="grafana/grafana:latest", container_port=3000)
+
+    assert any("400" in w for w in entry["warnings"])
+
+
+def test_update_docker_app_warns_when_port_not_responding(monkeypatch, grafana_entry):
+    monkeypatch.setattr(dg, "_load_state", lambda: [grafana_entry])
+    monkeypatch.setattr(dg, "_save_state", lambda a: None)
+    monkeypatch.setattr(dg, "_probe_app_endpoint", lambda host_port, path, **k: (False, None))
+
+    with patch.object(dg, "_run_docker_compose"):
+        entry = dg.update_docker_app("grafana", image="grafana/grafana:latest", container_port=3000)
+
+    assert any("3000" in w for w in entry["warnings"])
 
 
 def test_update_docker_app_adds_and_removes_data_volume(monkeypatch, grafana_entry):

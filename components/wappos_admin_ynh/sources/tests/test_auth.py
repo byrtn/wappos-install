@@ -19,11 +19,54 @@ def test_static_files_bypass_login_gate(client):
 
 def test_login_success_sets_session_and_redirects(client):
     with patch.object(app, "_wappos_api_admin_login", return_value="tok123"):
-        resp = client.post("/login", data={"username": "adminynh", "password": "secret"})
+        with patch.object(
+            app, "_wappos_api_admin_session", return_value={"is_superadmin": True, "owned_domains": []}
+        ):
+            resp = client.post("/login", data={"username": "adminynh", "password": "secret"})
     assert resp.status_code == 302
     with client.session_transaction() as sess:
         assert sess["user"] == "adminynh"
         assert sess["token"] == "tok123"
+        assert sess["is_superadmin"] is True
+        assert sess["owned_domains"] == []
+
+
+def test_login_passes_request_host_as_login_domain(client):
+    with patch.object(app, "_wappos_api_admin_login", return_value="tok123") as mocked_login:
+        with patch.object(
+            app, "_wappos_api_admin_session", return_value={"is_superadmin": True, "owned_domains": []}
+        ):
+            client.post(
+                "/login", data={"username": "adminynh", "password": "secret"},
+                base_url="https://dev.byrtn.fr",
+            )
+    mocked_login.assert_called_once_with("adminynh", "secret", login_domain="dev.byrtn.fr")
+
+
+def test_login_stores_domain_admin_scope(client):
+    with patch.object(app, "_wappos_api_admin_login", return_value="tok456"):
+        with patch.object(
+            app,
+            "_wappos_api_admin_session",
+            return_value={"is_superadmin": False, "owned_domains": ["dev.byrtn.fr"]},
+        ):
+            resp = client.post("/login", data={"username": "domain.admin", "password": "secret"})
+    assert resp.status_code == 302
+    with client.session_transaction() as sess:
+        assert sess["is_superadmin"] is False
+        assert sess["owned_domains"] == ["dev.byrtn.fr"]
+
+
+def test_login_defaults_to_superadmin_when_session_endpoint_unreachable(client):
+    with patch.object(app, "_wappos_api_admin_login", return_value="tok789"):
+        with patch.object(
+            app, "_wappos_api_admin_session", side_effect=requests.exceptions.ConnectionError()
+        ):
+            resp = client.post("/login", data={"username": "adminynh", "password": "secret"})
+    assert resp.status_code == 302
+    with client.session_transaction() as sess:
+        assert sess["is_superadmin"] is True
+        assert sess["owned_domains"] == []
 
 
 def test_login_invalid_credentials_returns_401(client):

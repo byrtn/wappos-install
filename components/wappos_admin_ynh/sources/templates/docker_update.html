@@ -5,20 +5,18 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">{{ t('nav_docker_apps') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('breadcrumb_update_slug', slug=slug) }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
-
     <div class="message" style="background: var(--color-warning-bg); color: var(--color-warning-text); margin-bottom: 1.25rem;">
       {{ t('warning_update_restarts_container') }}
     </div>
 
-    <div class="card create-card">
+    <div class="card create-card card-default-open">
       <div class="card-header"><h3>{{ t('h3_current_version') }}</h3></div>
       <div class="card-body">
         <p class="field-info" style="margin: 0;"><code>{{ entry.image }}</code></p>
       </div>
     </div>
 
-    <div class="card create-card">
+    <div class="card create-card card-default-open">
       <div class="card-header"><h3>{{ t('h3_choose_new_version') }}</h3></div>
       <div class="card-body">
         {% if tags_error %}
@@ -38,7 +36,7 @@
       </div>
     </div>
 
-    <div class="card create-card">
+    <div class="card create-card card-default-open">
       <div class="card-header"><h3>{{ t('h3_pull_latest_tag') }}</h3></div>
       <div class="card-body">
         <p class="field-info" style="margin: 0 0 0.75rem;">{{ t('pull_latest_tag_desc', image=('<code>' ~ entry.image ~ '</code>'), example='<code>latest</code>') | safe }}</p>
@@ -47,4 +45,8 @@
         </form>
       </div>
     </div>
+{% endblock %}
+
+{% block extra_style %}
+    .card.create-card { margin-bottom: 1.25rem; }
 {% endblock %}

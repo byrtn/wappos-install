@@ -6,7 +6,7 @@ if ! id "$app" >/dev/null 2>&1; then
     useradd --system --home-dir "$install_dir" --shell /usr/sbin/nologin "$app"
 fi
 
-apt-get install -y python3-venv python3-pip
+apt-get install -y python3-venv python3-pip libldap2-dev libsasl2-dev
 
 mkdir -p "$install_dir"
 cp -ar "$pkg_dir/sources/." "$install_dir/"
@@ -23,6 +23,7 @@ chmod 750 "$install_dir"
 
 bash "$(dirname "${BASH_SOURCE[0]}")/install_sudoers.sh"
 bash "$(dirname "${BASH_SOURCE[0]}")/install_hooks.sh"
+bash "$(dirname "${BASH_SOURCE[0]}")/install_service_account.sh"
 
 sed -e "s/__APP__/$app/g" -e "s#__INSTALL_DIR__#$install_dir#g" -e "s/__PORT__/$port/g" \
     "$pkg_dir/standalone/conf/systemd.service" > "/etc/systemd/system/$app.service"

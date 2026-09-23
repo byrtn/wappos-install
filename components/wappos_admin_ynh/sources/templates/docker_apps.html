@@ -5,9 +5,6 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('nav_docker_apps') }}</span>{% endblock %}
 
 {% block content %}
-        {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
-    {% if message %}<div class="message" style="margin-bottom: 1.25rem;">{{ message }}</div>{% endif %}
-
     {% if not docker_installed %}
       <div class="message" style="background: var(--color-warning-bg); color: var(--color-warning-text); margin-bottom: 1.25rem;">
         {{ t('docker_not_installed') }}
@@ -16,14 +13,16 @@
 
     <div class="quick-add-row" style="gap: 0.6rem;">
       <a href="{{ url_for('docker_add') }}" class="btn btn-success">{{ t('btn_add_docker_app') }}</a>
+      {% if is_superadmin %}
       <a href="{{ url_for('docker_audit') }}" class="btn">{{ t('btn_audit_cleanup') }}</a>
+      {% endif %}
       <button type="button" id="check-updates-btn" class="btn">{{ t('btn_check_updates') }}</button>
     </div>
 
     {% if apps %}
       <div class="link-list">
         {% for a in apps %}
-          <div class="link-list-item" style="cursor: default;">
+          <div class="link-list-item {{ 'docker-item-ok' if a.container_status == 'running' else ('docker-item-off' if a.container_status else '') }}" style="cursor: default;">
             <span class="link-list-text">
               <span class="link-list-main">
                 <strong>{{ a.slug }}</strong>
@@ -80,7 +79,9 @@
     .docker-badge-ok { background: var(--color-message-bg); color: var(--color-message-text); }
     .docker-badge-off { background: var(--color-hover-bg); color: var(--color-text-dim); }
     .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
-    .link-list-item { flex-wrap: wrap; gap: 0.5rem; }
+    .link-list-item { flex-wrap: wrap; gap: 0.5rem; border-left: 4px solid transparent; }
+    .docker-item-ok { border-left-color: var(--color-text-success); }
+    .docker-item-off { border-left-color: var(--color-text-danger); }
 {% endblock %}
 
 {% block extra_script %}

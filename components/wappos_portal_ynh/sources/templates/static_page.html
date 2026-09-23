@@ -4,7 +4,13 @@
 
 {% block content %}
   <div class="doc-content">
-    <h1>{{ page_title }}</h1>
-        <div>{{ page_body|safe }}</div>
+    <div class="card static-page-card">
+      <div class="card-header"><h2>{{ page_title }}</h2></div>
+      <div class="card-body">{{ page_body|safe }}</div>
+    </div>
   </div>
+{% endblock %}
+
+{% block extra_style %}
+    .static-page-card { border-left: 4px solid var(--color-link); }
 {% endblock %}

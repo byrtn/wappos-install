@@ -27,10 +27,12 @@
         </div>
       </details>
       <a class="nav-list-item" href="{{ url_for('diagnosis') }}"><span>{{ t('nav_diagnosis') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('environment_health') }}"><span>{{ t('nav_environment_health') }}</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('backups_page') }}"><span>{{ t('nav_backups') }}</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('system_menu') }}"><span>{{ t('title_system') }}</span><span class="chevron">&rsaquo;</span></a>
     </div>
 
+    {% if is_superadmin %}
     <a class="card storage-summary" href="{{ url_for('storage') }}">
       <div class="dashboard-tile-label">{{ t('label_storage') }}</div>
       {% if dashboard.mounts %}
@@ -113,6 +115,7 @@
         {% endif %}
       </a>
     </div>
+    {% endif %}
 {% endblock %}
 
 {% block extra_style %}
@@ -128,6 +131,7 @@
 
     .dashboard-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(140px, 1fr)); gap: 0.75rem;
                        margin-bottom: 1rem; }
+    .dashboard-tile, .storage-summary { border-left: none; }
     .dashboard-tile { display: block; padding: 0.9rem 1rem; text-decoration: none; color: inherit; }
     .dashboard-tile-label { font-size: 0.78rem; color: var(--color-text-faint); margin-bottom: 0.3rem; }
     .dashboard-tile-value { font-size: 1.5rem; font-weight: 700; line-height: 1.1; }

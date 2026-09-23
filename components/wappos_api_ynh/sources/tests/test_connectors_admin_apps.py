@@ -47,6 +47,29 @@ def test_list_apps_parses_real_shape(admin_apps_url: str) -> None:
 
 
 @respx.mock
+def test_list_apps_uses_instance_label_when_present(admin_apps_url: str) -> None:
+    respx.get(admin_apps_url).mock(
+        return_value=Response(
+            200,
+            json={
+                "apps": [
+                    {"id": "my_webapp", "name": "My Webapp", "label": "home/dev.wappos", "description": "", "version": "1.0"},
+                    {"id": "my_webapp__5", "name": "My Webapp", "label": "soon/dev.wappos", "description": "", "version": "1.0"},
+                    {"id": "grav", "name": "Grav", "description": "", "version": "1.0"},
+                ]
+            },
+        )
+    )
+
+    apps = admin.list_apps("fake-session-token")
+
+    by_id = {a.id: a.label for a in apps}
+    assert by_id["my_webapp"] == "home/dev.wappos"
+    assert by_id["my_webapp__5"] == "soon/dev.wappos"
+    assert by_id["grav"] == "Grav"
+
+
+@respx.mock
 def test_list_apps_sorted_by_name_not_api_order(admin_apps_url: str) -> None:
     respx.get(admin_apps_url).mock(
         return_value=Response(

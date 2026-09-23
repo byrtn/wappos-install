@@ -236,7 +236,10 @@ def build_create_steps(mode: str, lang: str = "en") -> list[str]:
             _t("dg_step_get_certificate", lang),
             _t("dg_step_check_certificate", lang),
         ]
-    steps += [_t("dg_step_write_configuration", lang), _t("dg_step_start_container", lang), _t("dg_step_expose_app", lang)]
+    steps += [
+        _t("dg_step_write_configuration", lang), _t("dg_step_start_container", lang),
+        _t("dg_step_check_connectivity", lang), _t("dg_step_expose_app", lang),
+    ]
     return steps
 
 
@@ -704,6 +707,20 @@ def _build_compose_document(slug, main_key, image, container_port, host_port, en
     return doc
 
 
+_SUSPICIOUS_STATUS_CODES = {400, 404, 501, 502, 503, 526}
+
+
+def _probe_app_endpoint(host_port: int, path: str, attempts: int = 30, delay_seconds: float = 2.0) -> tuple[bool, int | None]:
+    url = f"http://127.0.0.1:{host_port}{path or '/'}"
+    for _ in range(attempts):
+        try:
+            response = requests.get(url, timeout=3, allow_redirects=False)
+            return response.status_code not in _SUSPICIOUS_STATUS_CODES, response.status_code
+        except requests.RequestException:
+            time.sleep(delay_seconds)
+    return False, None
+
+
 def _run_docker_compose(project_name, compose_path, args, error_message, timeout=180, lang: str = "en"):
     try:
         result = subprocess.run(
@@ -792,6 +809,10 @@ _KNOWN_GOOD_ENV_OVERRIDES = {
     },
 }
 
+_KNOWN_GOOD_PORT_OVERRIDES = {
+    "domoticz": "8080",
+}
+
 
 def _base_image_name(image: str) -> str:
     without_tag = (image or "").split("@")[0].split(":")[0]
@@ -808,6 +829,7 @@ def _normalize_catalogue_entry(t: dict) -> dict | None:
         first = str(port_field[0])
         container_side = first.split(":")[-1]
         container_port = _strip_port_protocol(container_side)
+    container_port = _KNOWN_GOOD_PORT_OVERRIDES.get(_base_image_name(t.get("image")), container_port)
 
     data_path = None
     volumes_field = t.get("volumes")
@@ -1001,6 +1023,13 @@ def create_docker_app(
             _teardown_compose_project(project_name, compose_path)
             raise
 
+        step(_t("dg_step_check_connectivity", lang))
+        ok, status = _probe_app_endpoint(host_port, target_path)
+        if not ok:
+            if status is None:
+                warnings.append(_t("dg_warn_port_not_responding", lang, port=container_port))
+            else:
+                warnings.append(_t("dg_warn_app_returns_error_status", lang, status=status))
 
     container_name = f"docker-gate-{slug}"
     volume_name = f"docker-gate-{slug}-data" if data_path else None
@@ -1207,6 +1236,14 @@ def _update_docker_app_locked(slug, image, container_port, data_path="", env_var
         ["up", "-d", "--wait", "--wait-timeout", "120"],
         _t("dg_err_container_update_failed", lang), timeout=180, lang=lang,
     )
+
+    step(_t("dg_step_check_connectivity", lang))
+    ok, status = _probe_app_endpoint(entry["host_port"], entry.get("path"))
+    if not ok:
+        if status is None:
+            warnings.append(_t("dg_warn_port_not_responding", lang, port=container_port))
+        else:
+            warnings.append(_t("dg_warn_app_returns_error_status", lang, status=status))
 
     entry["image"] = image
     entry["container_port"] = container_port

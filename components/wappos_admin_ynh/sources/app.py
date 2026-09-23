@@ -59,6 +59,11 @@ def _inject_year():
     return {"year": datetime.now().year}
 
 
+@app.context_processor
+def _inject_scope():
+    return {"is_superadmin": _is_superadmin(), "owned_domains": _owned_domains()}
+
+
 @app.after_request
 def _no_store_dynamic_pages(response):
     if not request.path.startswith("/static/"):
@@ -355,7 +360,9 @@ def _public_branding() -> dict:
 _MANIFEST = tomllib.loads((Path(__file__).parent / ".package" / "manifest.toml").read_text())
 APP_VERSION = _MANIFEST["version"]
 
-_HIDDEN_SYSTEM_USERS = {"cron.alerts"}
+_HIDDEN_SYSTEM_USERS = {"cron.alerts", "wappos_svc_admin"}
+
+_PROTECTED_GROUP_NAMES = {"admins", "all_users", "visitors", "wappos_domain_admins"}
 
 _NATIVE_PLACEHOLDER_COMMENTS = {"manually set without comment"}
 
@@ -382,7 +389,7 @@ def login():
     username = request.form.get("username", "")
     password = request.form.get("password", "")
     try:
-        token = _wappos_api_admin_login(username, password)
+        token = _wappos_api_admin_login(username, password, login_domain=request.host)
     except requests.exceptions.HTTPError:
         return render_template(
             "login.html", app_version=APP_VERSION, year=datetime.now().year,
@@ -393,9 +400,15 @@ def login():
             "login.html", app_version=APP_VERSION, year=datetime.now().year,
             error=i18n.t("err_server_unreachable", get_lang()),
         ), 503
+    try:
+        session_info = _wappos_api_admin_session(token)
+    except requests.exceptions.RequestException:
+        session_info = {"is_superadmin": True, "owned_domains": []}
     session.permanent = True
     session["user"] = username
     session["token"] = token
+    session["is_superadmin"] = session_info.get("is_superadmin", True)
+    session["owned_domains"] = session_info.get("owned_domains", [])
     return redirect(url_for("home"))
 
 
@@ -496,15 +509,58 @@ def _current_user() -> str | None:
     return session.get("user")
 
 
-def _wappos_api_admin_login(user: str, password: str) -> str:
+def _is_superadmin() -> bool:
+    return session.get("is_superadmin", True)
+
+
+def _owned_domains() -> list[str]:
+    return session.get("owned_domains", [])
+
+
+def _refresh_scope_from_api(token: str) -> None:
+    try:
+        session_info = _wappos_api_admin_session(token)
+    except requests.exceptions.RequestException:
+        return
+    session["is_superadmin"] = session_info.get("is_superadmin", True)
+    session["owned_domains"] = session_info.get("owned_domains", [])
+
+
+def _docker_domain_in_scope(domain: str | None) -> bool:
+    if _is_superadmin():
+        return True
+    if not domain:
+        return False
+    owned = _owned_domains()
+    return domain in owned or any(domain.endswith(f".{o}") for o in owned)
+
+
+def _docker_app_domain(slug: str) -> str | None:
+    try:
+        return docker_gate.get_app_entry(slug).get("domain")
+    except docker_gate.DockerGateError:
+        return None
+
+
+def _wappos_api_admin_login(user: str, password: str, login_domain: str | None = None) -> str:
     resp = requests.post(
         f"{WAPPOS_API_BASE}/admin/login",
-        json={"user": user, "password": password},
+        json={"user": user, "password": password, "login_domain": login_domain},
         headers={"X-Wappos-Locale": get_lang()},
         timeout=10,
     )
     resp.raise_for_status()
     return resp.json()["token"]
+
+
+def _wappos_api_admin_session(token: str) -> dict:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/session",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=10,
+    )
+    _raise_for_status(resp)
+    return resp.json()
 
 
 def _wappos_api_admin_users(token: str) -> list[dict]:
@@ -555,6 +611,26 @@ def _wappos_api_domains(token: str, full: bool = False) -> list[str]:
     return resp.json()
 
 
+def _wappos_api_domains_certificates(token: str) -> dict:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/domains/certificates",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_app_disk_usage(token: str, app_id: str) -> int | None:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/apps/{app_id}/disk-usage",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json().get("bytes")
+
+
 def _wappos_api_domain_detail(token: str, domain: str) -> dict:
     resp = requests.get(
         f"{WAPPOS_API_BASE}/admin/domains/{domain}",
@@ -583,6 +659,75 @@ def _wappos_api_domain_dns_suggest(token: str, domain: str) -> str:
     )
     _raise_for_status(resp)
     return resp.json().get("suggestion", "")
+
+
+def _wappos_api_domain_smtp_relay(token: str, domain: str) -> dict | None:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/domains/{domain}/smtp-relay",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_set_domain_smtp_relay(token: str, domain: str, host: str, port: int, user: str, password: str) -> None:
+    resp = requests.put(
+        f"{WAPPOS_API_BASE}/admin/domains/{domain}/smtp-relay",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        json={"host": host, "port": port, "user": user, "password": password},
+        timeout=30,
+    )
+    _raise_for_status(resp)
+
+
+def _wappos_api_remove_domain_smtp_relay(token: str, domain: str) -> None:
+    resp = requests.delete(
+        f"{WAPPOS_API_BASE}/admin/domains/{domain}/smtp-relay",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=30,
+    )
+    _raise_for_status(resp)
+
+
+def _wappos_api_all_domain_owners(token: str) -> dict[str, list[str]]:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/domain-owners",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=10,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_set_domain_owners(token: str, domain: str, owners: list[str]) -> None:
+    resp = requests.put(
+        f"{WAPPOS_API_BASE}/admin/domain-owners/{domain}",
+        json={"owners": owners},
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=10,
+    )
+    _raise_for_status(resp)
+
+
+def _wappos_api_get_primary_domain(token: str, username: str) -> str | None:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/domain-admins/{username}/primary-domain",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=10,
+    )
+    _raise_for_status(resp)
+    return resp.json()["domain"]
+
+
+def _wappos_api_set_primary_domain(token: str, username: str, domain: str) -> None:
+    resp = requests.put(
+        f"{WAPPOS_API_BASE}/admin/domain-admins/{username}/primary-domain",
+        json={"domain": domain},
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=10,
+    )
+    _raise_for_status(resp)
 
 
 _SPF_LINE_RE = re.compile(r'^(\S+)(\s+\d+\s+IN\s+TXT\s+)"(v=spf1[^"]*)"\s*$')
@@ -1069,6 +1214,26 @@ def _wappos_api_set_upnp(token: str, enabled: bool) -> None:
     _raise_for_status(resp)
 
 
+def _wappos_api_tls_passthrough(token: str) -> dict:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/tls-passthrough",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_update_tls_passthrough(token: str, entries: list[dict]) -> None:
+    resp = requests.put(
+        f"{WAPPOS_API_BASE}/admin/tls-passthrough",
+        json={"entries": entries},
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+
+
 def _wappos_api_admin_apps(token: str) -> list[dict]:
     resp = requests.get(
         f"{WAPPOS_API_BASE}/admin/apps",
@@ -1105,6 +1270,34 @@ def _wappos_api_set_cross_domain(token: str, app_id: str, enabled: bool) -> None
         f"{WAPPOS_API_BASE}/admin/apps/{app_id}/cross-domain",
         headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
         json={"enabled": enabled},
+        timeout=60,
+    )
+    _raise_for_status(resp)
+
+
+def _wappos_api_cross_domain_list(token: str, app_id: str) -> list[str]:
+    resp = requests.get(
+        f"{WAPPOS_API_BASE}/admin/apps/{app_id}/cross-domain/domains",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=15,
+    )
+    _raise_for_status(resp)
+    return resp.json()
+
+
+def _wappos_api_cross_domain_add(token: str, app_id: str, domain: str) -> None:
+    resp = requests.put(
+        f"{WAPPOS_API_BASE}/admin/apps/{app_id}/cross-domain/{domain}",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
+        timeout=60,
+    )
+    _raise_for_status(resp)
+
+
+def _wappos_api_cross_domain_remove(token: str, app_id: str, domain: str) -> None:
+    resp = requests.delete(
+        f"{WAPPOS_API_BASE}/admin/apps/{app_id}/cross-domain/{domain}",
+        headers={"X-Admin-Token": token, "X-Wappos-Locale": get_lang()},
         timeout=60,
     )
     _raise_for_status(resp)
@@ -1787,9 +1980,21 @@ def home():
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
-    dashboard = _dashboard_summary(token)
+    dashboard = _dashboard_summary(token) if _is_superadmin() else {}
     return render_template(
         "home.html", user=user, app_version=APP_VERSION, year=datetime.now().year, dashboard=dashboard,
+    )
+
+
+@app.route("/documentation")
+def documentation():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    lang = get_lang()
+    key = "page_body_documentation_superadmin" if _is_superadmin() else "page_body_documentation_domain_admin"
+    return render_template(
+        "documentation.html", user=user, page_body=i18n.t(key, lang), app_version=APP_VERSION,
     )
 
 
@@ -1862,8 +2067,64 @@ def index():
             message=None, app_version=APP_VERSION,
         ), 503
 
+    groups = []
+    try:
+        groups = _wappos_api_admin_groups(token)
+    except (requests.exceptions.RequestException, SessionExpiredError) as e:
+        app.logger.error("Failed to load groups for user list, %r: %s", user, e)
+
+    if _is_superadmin():
+        superadmins = set()
+        domain_admin_owned_domains = {}
+        try:
+            all_owners = _wappos_api_all_domain_owners(token)
+            admins_group = next((g for g in groups if g["name"] == "admins"), None)
+            superadmins = set(admins_group["members"]) if admins_group else set()
+            domain_admins_group = next((g for g in groups if g["name"] == "wappos_domain_admins"), None)
+            if domain_admins_group:
+                domain_admin_owned_domains = {
+                    member: sorted(d for d, owners in all_owners.items() if member in owners)
+                    for member in domain_admins_group["members"]
+                }
+        except (requests.exceptions.RequestException, SessionExpiredError) as e:
+            app.logger.error("Failed to load roles for user list, %r: %s", user, e)
+
+        def _role_rank(u):
+            if u["username"] in superadmins:
+                return 0
+            if u["username"] in domain_admin_owned_domains:
+                return 1
+            return 2
+
+        for u in users:
+            if u["username"] in superadmins:
+                u["role_label"] = i18n.t("role_superadmin", get_lang())
+                u["role_kind"] = "superadmin"
+            elif u["username"] in domain_admin_owned_domains:
+                owned = domain_admin_owned_domains[u["username"]]
+                u["role_label"] = i18n.t(
+                    "role_domain_admin", get_lang(),
+                    domains=", ".join(owned) if owned else i18n.t("role_domain_admin_no_domain", get_lang()),
+                )
+                u["role_kind"] = "domain-admin"
+            else:
+                u["role_label"] = None
+                u["role_kind"] = None
+        users.sort(key=lambda u: (_role_rank(u), u["username"]))
+
+    usernames = {u["username"] for u in users}
+    custom_groups = sorted(
+        (g["name"] for g in groups if g["name"] not in _PROTECTED_GROUP_NAMES and g["name"] not in usernames)
+    )
+    assignable_roles = []
+    if _is_superadmin():
+        assignable_roles.append({"value": "admins", "label": i18n.t("role_option_superadmin", get_lang())})
+        assignable_roles.append({"value": "wappos_domain_admins", "label": i18n.t("role_option_domain_admin", get_lang())})
+        assignable_roles.append({"value": "visitors", "label": i18n.t("role_option_visitor", get_lang())})
+    assignable_roles.extend({"value": g, "label": g} for g in custom_groups)
+
     return render_template(
-        "users.html", user=user, users=users, domains=domains,
+        "users.html", user=user, users=users, domains=domains, assignable_roles=assignable_roles,
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )
@@ -1927,11 +2188,6 @@ def app_detail(app_id: str):
         detail = _wappos_api_app_detail(token, app_id)
         domains = _wappos_api_domains(token, full=True)
         config = _wappos_api_app_config(token, app_id) if detail.get("supports_config_panel") else None
-        all_permissions = _wappos_api_admin_permissions(token)
-        app_permissions = {
-            pid: p for pid, p in all_permissions.items() if pid.startswith(f"{app_id}.")
-        }
-        groups = _wappos_api_admin_groups(token)
         _rebrand_app_detail_text(detail)
         if config:
             _rebrand_config_panels(config.get("panels", []))
@@ -1939,9 +2195,25 @@ def app_detail(app_id: str):
         app.logger.error("Failed to load app detail for %r/%r: %s", user, app_id, e)
         return render_template(
             "app_detail.html", user=user, detail=None, domains=[], config=None,
-            app_permissions={}, groups=[],
+            app_permissions={}, groups=[], cross_domain_list=[],
             error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
         ), 503
+
+    app_permissions, groups = {}, []
+    try:
+        all_permissions = _wappos_api_admin_permissions(token)
+        app_permissions = {
+            pid: p for pid, p in all_permissions.items() if pid.startswith(f"{app_id}.")
+        }
+        groups = _wappos_api_admin_groups(token)
+    except (requests.exceptions.RequestException, SessionExpiredError) as e:
+        app.logger.error("Failed to load permissions/groups for app detail %r/%r: %s", user, app_id, e)
+
+    cross_domain_list = []
+    try:
+        cross_domain_list = _wappos_api_cross_domain_list(token, app_id)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load cross-domain list for app detail %r/%r: %s", user, app_id, e)
 
     raw_setting_key = request.args.get("setting_key")
     raw_setting_value = None
@@ -1951,14 +2223,14 @@ def app_detail(app_id: str):
         except requests.exceptions.HTTPError as e:
             return render_template(
                 "app_detail.html", user=user, detail=detail, domains=domains, config=config,
-                app_permissions=app_permissions, groups=groups,
+                app_permissions=app_permissions, groups=groups, cross_domain_list=cross_domain_list,
                 raw_setting_key=raw_setting_key, raw_setting_value=None,
                 error=_error_message(e), app_version=APP_VERSION,
             )
 
     return render_template(
         "app_detail.html", user=user, detail=detail, domains=domains, config=config,
-        app_permissions=app_permissions, groups=groups,
+        app_permissions=app_permissions, groups=groups, cross_domain_list=cross_domain_list,
         raw_setting_key=raw_setting_key, raw_setting_value=raw_setting_value,
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
@@ -1994,6 +2266,34 @@ def app_setting_delete(app_id: str):
     except requests.exceptions.HTTPError as e:
         return _redirect_to_app_detail(app_id, error=_error_message(e))
     return _redirect_to_app_detail(app_id, message=i18n.t("msg_setting_deleted", get_lang(), key=key))
+
+
+@app.route("/apps/<app_id>/cross-domain/add", methods=["POST"])
+def app_cross_domain_add(app_id: str):
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    domain = request.form.get("domain", "").strip()
+    if not domain:
+        return _redirect_to_app_detail(app_id, error=i18n.t("err_domain_required", get_lang()))
+    try:
+        _wappos_api_cross_domain_add(token, app_id, domain)
+    except requests.exceptions.HTTPError as e:
+        return _redirect_to_app_detail(app_id, error=_error_message(e))
+    return _redirect_to_app_detail(app_id, message=i18n.t("msg_cross_domain_added", get_lang(), domain=domain))
+
+
+@app.route("/apps/<app_id>/cross-domain/remove", methods=["POST"])
+def app_cross_domain_remove(app_id: str):
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    domain = request.form.get("domain", "").strip()
+    try:
+        _wappos_api_cross_domain_remove(token, app_id, domain)
+    except requests.exceptions.HTTPError as e:
+        return _redirect_to_app_detail(app_id, error=_error_message(e))
+    return _redirect_to_app_detail(app_id, message=i18n.t("msg_cross_domain_removed", get_lang(), domain=domain))
 
 
 def _redirect_to_app_detail(app_id: str, *, message: str | None = None, error: str | None = None):
@@ -2127,7 +2427,11 @@ def app_config_submit(app_id: str, panel_key: str):
         args = _build_args_from_options(options, request.form, request.files)
         _wappos_api_set_app_config(token, app_id, panel_key, args)
     except requests.exceptions.HTTPError as e:
+        app.logger.warning("Set app config %r/%r failed: %s", app_id, panel_key, e)
         return _redirect_to_app_detail(app_id, error=_error_message(e))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Set app config %r/%r failed: %s", app_id, panel_key, e)
+        return _redirect_to_app_detail(app_id, error=i18n.t("err_api_unreachable", get_lang()))
     return _redirect_to_app_detail(app_id, message=i18n.t("msg_app_config_applied", get_lang()))
 
 
@@ -2230,6 +2534,8 @@ def app_install_custom():
     user, _ = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
     url = request.form.get("url", "").strip()
     if not url:
         return redirect(url_for("app_catalog_page"))
@@ -2252,6 +2558,16 @@ def app_install_form(app_id: str):
             "app_install.html", user=user, manifest=None,
             error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
         ), 503
+
+    if not _is_superadmin():
+        domain_option = next((o for o in manifest.get("install", []) if o.get("id") == "domain"), None)
+        if domain_option is None:
+            return "Forbidden", 403
+        owned = set(_owned_domains())
+        if domain_option.get("choices"):
+            domain_option["choices"] = {
+                d: label for d, label in domain_option["choices"].items() if d in owned
+            }
 
     antifeatures = []
     potential_alternative_to = []
@@ -2279,7 +2595,7 @@ def app_install_submit(app_id: str):
         return "Unauthorized", 401
     label = request.form.get("label", "").strip() or None
     force = request.form.get("force") == "on"
-    all_domains = request.form.get("all_domains") == "on"
+    all_domains = _is_superadmin() and request.form.get("all_domains") == "on"
     try:
         manifest = _wappos_api_app_manifest(token, app_id)
         args = _build_args_from_options(manifest.get("install", []), request.form, request.files)
@@ -2300,6 +2616,42 @@ def _redirect_to_groups(*, message: str | None = None, error: str | None = None)
     return redirect(target)
 
 
+def _split_permission_url(url: str | None) -> tuple[str | None, str]:
+    if not url:
+        return None, ""
+    value = url[3:] if url.startswith("re:") else url
+    value = value.replace("\\/", "/")
+    domain, _, path = value.partition("/")
+    return domain, (f"/{path}" if path else "")
+
+
+def _group_permissions_by_domain(permission_options: list[dict], all_usernames: set[str]) -> dict:
+    grouped: dict[str | None, list[dict]] = {}
+    for p in permission_options:
+        domain, path = _split_permission_url(p["url"])
+        additional = [
+            dict(zip(("domain", "path"), split))
+            for u in p["additional_urls"]
+            if (split := _split_permission_url(u)) != (domain, path)
+        ]
+        users = p["corresponding_users"]
+        grouped.setdefault(domain, []).append({
+            "label": p["label"],
+            "path": path,
+            "additional": additional,
+            "corresponding_users": users,
+            "all_users": bool(users) and set(users) == all_usernames,
+        })
+
+    domains = sorted(d for d in grouped if d is not None)
+    ordered = {d: grouped[d] for d in domains}
+    if None in grouped:
+        ordered[None] = grouped[None]
+    for entries in ordered.values():
+        entries.sort(key=lambda e: e["label"])
+    return ordered
+
+
 @app.route("/groups")
 def groups():
     user, token = _login_or_401()
@@ -2318,6 +2670,28 @@ def groups():
             error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
         ), 503
 
+    domain_admins_group = next((g for g in raw_groups if g["name"] == "wappos_domain_admins"), None)
+    all_domains = []
+    domain_admin_owned_domains = {}
+    domain_admin_primary_domains = {}
+    if domain_admins_group is not None:
+        all_owners = {}
+        try:
+            all_domains = _wappos_api_domains(token)
+            all_owners = _wappos_api_all_domain_owners(token)
+        except (requests.exceptions.RequestException, SessionExpiredError) as e:
+            app.logger.error("Failed to load domain owners for %r: %s", user, e)
+        domain_admin_owned_domains = {
+            member: sorted(d for d in all_domains if member in all_owners.get(d, []))
+            for member in domain_admins_group["members"]
+        }
+        for member in domain_admins_group["members"]:
+            try:
+                domain_admin_primary_domains[member] = _wappos_api_get_primary_domain(token, member)
+            except (requests.exceptions.RequestException, SessionExpiredError) as e:
+                app.logger.error("Failed to load primary domain for %r: %s", member, e)
+                domain_admin_primary_domains[member] = None
+
     permission_options = sorted(
         (
             {
@@ -2335,16 +2709,22 @@ def groups():
     )
     user_options = sorted(usernames)
 
+    _primary_group_order = {"admins": 0, "wappos_domain_admins": 1, "all_users": 2, "visitors": 3}
     primary_groups = sorted(
-        (g for g in raw_groups if g["name"] not in usernames), key=lambda g: g["name"]
+        (g for g in raw_groups if g["name"] not in usernames),
+        key=lambda g: (_primary_group_order.get(g["name"], 4), g["name"]),
     )
     user_groups = sorted(
         (g for g in raw_groups if g["name"] in usernames), key=lambda g: g["name"]
     )
+    permissions_by_domain = _group_permissions_by_domain(permission_options, usernames)
 
     return render_template(
         "groups.html", user=user, primary_groups=primary_groups, user_groups=user_groups,
-        permission_options=permission_options, user_options=user_options,
+        permission_options=permission_options, permissions_by_domain=permissions_by_domain,
+        user_options=user_options,
+        all_domains=all_domains, domain_admin_owned_domains=domain_admin_owned_domains,
+        domain_admin_primary_domains=domain_admin_primary_domains,
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )
@@ -2414,11 +2794,49 @@ def update_group_members(groupname: str):
     return _redirect_to_groups(message=i18n.t("msg_group_members_updated", get_lang(), name=groupname))
 
 
+@app.route("/groups/wappos_domain_admins/owned-domains/<username>", methods=["POST"])
+def update_domain_admin_owned_domains(username: str):
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+
+    desired_domains = set(request.form.getlist("domains"))
+    primary_domain = request.form.get("primary_domain", "").strip()
+    if primary_domain:
+        desired_domains.add(primary_domain)
+
+    try:
+        all_owners = _wappos_api_all_domain_owners(token)
+        for domain, owners in all_owners.items():
+            currently_owns = username in owners
+            should_own = domain in desired_domains
+            if currently_owns and not should_own:
+                _wappos_api_set_domain_owners(token, domain, [o for o in owners if o != username])
+            elif should_own and not currently_owns:
+                _wappos_api_set_domain_owners(token, domain, owners + [username])
+        for domain in desired_domains - set(all_owners.keys()):
+            _wappos_api_set_domain_owners(token, domain, [username])
+
+        if primary_domain:
+            _wappos_api_set_primary_domain(token, username, primary_domain)
+    except requests.exceptions.HTTPError as e:
+        app.logger.warning("Update owned domains of %r failed: %s", username, e)
+        return _redirect_to_groups(error=_error_message(e))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Update owned domains of %r failed: %s", username, e)
+        return _redirect_to_groups(error=i18n.t("err_api_unreachable", get_lang()))
+
+    return _redirect_to_groups(message=i18n.t("msg_domain_admin_owned_domains_updated", get_lang(), username=username))
+
+
 @app.route("/groups/<groupname>/permissions", methods=["POST"])
 def update_group_permissions(groupname: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+
+    if groupname == "wappos_domain_admins":
+        return _redirect_to_groups(error=i18n.t("err_domain_admins_group_no_shared_permissions", get_lang()))
 
     desired_permissions = set(request.form.getlist("permissions"))
     locked_permissions = set(request.form.getlist("locked"))
@@ -2821,6 +3239,55 @@ def _strip_yunohost_doc_references(reports: list[dict]) -> None:
                 item["details"] = [d for d in details if "doc.yunohost.org" not in d]
 
 
+@app.route("/environment")
+def environment_health():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+
+    certificates = {}
+    try:
+        certificates = _wappos_api_domains_certificates(token)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load certificates for environment health %r: %s", user, e)
+
+    diag_error_count, diag_warning_count = 0, 0
+    try:
+        for report in _wappos_api_admin_diagnosis(token):
+            diag_error_count += report.get("error_count", 0)
+            diag_warning_count += report.get("warning_count", 0)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load diagnosis for environment health %r: %s", user, e)
+
+    apps = []
+    try:
+        apps = _wappos_api_admin_apps(token)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load apps for environment health %r: %s", user, e)
+
+    app_disk_usage = []
+    for a in apps:
+        try:
+            size = _wappos_api_app_disk_usage(token, a["id"])
+        except requests.exceptions.RequestException:
+            size = None
+        if size is not None:
+            app_disk_usage.append({"id": a["id"], "label": a.get("label") or a["id"], "bytes": size})
+    app_disk_usage.sort(key=lambda a: a["bytes"], reverse=True)
+
+    real_ids = {a["id"] for a in apps}
+    docker_apps_list = docker_gate.list_apps(real_ids)
+    if not _is_superadmin():
+        docker_apps_list = [a for a in docker_apps_list if _docker_domain_in_scope(a.get("domain"))]
+
+    return render_template(
+        "environment_health.html", user=user,
+        certificates=certificates, diag_error_count=diag_error_count, diag_warning_count=diag_warning_count,
+        app_disk_usage=app_disk_usage, docker_apps=docker_apps_list,
+        error=request.args.get("error"), app_version=APP_VERSION,
+    )
+
+
 @app.route("/diagnosis")
 def diagnosis():
     user, token = _login_or_401()
@@ -2948,6 +3415,8 @@ def failed_units_page():
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
 
     units = _failed_system_units_detail()
     return render_template("failed_units.html", user=user, units=units, app_version=APP_VERSION)
@@ -3174,14 +3643,27 @@ def app_map_page():
     except requests.exceptions.RequestException as e:
         app.logger.error("Failed to load app map for %r: %s", user, e)
         return render_template(
-            "app_map.html", user=user, app_map={},
+            "app_map.html", user=user, app_map={}, app_map_by_app={},
             error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
         ), 503
 
     return render_template(
-        "app_map.html", user=user, app_map=app_map,
+        "app_map.html", user=user, app_map=app_map, app_map_by_app=_group_app_map_by_app(app_map),
         error=request.args.get("error"), app_version=APP_VERSION,
     )
+
+
+def _group_app_map_by_app(app_map: dict) -> dict:
+    by_app: dict = {}
+    for domain, paths in app_map.items():
+        for path, info in paths.items():
+            entry = by_app.setdefault(info["id"], {"label": info["label"], "rows": []})
+            entry["rows"].append({"domain": domain, "path": path})
+
+    for entry in by_app.values():
+        entry["rows"].sort(key=lambda row: (row["domain"], row["path"]))
+
+    return dict(sorted(by_app.items()))
 
 
 @app.route("/domains/urlavailable")
@@ -3374,6 +3856,8 @@ def performance_page():
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
 
     if not _prometheus_password():
         return render_template(
@@ -3440,7 +3924,11 @@ def settings_submit(panel_key: str):
         args = _build_args_from_options(options, request.form, request.files)
         _wappos_api_set_settings(token, panel_key, args)
     except requests.exceptions.HTTPError as e:
+        app.logger.warning("Set settings %r failed: %s", panel_key, e)
         return redirect(url_for(return_to, error=_error_message(e)))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Set settings %r failed: %s", panel_key, e)
+        return redirect(url_for(return_to, error=i18n.t("err_api_unreachable", get_lang())))
     return redirect(url_for(return_to, msg=i18n.t("msg_settings_applied", get_lang())))
 
 
@@ -3462,11 +3950,12 @@ def domains_page():
         ), 503
 
     local_domains = sorted(d for d in domains if d.endswith(".lan"))
-    try:
-        adguard_installed = _wappos_api_adguard_status(token).get("installed", False)
-    except requests.exceptions.RequestException as e:
-        app.logger.error("Failed to load AdGuard status for %r: %s", user, e)
-        adguard_installed = False
+    adguard_installed = False
+    if _is_superadmin():
+        try:
+            adguard_installed = _wappos_api_adguard_status(token).get("installed", False)
+        except requests.exceptions.RequestException as e:
+            app.logger.error("Failed to load AdGuard status for %r: %s", user, e)
 
     try:
         certificates = _wappos_api_certificates_status(token)
@@ -3580,13 +4069,20 @@ def domain_detail(domain: str):
         detail = _wappos_api_domain_detail(token, domain)
         config = _wappos_api_domain_config(token, domain)
         dns_suggestion = _wappos_api_domain_dns_suggest(token, domain)
-        settings_data = _wappos_api_settings(token)
     except requests.exceptions.RequestException as e:
         app.logger.error("Failed to load domain detail for %r/%r: %s", user, domain, e)
         return render_template(
             "domain_detail.html", user=user, detail=None, panels=[], dns_suggestion="",
+            domain_smtp_relay=None,
             error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
         ), 503
+
+    settings_data = {}
+    if _is_superadmin():
+        try:
+            settings_data = _wappos_api_settings(token)
+        except (requests.exceptions.RequestException, SessionExpiredError) as e:
+            app.logger.error("Failed to load settings for domain detail %r/%r: %s", user, domain, e)
 
     _rewrite_registrar_supported_text(config.get("panels", []), detail.get("registrar"))
     _rewrite_registrar_not_supported_text(config.get("panels", []))
@@ -3612,10 +4108,17 @@ def domain_detail(domain: str):
         except requests.exceptions.HTTPError as e:
             dns_push_error = _error_message(e)
 
+    domain_smtp_relay = None
+    try:
+        domain_smtp_relay = _wappos_api_domain_smtp_relay(token, domain)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load SMTP relay for domain detail %r/%r: %s", user, domain, e)
+
     return render_template(
         "domain_detail.html", user=user, detail=detail, panels=config.get("panels", []),
         dns_suggestion=dns_suggestion, dns_adjusted_for_relay=dns_adjusted_for_relay,
         dns_push_preview=dns_push_preview, dns_push_error=dns_push_error, dns_push_checked=dns_push_checked,
+        domain_smtp_relay=domain_smtp_relay,
         error=request.args.get("error"), message=request.args.get("msg"),
         app_version=APP_VERSION,
     )
@@ -3628,6 +4131,40 @@ def _redirect_to_domain_detail(domain: str, *, message: str | None = None, error
     elif error:
         target += f"?error={quote(error)}"
     return redirect(target)
+
+
+@app.route("/domains/<domain>/smtp-relay/set", methods=["POST"])
+def domain_smtp_relay_set(domain: str):
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    host = request.form.get("host", "").strip()
+    port = request.form.get("port", "").strip()
+    relay_user = request.form.get("user", "").strip()
+    password = request.form.get("password", "")
+    if not host or not port:
+        return _redirect_to_domain_detail(domain, error=i18n.t("err_smtp_relay_fields_required", get_lang()))
+    try:
+        port_number = int(port)
+    except ValueError:
+        return _redirect_to_domain_detail(domain, error=i18n.t("err_port_invalid", get_lang()))
+    try:
+        _wappos_api_set_domain_smtp_relay(token, domain, host, port_number, relay_user, password)
+    except requests.exceptions.HTTPError as e:
+        return _redirect_to_domain_detail(domain, error=_error_message(e))
+    return _redirect_to_domain_detail(domain, message=i18n.t("msg_smtp_relay_saved", get_lang()))
+
+
+@app.route("/domains/<domain>/smtp-relay/remove", methods=["POST"])
+def domain_smtp_relay_remove(domain: str):
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    try:
+        _wappos_api_remove_domain_smtp_relay(token, domain)
+    except requests.exceptions.HTTPError as e:
+        return _redirect_to_domain_detail(domain, error=_error_message(e))
+    return _redirect_to_domain_detail(domain, message=i18n.t("msg_smtp_relay_removed", get_lang()))
 
 
 @app.route("/domains/<domain>/config/<panel_key>", methods=["POST"])
@@ -3649,7 +4186,11 @@ def domain_config_submit(domain: str, panel_key: str):
         args = _build_args_from_options(options, request.form, request.files)
         _wappos_api_set_domain_config(token, domain, panel_key, args)
     except requests.exceptions.HTTPError as e:
+        app.logger.warning("Set domain config %r/%r failed: %s", domain, panel_key, e)
         return _redirect_to_domain_detail(domain, error=_error_message(e))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Set domain config %r/%r failed: %s", domain, panel_key, e)
+        return _redirect_to_domain_detail(domain, error=i18n.t("err_api_unreachable", get_lang()))
     return _redirect_to_domain_detail(domain, message=i18n.t("msg_config_applied", get_lang()))
 
 
@@ -3672,7 +4213,11 @@ def domain_action_submit(domain: str, action_id: str):
         args = _build_args_from_options(options, request.form, request.files)
         _wappos_api_run_domain_action(token, domain, action_id, args)
     except requests.exceptions.HTTPError as e:
+        app.logger.warning("Run domain action %r/%r failed: %s", domain, action_id, e)
         return _redirect_to_domain_detail(domain, error=_error_message(e))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Run domain action %r/%r failed: %s", domain, action_id, e)
+        return _redirect_to_domain_detail(domain, error=i18n.t("err_api_unreachable", get_lang()))
     return _redirect_to_domain_detail(domain, message=i18n.t("msg_action_executed", get_lang()))
 
 
@@ -3684,7 +4229,11 @@ def domain_set_main(domain: str):
     try:
         _wappos_api_set_main_domain(token, domain)
     except requests.exceptions.HTTPError as e:
+        app.logger.warning("Set main domain %r failed: %s", domain, e)
         return _redirect_to_domain_detail(domain, error=_error_message(e))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Set main domain %r failed: %s", domain, e)
+        return _redirect_to_domain_detail(domain, error=i18n.t("err_api_unreachable", get_lang()))
     return _redirect_to_domain_detail(domain, message=i18n.t("msg_main_domain_changed", get_lang()))
 
 
@@ -3791,7 +4340,6 @@ def backups_page():
     try:
         result = _wappos_api_list_backups(token)
         installed_apps = _wappos_api_admin_apps(token)
-        settings_data = _wappos_api_settings(token)
     except requests.exceptions.RequestException as e:
         app.logger.error("Failed to load backups for %r: %s", user, e)
         return render_template(
@@ -3800,12 +4348,18 @@ def backups_page():
             error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
         ), 503
 
-    _rebrand_config_panels(settings_data.get("panels", []))
-    compression_section = _extract_settings_section(
-        settings_data.get("panels", []), _BACKUP_COMPRESSION_PANEL_ID, _BACKUP_COMPRESSION_SECTION_ID
-    )
-    if compression_section:
-        compression_section["name"] = i18n.t("h3_backup_compression", get_lang())
+    compression_section = None
+    if _is_superadmin():
+        try:
+            settings_data = _wappos_api_settings(token)
+            _rebrand_config_panels(settings_data.get("panels", []))
+            compression_section = _extract_settings_section(
+                settings_data.get("panels", []), _BACKUP_COMPRESSION_PANEL_ID, _BACKUP_COMPRESSION_SECTION_ID
+            )
+            if compression_section:
+                compression_section["name"] = i18n.t("h3_backup_compression", get_lang())
+        except (requests.exceptions.RequestException, SessionExpiredError) as e:
+            app.logger.error("Failed to load backup compression settings for %r: %s", user, e)
 
     history_by_name = {h.get("name"): h for h in backup_scheduler._load_history() if h.get("name")}
     archives = [
@@ -3928,6 +4482,9 @@ def save_backup_schedule():
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    _refresh_scope_from_api(token)
+    if not _is_superadmin():
+        return "Forbidden", 403
 
     schedule = backup_scheduler._load_schedule()
     schedule["enabled"] = request.form.get("enabled") == "1"
@@ -3956,6 +4513,8 @@ def preview_backup_retention():
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
 
     schedule = backup_scheduler._load_schedule()
     try:
@@ -4340,6 +4899,97 @@ def set_upnp(enabled: str):
     ))
 
 
+@app.route("/tls-passthrough")
+def tls_passthrough_page():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
+
+    try:
+        data = _wappos_api_tls_passthrough(token)
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Failed to load TLS passthrough for %r: %s", user, e)
+        return render_template(
+            "tls_passthrough.html", user=user, tls_passthrough={"enabled": False, "entries": []},
+            error=i18n.t("err_api_unreachable", get_lang()), app_version=APP_VERSION,
+        ), 503
+
+    return render_template(
+        "tls_passthrough.html", user=user, tls_passthrough=data,
+        error=request.args.get("error"), message=request.args.get("msg"),
+        app_version=APP_VERSION,
+    )
+
+
+def _redirect_to_tls_passthrough(*, message: str | None = None, error: str | None = None):
+    target = url_for("tls_passthrough_page")
+    if message:
+        target += f"?msg={quote(message)}"
+    elif error:
+        target += f"?error={quote(error)}"
+    return redirect(target)
+
+
+@app.route("/tls-passthrough/add", methods=["POST"])
+def add_tls_passthrough_entry():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
+
+    domain = request.form.get("domain", "").strip()
+    destination = request.form.get("destination", "").strip()
+    port = request.form.get("port", "").strip()
+    if not domain or not destination or not port:
+        return _redirect_to_tls_passthrough(error=i18n.t("err_tls_passthrough_fields_required", get_lang()))
+
+    try:
+        current = _wappos_api_tls_passthrough(token)
+        entries = current.get("entries", [])
+        entries.append({"domain": domain, "destination": destination, "port": int(port)})
+        _wappos_api_update_tls_passthrough(token, entries)
+    except requests.exceptions.HTTPError as e:
+        app.logger.warning("Add TLS passthrough entry failed: %s", e)
+        return _redirect_to_tls_passthrough(error=_error_message(e))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Add TLS passthrough entry failed: %s", e)
+        return _redirect_to_tls_passthrough(error=i18n.t("err_api_unreachable", get_lang()))
+
+    return _redirect_to_tls_passthrough(message=i18n.t("msg_tls_passthrough_entry_added", get_lang(), domain=domain))
+
+
+@app.route("/tls-passthrough/remove", methods=["POST"])
+def remove_tls_passthrough_entry():
+    user, token = _login_or_401()
+    if not user:
+        return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
+
+    domain = request.form.get("domain", "").strip()
+    destination = request.form.get("destination", "").strip()
+    port = request.form.get("port", "").strip()
+
+    try:
+        current = _wappos_api_tls_passthrough(token)
+        entries = [
+            e for e in current.get("entries", [])
+            if not (e.get("domain") == domain and e.get("destination") == destination and str(e.get("port")) == port)
+        ]
+        _wappos_api_update_tls_passthrough(token, entries)
+    except requests.exceptions.HTTPError as e:
+        app.logger.warning("Remove TLS passthrough entry failed: %s", e)
+        return _redirect_to_tls_passthrough(error=_error_message(e))
+    except requests.exceptions.RequestException as e:
+        app.logger.error("Remove TLS passthrough entry failed: %s", e)
+        return _redirect_to_tls_passthrough(error=i18n.t("err_api_unreachable", get_lang()))
+
+    return _redirect_to_tls_passthrough(message=i18n.t("msg_tls_passthrough_entry_removed", get_lang(), domain=domain))
+
+
 @app.route("/users", methods=["POST"])
 def create_user():
     user, token = _login_or_401()
@@ -4351,6 +5001,7 @@ def create_user():
     fullname = request.form.get("fullname", "").strip()
     new_password = request.form.get("new_password", "")
     new_password_confirm = request.form.get("new_password_confirm", "")
+    role = request.form.get("role", "").strip()
 
     if not username or not domain or not fullname or not new_password:
         return _redirect_with_message(error=i18n.t("err_all_fields_required", get_lang()))
@@ -4367,6 +5018,24 @@ def create_user():
     except requests.exceptions.RequestException as e:
         app.logger.error("Create user %r failed: %s", username, e)
         return _redirect_with_message(error=i18n.t("err_api_unreachable", get_lang()))
+
+    if role:
+        try:
+            _wappos_api_update_group_members(token, role, add=[username])
+        except requests.exceptions.HTTPError as e:
+            app.logger.warning("Assign role %r to %r failed: %s", role, username, e)
+            return _redirect_with_message(
+                error=i18n.t("err_user_created_role_failed", get_lang(), username=username, error=_error_message(e))
+            )
+        except requests.exceptions.RequestException as e:
+            app.logger.error("Assign role %r to %r failed: %s", role, username, e)
+            return _redirect_with_message(
+                error=i18n.t("err_user_created_role_failed", get_lang(), username=username, error=i18n.t("err_api_unreachable", get_lang()))
+            )
+        if role == "wappos_domain_admins":
+            return _redirect_with_message(
+                message=i18n.t("msg_user_created_domain_admin_next_step", get_lang(), username=username)
+            )
 
     return _redirect_with_message(message=i18n.t("msg_user_created", get_lang(), username=username))
 
@@ -4403,6 +5072,8 @@ def docker_apps():
         app.logger.warning("Failed to fetch YunoHost app list for docker reconciliation: %s", e)
 
     docker_apps_list = docker_gate.list_apps(real_ids)
+    if not _is_superadmin():
+        docker_apps_list = [a for a in docker_apps_list if _docker_domain_in_scope(a.get("domain"))]
 
     return render_template(
         "docker_apps.html", user=user, apps=docker_apps_list,
@@ -4436,9 +5107,11 @@ def docker_add():
         return render_template(
             "docker_add.html", user=user, domains=domains, current_domain=current_domain,
             catalogue_apps=catalogue["apps"], catalogue_source=catalogue["source"],
+            ldap_connection=docker_gate.ldap_env_vars(),
             app_version=APP_VERSION,
         )
 
+    _refresh_scope_from_api(token)
     lang = get_lang()
     slug = request.form.get("slug", "").strip().lower()
     image = request.form.get("image", "").strip()
@@ -4459,6 +5132,10 @@ def docker_add():
     ldap_enabled = request.form.get("ldap_enabled") == "on"
     catalogue_logo_url = request.form.get("catalogue_logo_url", "").strip()
     reuse_existing_domain = request.form.get("reuse_existing_domain") == "on"
+
+    effective_domain = f"{new_subdomain}.{domain_parent}" if mode == "subdomain" else domain
+    if not _docker_domain_in_scope(effective_domain):
+        return "Forbidden", 403
 
     companions_json = request.form.get("companions_json", "").strip()
     main_service_key = request.form.get("main_service_key", "").strip() or None
@@ -4578,6 +5255,8 @@ def docker_check_subdomain():
     domain_parent = request.args.get("domain_parent", "").strip()
     if not new_subdomain or not domain_parent:
         return {"status": "invalid"}
+    if not _docker_domain_in_scope(domain_parent):
+        return {"status": "invalid"}
     result = docker_gate.check_subdomain_status(
         new_subdomain, domain_parent,
         existing_domains_fn=lambda: _wappos_api_domains(token, full=True),
@@ -4594,6 +5273,8 @@ def docker_check_path():
     domain = request.args.get("domain", "").strip()
     path = request.args.get("path", "").strip()
     if not domain or not path:
+        return {"status": "invalid"}
+    if not _docker_domain_in_scope(domain):
         return {"status": "invalid"}
     result = docker_gate.check_path_status(
         domain, path, list_apps_fn=lambda: _wappos_api_admin_apps(token),
@@ -4666,6 +5347,9 @@ def docker_remove(slug: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    _refresh_scope_from_api(token)
+    if not _docker_domain_in_scope(_docker_app_domain(slug)):
+        return "Forbidden", 403
     delete_data = request.form.get("delete_data") == "on"
     delete_domain = request.form.get("delete_domain") == "on"
 
@@ -4695,6 +5379,9 @@ def docker_action(slug: str, action: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    _refresh_scope_from_api(token)
+    if not _docker_domain_in_scope(_docker_app_domain(slug)):
+        return "Forbidden", 403
     lang = get_lang()
     if action not in ("start", "stop", "restart"):
         return i18n.t("err_unknown_action", lang), 400
@@ -4716,6 +5403,8 @@ def docker_check_update(slug: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _docker_domain_in_scope(_docker_app_domain(slug)):
+        return {"checked": False, "error": "forbidden"}, 403
     try:
         result = docker_gate.check_docker_app_update(slug)
     except docker_gate.DockerGateError as e:
@@ -4728,12 +5417,15 @@ def docker_update(slug: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    _refresh_scope_from_api(token)
 
     lang = get_lang()
     try:
         entry = docker_gate.get_app_entry(slug, lang=lang)
     except docker_gate.DockerGateError as e:
         return redirect(url_for("docker_apps", error=str(e)))
+    if not _docker_domain_in_scope(entry.get("domain")):
+        return "Forbidden", 403
 
     if request.method == "GET":
         tags, tags_error = [], None
@@ -4775,12 +5467,15 @@ def docker_edit(slug: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    _refresh_scope_from_api(token)
 
     lang = get_lang()
     try:
         entry = docker_gate.get_app_entry(slug, lang=lang)
     except docker_gate.DockerGateError as e:
         return redirect(url_for("docker_apps", error=str(e)))
+    if not _docker_domain_in_scope(entry.get("domain")):
+        return "Forbidden", 403
 
     if request.method == "GET":
         current_env_vars = docker_gate.read_current_env_vars(slug)
@@ -4807,6 +5502,7 @@ def docker_edit(slug: str):
             "docker_edit.html", user=user, slug=slug, entry=entry, env_vars_text=env_vars_text,
             app_permissions=app_permissions, groups=groups,
             supports_change_url=supports_change_url, domains=domains,
+            ldap_connection=docker_gate.ldap_env_vars(),
             error=request.args.get("error"), message=request.args.get("msg"),
             app_version=APP_VERSION,
         )
@@ -4852,12 +5548,15 @@ def docker_change_url(slug: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    _refresh_scope_from_api(token)
 
     lang = get_lang()
     try:
         entry = docker_gate.get_app_entry(slug, lang=lang)
     except docker_gate.DockerGateError as e:
         return redirect(url_for("docker_apps", error=str(e)))
+    if not _docker_domain_in_scope(entry.get("domain")):
+        return "Forbidden", 403
 
     yunohost_app_id = entry.get("yunohost_app_id")
     if not yunohost_app_id:
@@ -4885,6 +5584,8 @@ def docker_logs(slug: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _docker_domain_in_scope(_docker_app_domain(slug)):
+        return "Forbidden", 403
     tail = request.args.get("tail", type=int, default=200)
     try:
         logs = docker_gate.get_container_logs(slug, tail=tail, lang=get_lang())
@@ -4903,6 +5604,8 @@ def docker_stats(slug: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _docker_domain_in_scope(_docker_app_domain(slug)):
+        return jsonify({"ok": False, "error": "forbidden"}), 403
     try:
         stats = docker_gate.get_container_stats(slug, lang=get_lang())
         return jsonify({"ok": True, **stats})
@@ -4915,6 +5618,8 @@ def docker_audit():
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
 
     lang = get_lang()
     warnings = []
@@ -4962,6 +5667,8 @@ def docker_audit_remove_container(name: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
     try:
         docker_gate.remove_orphan_container(name, lang=get_lang())
         return redirect(url_for("docker_audit", msg=i18n.t("msg_container_removed", get_lang(), name=name)))
@@ -4976,6 +5683,8 @@ def docker_audit_remove_volume(name: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
     try:
         docker_gate.remove_orphan_volume(name, lang=get_lang())
         return redirect(url_for("docker_audit", msg=i18n.t("msg_volume_removed", get_lang(), name=name)))
@@ -4990,6 +5699,8 @@ def docker_audit_remove_network(name: str):
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
     try:
         docker_gate.remove_orphan_network(name, lang=get_lang())
         return redirect(url_for("docker_audit", msg=i18n.t("msg_network_removed", get_lang(), name=name)))
@@ -5004,6 +5715,8 @@ def docker_audit_prune_images():
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
     try:
         freed = docker_gate.prune_dangling_images()
         freed_mb = round(freed / (1024 * 1024), 1)
@@ -5019,6 +5732,8 @@ def docker_audit_uninstall_docker_ce():
     user, token = _login_or_401()
     if not user:
         return "Unauthorized", 401
+    if not _is_superadmin():
+        return "Forbidden", 403
     lang = get_lang()
     try:
         warnings = docker_gate.uninstall_docker_ce(lang=lang)

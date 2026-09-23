@@ -136,9 +136,25 @@
     .breadcrumb-sep { color: var(--color-text-faint); }
     .breadcrumb-current { color: var(--color-text-muted); font-weight: 600; }
     .card { background: var(--color-card-bg); border-radius: 12px; overflow-x: auto; overflow-y: hidden;
-            box-shadow: 0 1px 3px rgba(0,0,0,0.1); -webkit-overflow-scrolling: touch; }
+            border-left: 4px solid var(--color-link);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1); -webkit-overflow-scrolling: touch;
+            scrollbar-width: thin; scrollbar-color: var(--color-border-strong) transparent; }
+    .card::-webkit-scrollbar { height: 6px; }
+    .card::-webkit-scrollbar-track { background: transparent; }
+    .card::-webkit-scrollbar-thumb { background: var(--color-border-strong); border-radius: 3px; }
+    .danger-zone { border-left-color: var(--color-danger); }
+    .danger-zone .card-header h2, .danger-zone .card-header h3 { color: var(--color-danger); }
         .card-header { background: var(--color-card-header-bg); padding: 0.9rem 1.5rem; display: flex; align-items: center; }
     .card-header h2, .card-header h3 { margin: 0; font-size: 0.95rem; font-weight: 700; }
+    .card > .card-header { cursor: pointer; user-select: none; }
+    summary.card-header-summary { display: flex; align-items: center; }
+    .card-toggle-chevron { margin-left: auto; padding-left: 0.75rem; flex: 0 0 auto; color: var(--color-text-faint);
+                            transition: transform 0.15s; }
+    .card-toggle-chevron::before { content: '\203A'; display: inline-block; }
+    .card:not(.card-collapsed) > .card-header .card-toggle-chevron::before,
+    details.card[open] > summary .card-toggle-chevron::before { transform: rotate(90deg); }
+    .card.card-collapsed > .card-header { border-radius: 12px; }
+    .card.card-collapsed > .card-header ~ * { display: none !important; }
     .card-body { padding: 1.5rem 1.75rem; }
         .card-header-summary { background: var(--color-card-header-bg); padding: 0.9rem 1.5rem; margin: 0;
                             font-size: 0.95rem; font-weight: 700; cursor: pointer; list-style: none; }
@@ -198,10 +214,12 @@
     .create-card input:not([type="checkbox"]), .create-card select { padding: 0.5rem 0.7rem; border: 1px solid var(--color-border-strong);
                           border-radius: 6px; font-size: 0.9rem; width: 100%; background: var(--color-input-bg); }
         .create-card .field { flex: 1; min-width: 180px; }
-    .create-card label.checkbox-field { display: flex; align-items: flex-start; gap: 0.5rem;
+    label.checkbox-field { display: flex; align-items: flex-start; gap: 0.5rem;
                                           font-weight: normal; margin-bottom: 0; cursor: pointer; }
-    .checkbox-field input[type="checkbox"] { margin-top: 0.2rem; flex: 0 0 auto; width: auto; }
+    .checkbox-field input[type="checkbox"], .checkbox-field input[type="radio"] { margin-top: 0.2rem; flex: 0 0 auto; width: auto; }
     .checkbox-field span { flex: 1 1 auto; min-width: 0; }
+    .inline-field-row { display: flex; flex-wrap: wrap; gap: 0.4rem 1.5rem; }
+    .inline-field-row .checkbox-field { flex: 1 1 220px; }
     input[type="file"] { max-width: 100%; }
     .file-current-row { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 0.75rem; }
     .file-current-text { margin: 0; flex: 1 1 220px; min-width: 0; overflow-wrap: anywhere; }
@@ -212,6 +230,8 @@
                           display: flex; flex-direction: column; justify-content: center; align-items: center;
                           gap: 0.35rem; font-size: 0.8rem; color: var(--color-footer-text); text-align: center; }
     .app-footer-line { margin: 0; }
+    .app-footer-links { display: flex; gap: 1rem; }
+    .app-footer-links a:hover { opacity: 0.75; }
     a { color: var(--color-link); }
 
         .nav-list { background: var(--color-card-bg); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
@@ -259,6 +279,28 @@
       .toast { max-width: calc(100vw - 1.5rem); font-size: 0.85rem; }
             header { margin-bottom: 1.85rem; }
       .logout-form { width: 100%; display: flex; justify-content: flex-end; margin-top: 0.6rem; }
+      .responsive-table thead { display: none; }
+      .responsive-table, .responsive-table tbody, .responsive-table tr, .responsive-table td { display: block; width: 100%; }
+      .responsive-table tr { border: 1px solid var(--color-border); border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
+      .responsive-table td { border-bottom: 1px solid var(--color-border); padding: 0.5rem 0.75rem; }
+      .responsive-table tr:last-child { margin-bottom: 0; }
+      .responsive-table tr td:last-child { border-bottom: none; }
+      .responsive-table td::before { content: attr(data-label); display: block; font-size: 0.72rem;
+                     color: var(--color-text-faint); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.15rem; }
+      .responsive-table td:empty::before { margin-bottom: 0; }
+      .responsive-table-compact thead { display: none; }
+      .responsive-table-compact, .responsive-table-compact tbody { display: block; width: 100%; }
+      .responsive-table-compact tr { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--color-border);
+                     border-radius: 8px; margin-bottom: 0.75rem; overflow: hidden; }
+      .responsive-table-compact tr:last-child { margin-bottom: 0; }
+      .responsive-table-compact td { border-bottom: 1px solid var(--color-border); border-right: 1px solid var(--color-border);
+                     padding: 0.4rem 0.6rem; }
+      .responsive-table-compact td:nth-child(2n) { border-right: none; }
+      .responsive-table-compact td.span-full { grid-column: 1 / -1; border-right: none; }
+      .responsive-table-compact tr td:nth-last-child(-n+2) { border-bottom: none; }
+      .responsive-table-compact tr td.span-full:last-child { border-bottom: none; }
+      .responsive-table-compact td::before { content: attr(data-label); display: block; font-size: 0.68rem;
+                     color: var(--color-text-faint); text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.1rem; }
     }
 
         @media (max-width: 380px) {
@@ -315,6 +357,9 @@
     {% if user %}
     <footer class="app-footer">
       {% block footer_line1 %}{% endblock %}
+      <nav class="app-footer-links">
+        <a href="{{ url_for('documentation') }}">{{ t('nav_documentation') }}</a>
+      </nav>
       <div class="app-footer-line"><span class="wappos-brand-mark">WAPPOS</span> v{{ app_version }} — © {{ year }} <a href="https://byrtn.fr" target="_blank" rel="noopener">BYRTN</a></div>
     </footer>
     {% endif %}
@@ -437,6 +482,48 @@
         if (form.hasAttribute('data-custom-loading')) return;
         var overlay = document.getElementById('loading-overlay');
         if (overlay) overlay.hidden = false;
+      });
+    });
+
+    function wappasStoredCardState(key) {
+      try { return sessionStorage.getItem(key); } catch (e) { return null; }
+    }
+    function wappasStoreCardState(key, value) {
+      try { sessionStorage.setItem(key, value); } catch (e) {}
+    }
+
+    document.querySelectorAll('.card > .card-header').forEach(function (header, index) {
+      var card = header.parentElement;
+      if (!header.nextElementSibling) return;
+      var chevron = document.createElement('span');
+      chevron.className = 'card-toggle-chevron';
+      chevron.setAttribute('aria-hidden', 'true');
+      header.appendChild(chevron);
+      var key = 'wappos_admin_card:' + location.pathname + ':' + index;
+      var saved = wappasStoredCardState(key);
+      var collapsed = saved !== null ? saved === '1' : !card.classList.contains('card-default-open');
+      card.classList.toggle('card-collapsed', collapsed);
+      header.addEventListener('click', function (event) {
+        if (event.target.closest('a, button, input, label, select, textarea')) return;
+        wappasStoreCardState(key, card.classList.toggle('card-collapsed') ? '1' : '0');
+      });
+    });
+
+    document.querySelectorAll('details.card > summary').forEach(function (summary, index) {
+      var details = summary.parentElement;
+      var chevron = document.createElement('span');
+      chevron.className = 'card-toggle-chevron';
+      chevron.setAttribute('aria-hidden', 'true');
+      summary.appendChild(chevron);
+      var key = 'wappos_admin_details:' + location.pathname + ':' + index;
+      var saved = wappasStoredCardState(key);
+      if (saved !== null) {
+        if (saved === '1') details.setAttribute('open', ''); else details.removeAttribute('open');
+      } else if (!details.classList.contains('card-default-open')) {
+        details.removeAttribute('open');
+      }
+      details.addEventListener('toggle', function () {
+        wappasStoreCardState(key, details.open ? '1' : '0');
       });
     });
 

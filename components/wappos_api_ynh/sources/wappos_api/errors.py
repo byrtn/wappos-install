@@ -25,6 +25,12 @@ class InvalidCredentialsError(WapposApiError):
     code = "invalid_credentials"
 
 
+class ForbiddenError(WapposApiError):
+
+    status_code = 403
+    code = "forbidden"
+
+
 class UpstreamProtocolError(WapposApiError):
 
     status_code = 502

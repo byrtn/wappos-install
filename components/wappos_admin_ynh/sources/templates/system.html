@@ -149,12 +149,14 @@
       {% endif %}
 
       <form method="post" action="{{ url_for('run_system_upgrade') }}" style="margin-top: 1rem;" id="system-upgrade-form">
-        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; white-space: nowrap;">
-          <input type="radio" name="target" value="apps" checked> {{ t('radio_applications') }}
-        </label>
-        <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.85rem; margin-left: 1rem; white-space: nowrap;">
-          <input type="radio" name="target" value="system"> {{ t('radio_system_packages') }}
-        </label>
+        <div class="inline-field-row">
+          <label class="checkbox-field">
+            <input type="radio" name="target" value="apps" checked> <span>{{ t('radio_applications') }}</span>
+          </label>
+          <label class="checkbox-field">
+            <input type="radio" name="target" value="system"> <span>{{ t('radio_system_packages') }}</span>
+          </label>
+        </div>
         <div class="confirm-row">
           <p class="confirm-row-text">
             {{ t('type_word_to_confirm_upgrade', word=t('confirm_word_upgrade')) }}
@@ -223,8 +225,8 @@
       </div>
     </div>
 
-    <div class="card create-card">
-      <div class="card-header"><h3 style="color: var(--color-danger);">{{ t('h3_danger_zone') }}</h3></div>
+    <div class="card create-card danger-zone">
+      <div class="card-header"><h3>{{ t('h3_danger_zone') }}</h3></div>
       <div class="card-body">
 
       <form method="post" action="{{ url_for('reboot_system') }}" style="margin-bottom: 1.5rem;"

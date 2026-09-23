@@ -6,6 +6,7 @@ LANGS = ("fr", "en")
 STRINGS = {
     "nav_logout": {"fr": "Déconnexion", "en": "Log out"},
     "nav_home": {"fr": "Accueil", "en": "Home"},
+    "nav_documentation": {"fr": "Documentation", "en": "Documentation"},
     "aria_breadcrumb": {"fr": "Fil d'Ariane", "en": "Breadcrumb"},
     "aria_language_switch": {"fr": "Changer de langue", "en": "Switch language"},
     "aria_close": {"fr": "Fermer", "en": "Close"},
@@ -266,6 +267,8 @@ STRINGS = {
         "fr": "Aperçu (dry-run) : {create} à créer, {update} à mettre à jour, {delete} à supprimer.",
         "en": "Preview (dry-run): {create} to create, {update} to update, {delete} to delete.",
     },
+    "th_action": {"fr": "Action", "en": "Action"},
+    "th_record": {"fr": "Enregistrement DNS", "en": "DNS record"},
     "word_create": {"fr": "Créer", "en": "Create"},
     "word_update": {"fr": "Mettre à jour", "en": "Update"},
     "word_delete": {"fr": "Supprimer", "en": "Delete"},
@@ -393,6 +396,8 @@ STRINGS = {
         "fr": "Injecte automatiquement LDAP_HOST/LDAP_PORT/LDAP_BASE_DN vers l'annuaire YunoHost. Ces noms de variables ne sont pas universels — vérifie dans la documentation de l'app installée le nom exact attendu, et adapte-le toi-même si besoin.",
         "en": "Automatically injects LDAP_HOST/LDAP_PORT/LDAP_BASE_DN pointing to the YunoHost directory. These variable names aren't universal — check the installed app's documentation for the exact expected name and adjust it yourself if needed.",
     },
+    "ldap_connection_details_title": {"fr": "Valeurs à utiliser si l'app se configure via sa propre page LDAP (pas par variables d'environnement) :", "en": "Values to use if the app is configured via its own LDAP settings page (not environment variables):"},
+    "ldap_connection_anonymous_bind": {"fr": "Connexion anonyme (pas d'identifiant ni mot de passe nécessaire)", "en": "Anonymous bind (no username or password needed)"},
     "label_env_vars": {"fr": "Variables d'environnement (une par ligne, KEY=valeur)", "en": "Environment variables (one per line, KEY=value)"},
     "label_config_files": {
         "fr": "Fichiers de configuration (optionnel — montés en lecture seule dans le conteneur, en plus du volume de données)",
@@ -485,6 +490,7 @@ STRINGS = {
     "confirm_delete_docker_app": {"fr": "Supprimer {slug} ? Cette action est irréversible.", "en": "Delete {slug}? This action is irreversible."},
     "checkbox_purge_data": {"fr": "Purger les données", "en": "Purge data"},
     "btn_delete_short": {"fr": "Supprimer", "en": "Delete"},
+    "btn_delete_group": {"fr": "Supprimer le groupe", "en": "Delete group"},
     "no_docker_app_tracked": {"fr": "Aucune app Docker suivie pour l'instant.", "en": "No Docker app tracked for now."},
 
     "title_edit_slug": {"fr": "Modifier {slug}", "en": "Edit {slug}"},
@@ -596,6 +602,18 @@ STRINGS = {
 
     "nav_users": {"fr": "Utilisateurs", "en": "Users"},
     "no_user": {"fr": "Aucun utilisateur.", "en": "No user."},
+    "h3_user_list": {"fr": "Comptes", "en": "Accounts"},
+    "role_superadmin": {"fr": "Superadmin", "en": "Superadmin"},
+    "role_domain_admin": {"fr": "Admin de domaine : {domains}", "en": "Domain admin: {domains}"},
+    "label_account_role": {"fr": "Rôle / autorisation", "en": "Role / permission"},
+    "option_no_particular_role": {"fr": "Utilisateur standard", "en": "Standard user"},
+    "role_option_superadmin": {"fr": "Super-administrateur (accès total)", "en": "Super-administrator (full access)"},
+    "role_option_domain_admin": {"fr": "Administrateur de domaine", "en": "Domain administrator"},
+    "role_option_visitor": {"fr": "Visiteur", "en": "Visitor"},
+    "confirm_create_superadmin_account": {"fr": "Ce compte aura un accès superadmin complet au serveur, sur tous les domaines. Confirmer ?", "en": "This account will have full superadmin access to the server, across all domains. Confirm?"},
+    "err_user_created_role_failed": {"fr": "Compte {username} créé, mais l'attribution du rôle a échoué : {error}", "en": "Account {username} created, but role assignment failed: {error}"},
+    "msg_user_created_domain_admin_next_step": {"fr": "Compte {username} créé en tant qu'administrateur de domaine. N'oubliez pas de définir ses domaines possédés et son domaine principal sur la page Groupes.", "en": "Account {username} created as a domain administrator. Don't forget to set its owned domains and primary domain on the Groups page."},
+    "role_domain_admin_no_domain": {"fr": "aucun domaine attribué", "en": "no domain assigned"},
     "h3_add_account": {"fr": "Ajouter un compte", "en": "Add an account"},
     "add_account_desc": {
         "fr": "Les comptes sont créés avec une adresse email au format username@domain.tld. Des alias d'email et des transferts d'emails supplémentaires peuvent être ajoutés ultérieurement par un administrateur ou l'utilisateur du compte lui même.",
@@ -677,9 +695,10 @@ STRINGS = {
 
     "nav_groups": {"fr": "Groupes", "en": "Groups"},
     "breadcrumb_groups_perms": {"fr": "Groupes et autorisations", "en": "Groups and permissions"},
-    "group_admins_label": {"fr": "Comptes administrateurs", "en": "Administrator accounts"},
-    "group_all_users_label": {"fr": "Tous les comptes", "en": "All accounts"},
+    "group_admins_label": {"fr": "Administrateurs", "en": "Administrators"},
+    "group_all_users_label": {"fr": "Utilisateurs enregistrés", "en": "Registered users"},
     "group_visitors_label": {"fr": "Visiteurs", "en": "Visitors"},
+    "group_domain_admins_label": {"fr": "Administrateurs de domaines", "en": "Domain administrators"},
     "group_named": {"fr": "Groupe '{name}'", "en": "Group '{name}'"},
     "confirm_delete_group": {"fr": "Voulez-vous vraiment supprimer {name} ?", "en": "Do you really want to delete {name}?"},
     "label_accounts": {"fr": "Comptes", "en": "Accounts"},
@@ -693,8 +712,20 @@ STRINGS = {
         "fr": "Veillez à ce que certaines applications soient autorisées pour les visiteurs si vous avez l'intention de les utiliser avec des clients externes.",
         "en": "Make sure some applications are allowed for visitors if you intend to use them with external clients.",
     },
+    "group_explain_wappos_domain_admins": {
+        "fr": "Groupe technique Wappos : les comptes ajoutés ici peuvent devenir des administrateurs de domaine (scopés à un ou plusieurs domaines, voir la page de détail d'un domaine). Ce groupe est protégé et ne peut pas être supprimé.",
+        "en": "Wappos technical group: accounts added here can become domain admins (scoped to one or more domains, see a domain's detail page). This group is protected and cannot be deleted.",
+    },
     "btn_save_accounts": {"fr": "Enregistrer les comptes", "en": "Save accounts"},
     "label_permissions": {"fr": "Permissions", "en": "Permissions"},
+    "err_domain_admins_group_no_shared_permissions": {
+        "fr": "Les permissions ne se règlent plus sur le groupe wappos_domain_admins pour éviter un accès identique pour tous les admins de domaine. Utilisez la section \"Gérer les autorisations d'un compte individuel\" pour chaque compte.",
+        "en": "Permissions can no longer be set on the wappos_domain_admins group, to avoid identical access for every domain admin. Use the \"Manage an individual account's permissions\" section for each account instead.",
+    },
+    "domain_admins_group_permissions_moved": {
+        "fr": "Les permissions d'applications ne se règlent plus ici pour éviter que tous les admins de domaine reçoivent le même accès. Utilisez la section \"Gérer les autorisations d'un compte individuel\" plus bas pour régler l'accès compte par compte.",
+        "en": "Application permissions are no longer set here, to avoid every domain admin receiving identical access. Use the \"Manage an individual account's permissions\" section below to set access account by account.",
+    },
     "btn_save_permissions": {"fr": "Enregistrer les permissions", "en": "Save permissions"},
     "h3_individual_account_perms": {"fr": "Autorisations pour des comptes individuels", "en": "Permissions for individual accounts"},
     "label_add_account": {"fr": "Ajouter un compte", "en": "Add an account"},
@@ -707,9 +738,10 @@ STRINGS = {
     "btn_add_group": {"fr": "Ajouter un groupe", "en": "Add a group"},
     "h3_permission_detail": {"fr": "Détail des permissions", "en": "Permission detail"},
     "th_permission": {"fr": "Permission", "en": "Permission"},
-    "th_url": {"fr": "URL", "en": "URL"},
-    "th_additional_urls": {"fr": "URLs additionnelles", "en": "Additional URLs"},
-    "th_effective_users": {"fr": "Utilisateurs effectifs", "en": "Effective users"},
+    "th_effective_users": {"fr": "Comptes autorisés", "en": "Authorized accounts"},
+    "perm_domain_system": {"fr": "Permissions système (sans domaine)", "en": "System permissions (no domain)"},
+    "perm_no_users": {"fr": "Aucun compte autorisé", "en": "No authorized account"},
+    "perm_all_accounts": {"fr": "Tous les comptes ({n})", "en": "All accounts ({n})"},
     "confirm_grant_dangerous_perm": {
         "fr": "Voulez-vous vraiment accorder l'accès à {perms} à « {group} » ? Un tel accès augmente considérablement la surface d'attaque si ce groupe se trouve être malveillant.",
         "en": "Do you really want to grant access to {perms} to \"{group}\"? Such access considerably increases the attack surface if this group turns out to be malicious.",
@@ -721,6 +753,28 @@ STRINGS = {
     "msg_group_created": {"fr": "Groupe {name} créé.", "en": "Group {name} created."},
     "msg_group_deleted": {"fr": "Groupe {name} supprimé.", "en": "Group {name} deleted."},
     "msg_group_members_updated": {"fr": "Membres du groupe {name} mis à jour.", "en": "Members of group {name} updated."},
+    "msg_domain_admin_owned_domains_updated": {"fr": "Domaines de {username} mis à jour.", "en": "{username}'s domains updated."},
+    "h3_domain_admin_owned_domains": {"fr": "Domaines attribués", "en": "Assigned domains"},
+    "domain_admin_owned_domains_info": {
+        "fr": "Pour chaque compte de ce groupe, cochez le ou les domaines dont il est administrateur.",
+        "en": "For each account in this group, tick the domain(s) it administers.",
+    },
+    "btn_save_domain_admin_owned_domains": {"fr": "Enregistrer les domaines", "en": "Save domains"},
+    "label_primary_domain": {"fr": "Domaine principal", "en": "Primary domain"},
+    "option_primary_domain_unset": {"fr": "— aucun —", "en": "— none —"},
+    "primary_domain_info": {
+        "fr": "Seul ce domaine permet à ce compte de se connecter à l'interface d'administration.",
+        "en": "Only this domain lets this account log in to the administration interface.",
+    },
+    "th_domain_admin_account": {"fr": "Compte", "en": "Account"},
+    "th_domain_admin_owned": {"fr": "Domaines possédés", "en": "Owned domains"},
+    "th_domain_admin_primary": {"fr": "Principal", "en": "Primary"},
+    "domain_admin_overview_no_domains": {"fr": "aucun", "en": "none"},
+    "domain_admin_overview_no_primary": {"fr": "non défini", "en": "not set"},
+    "star_set_as_primary": {"fr": "Définir comme domaine principal", "en": "Set as primary domain"},
+    "star_is_primary": {"fr": "Domaine principal", "en": "Primary domain"},
+    "label_filter_domain_admins": {"fr": "Filtrer par compte ou domaine...", "en": "Filter by account or domain..."},
+    "domain_admin_no_search_results": {"fr": "Aucun compte ne correspond à ce filtre.", "en": "No account matches this filter."},
     "msg_group_permissions_updated": {"fr": "Permissions du groupe {name} mises à jour.", "en": "Permissions of group {name} updated."},
     "msg_permission_access_updated": {"fr": "Accès de « {permission} » mis à jour.", "en": "Access for \"{permission}\" updated."},
     "err_tile_not_enabled": {
@@ -785,6 +839,7 @@ STRINGS = {
     "month_11": {"fr": "novembre", "en": "November"}, "month_12": {"fr": "décembre", "en": "December"},
     "day_label_fr_format": {"fr": "{day} {month} {year}", "en": "{month} {day}, {year}"},
 
+    "domain_owners_no_candidates": {"fr": "Aucun compte n'est membre du groupe wappos_domain_admins pour l'instant. Ajoutez-en un depuis la page Groupes et autorisations.", "en": "No account is a member of the wappos_domain_admins group yet. Add one from the Groups and permissions page."},
     "h3_add_domain": {"fr": "Ajouter un domaine", "en": "Add a domain"},
     "btn_add": {"fr": "Ajouter", "en": "Add"},
     "checkbox_install_letsencrypt": {"fr": "Installer un certificat Let's Encrypt automatiquement", "en": "Automatically install a Let's Encrypt certificate"},
@@ -792,30 +847,22 @@ STRINGS = {
     "dyndns_recovery_password_placeholder": {"fr": "Mot de passe de récupération DynDNS", "en": "DynDNS recovery password"},
     "add_domain_dns_note": {"fr": "Le domaine doit déjà pointer vers ce serveur (DNS) pour que le certificat Let's Encrypt puisse être installé.", "en": "The domain must already point to this server (DNS) for the Let's Encrypt certificate to be installable."},
     "h3_local_network_access": {"fr": "Accès réseau local", "en": "Local network access"},
-    "local_access_no_adguard_prefix": {
-        "fr": "Pour un accès fiable à Wappos depuis le réseau local — y compris sur les appareils où la découverte automatique (mDNS) ne fonctionne pas de façon fiable, notamment Android — ",
-        "en": "For reliable access to Wappos from the local network — including on devices where automatic discovery (mDNS) is not reliable, notably Android — ",
-    },
+    "link_learn_more": {"fr": "En savoir plus", "en": "Learn more"},
+    "local_access_no_adguard_short": {"fr": "AdGuard Home n'est pas installé.", "en": "AdGuard Home is not installed."},
     "install_adguard_link": {"fr": "installez AdGuard Home", "en": "install AdGuard Home"},
-    "local_access_no_adguard_fallback": {
-        "fr": "En attendant, un accès local limité reste possible sans rien installer : ajoutez un domaine se terminant par {dotlocal} ci-dessus (via \"Ajouter un domaine\") — la découverte automatique (mDNS) le rendra accessible sur la plupart des ordinateurs du réseau, mais pas de façon fiable sur Android.",
-        "en": "In the meantime, limited local access remains possible without installing anything: add a domain ending in {dotlocal} above (via \"Add a domain\") — automatic discovery (mDNS) will make it accessible on most computers on the network, but not reliably on Android.",
-    },
     "local_access_enabled": {
-        "fr": "Activé — ces domaines sont accessibles depuis le réseau local sur tous les appareils, la résolution DNS étant assurée par AdGuard Home.",
-        "en": "Enabled — these domains are accessible from the local network on every device, with DNS resolution handled by AdGuard Home.",
+        "fr": "Activé — ces domaines sont accessibles depuis le réseau local sur tous les appareils.",
+        "en": "Enabled — these domains are accessible from the local network on every device.",
     },
     "confirm_remove_local_domain": {
         "fr": "Retirer le domaine local {domain} ? La réécriture DNS AdGuard associée sera retirée aussi.",
         "en": "Remove local domain {domain}? The associated AdGuard DNS rewrite will be removed too.",
     },
     "btn_remove": {"fr": "Retirer", "en": "Remove"},
+    "badge_active": {"fr": "Actif", "en": "Active"},
     "add_another_local_domain": {"fr": "Ajouter un autre domaine local", "en": "Add another local domain"},
     "local_domain_pattern_title": {"fr": "Un seul niveau, se terminant par .lan (ex. wappos.lan)", "en": "A single level, ending in .lan (e.g. wappos.lan)"},
-    "local_access_disabled": {
-        "fr": "Désactivé. Une fois activé, Wappos sera accessible depuis le réseau local sur tous les appareils (y compris Android), la résolution DNS étant assurée par AdGuard Home.",
-        "en": "Disabled. Once enabled, Wappos will be accessible from the local network on every device (including Android), with DNS resolution handled by AdGuard Home.",
-    },
+    "local_access_disabled_short": {"fr": "Désactivé.", "en": "Disabled."},
     "btn_enable_local_access": {"fr": "Activer l'accès réseau local (wappos.lan)", "en": "Enable local network access (wappos.lan)"},
     "cert_valid_days": {"fr": "Certificat valide {n} jour{s}", "en": "Certificate valid {n} day{s}"},
     "no_domain": {"fr": "Aucun domaine.", "en": "No domain."},
@@ -830,6 +877,23 @@ STRINGS = {
     "nav_applications": {"fr": "Applications", "en": "Applications"},
     "nav_system_apps": {"fr": "Applications système", "en": "System applications"},
     "nav_diagnosis": {"fr": "Diagnostic", "en": "Diagnosis"},
+    "nav_environment_health": {"fr": "Santé de mon environnement", "en": "My environment's health"},
+    "title_environment_health": {"fr": "Santé de mon environnement", "en": "My environment's health"},
+    "h3_certificates": {"fr": "Certificats", "en": "Certificates"},
+    "cert_days_left": {"fr": "{days} jours restants", "en": "{days} days left"},
+    "no_domain_in_scope": {"fr": "Aucun domaine.", "en": "No domain."},
+    "h3_diagnosis_summary": {"fr": "Diagnostic", "en": "Diagnosis"},
+    "count_errors": {"fr": "{n} erreur(s)", "en": "{n} error(s)"},
+    "count_warnings": {"fr": "{n} avertissement(s)", "en": "{n} warning(s)"},
+    "link_view_full_diagnosis": {"fr": "Voir le diagnostic complet", "en": "View full diagnosis"},
+    "h3_disk_usage_by_app": {"fr": "Espace disque par application", "en": "Disk usage per application"},
+    "disk_usage_help": {
+        "fr": "Espace occupé par le code de chaque application. Certaines apps stockent leurs données ailleurs (ex. fichiers utilisateurs) et ne sont pas comptées ici.",
+        "en": "Space used by each app's own code directory. Some apps store their data elsewhere (e.g. user files) and it isn't counted here.",
+    },
+    "no_disk_usage_data": {"fr": "Aucune donnée disponible.", "en": "No data available."},
+    "h3_docker_containers": {"fr": "Conteneurs Docker", "en": "Docker containers"},
+    "no_docker_container": {"fr": "Aucun conteneur Docker.", "en": "No Docker container."},
     "nav_backups": {"fr": "Sauvegardes", "en": "Backups"},
     "label_storage": {"fr": "Stockage", "en": "Storage"},
     "label_unavailable": {"fr": "Indisponible", "en": "Unavailable"},
@@ -868,7 +932,10 @@ STRINGS = {
     "th_path": {"fr": "Chemin", "en": "Path"},
     "th_app": {"fr": "App", "en": "App"},
     "th_label": {"fr": "Étiquette", "en": "Label"},
+    "th_domain": {"fr": "Domaine", "en": "Domain"},
     "no_app_on_web_domain": {"fr": "Aucune application installée sur un domaine web.", "en": "No application installed on a web domain."},
+    "tab_by_domain": {"fr": "Par domaine", "en": "By domain"},
+    "tab_by_app": {"fr": "Par app", "en": "By app"},
 
     "word_app_fallback": {"fr": "App", "en": "App"},
     "btn_understood": {"fr": "Compris", "en": "Understood"},
@@ -917,7 +984,7 @@ STRINGS = {
     "quality_working_only": {"fr": "Apps fonctionnelles seulement", "en": "Working apps only"},
     "quality_all": {"fr": "Toutes les apps", "en": "All apps"},
     "btn_search": {"fr": "Rechercher", "en": "Search"},
-    "btn_see_categories": {"fr": "Voir les catégories", "en": "See categories"},
+    "btn_see_categories": {"fr": "Retour aux catégories", "en": "Back to categories"},
     "word_all": {"fr": "Tout", "en": "All"},
     "word_others": {"fr": "Autres", "en": "Others"},
     "high_quality_app_title": {"fr": "Application de haute qualité", "en": "High quality application"},
@@ -952,6 +1019,19 @@ STRINGS = {
         "en": "The app stays installed on the domain chosen above, but its tile and URL will also work on your other domains (current and future).",
     },
     "app_not_found_in_catalog": {"fr": "App introuvable dans le catalogue.", "en": "App not found in the catalog."},
+    "h3_cross_domain": {"fr": "Domaines supplémentaires", "en": "Additional domains"},
+    "cross_domain_help": {
+        "fr": "Ajoute cette app sur d'autres domaines en plus de celui où elle est installée, avec la même URL et le même accès.",
+        "en": "Makes this app also reachable on other domains besides the one it's installed on, with the same URL and access.",
+    },
+    "no_cross_domain_entry": {"fr": "Aucun domaine supplémentaire.", "en": "No additional domain."},
+    "label_add_domain": {"fr": "Ajouter un domaine", "en": "Add a domain"},
+    "btn_add_domain": {"fr": "Ajouter", "en": "Add"},
+    "btn_remove_domain": {"fr": "Retirer", "en": "Remove"},
+    "confirm_remove_cross_domain": {"fr": "Retirer {domain} des domaines supplémentaires de cette app ?", "en": "Remove {domain} from this app's additional domains?"},
+    "err_domain_required": {"fr": "Un domaine doit être sélectionné.", "en": "A domain must be selected."},
+    "msg_cross_domain_added": {"fr": "{domain} ajouté aux domaines supplémentaires.", "en": "{domain} added to additional domains."},
+    "msg_cross_domain_removed": {"fr": "{domain} retiré des domaines supplémentaires.", "en": "{domain} removed from additional domains."},
     "address_available": {"fr": "Adresse disponible.", "en": "Address available."},
     "address_already_used": {"fr": "Adresse déjà utilisée par une autre app.", "en": "Address already used by another app."},
 
@@ -1116,6 +1196,23 @@ STRINGS = {
     "upnp_action_enable": {"fr": "activer", "en": "enable"},
     "err_port_empty": {"fr": "Le port ne peut pas être vide.", "en": "The port cannot be empty."},
     "err_port_invalid": {"fr": "Port invalide (attendu : un nombre ou une plage N-M).", "en": "Invalid port (expected: a number or a range N-M)."},
+    "h3_domain_smtp_relay": {"fr": "Relais SMTP sortant de ce domaine", "en": "This domain's outgoing SMTP relay"},
+    "domain_smtp_relay_help": {
+        "fr": "Route les mails envoyés depuis ce domaine par un serveur relais externe (ex. votre propre compte SMTP2GO), au lieu de l'envoi direct du serveur.",
+        "en": "Routes mail sent from this domain through an external relay server (e.g. your own SMTP2GO account), instead of the server's direct delivery.",
+    },
+    "label_relay_host": {"fr": "Hôte du relais", "en": "Relay host"},
+    "label_relay_port": {"fr": "Port", "en": "Port"},
+    "label_relay_user": {"fr": "Utilisateur", "en": "Username"},
+    "label_relay_password": {"fr": "Mot de passe", "en": "Password"},
+    "placeholder_relay_password_unchanged": {"fr": "laisser vide pour ne pas changer", "en": "leave blank to keep unchanged"},
+    "no_domain_smtp_relay": {"fr": "Aucun relais configuré — envoi direct.", "en": "No relay configured — direct delivery."},
+    "btn_save_relay": {"fr": "Enregistrer", "en": "Save"},
+    "btn_remove_relay": {"fr": "Retirer le relais", "en": "Remove relay"},
+    "confirm_remove_domain_smtp_relay": {"fr": "Retirer le relais SMTP de ce domaine et revenir à l'envoi direct ?", "en": "Remove this domain's SMTP relay and go back to direct delivery?"},
+    "err_smtp_relay_fields_required": {"fr": "L'hôte et le port sont obligatoires.", "en": "Host and port are required."},
+    "msg_smtp_relay_saved": {"fr": "Relais SMTP enregistré.", "en": "SMTP relay saved."},
+    "msg_smtp_relay_removed": {"fr": "Relais SMTP retiré.", "en": "SMTP relay removed."},
     "err_port_out_of_range": {"fr": "Le port doit être compris entre 1 et 65535 (0 n'est pas autorisé).", "en": "The port must be between 1 and 65535 (0 is not allowed)."},
     "err_port_range_invalid": {"fr": "Plage de ports invalide (le premier port doit être inférieur au second).", "en": "Invalid port range (the first port must be lower than the second)."},
     "msg_port_opened": {"fr": "Port {port}/{protocol} ouvert.", "en": "Port {port}/{protocol} opened."},
@@ -1124,6 +1221,20 @@ STRINGS = {
     "msg_upnp_toggled": {"fr": "UPnP {state}.", "en": "UPnP {state}."},
     "msg_migration_executed": {"fr": "Migration {name} exécutée.", "en": "Migration {name} executed."},
     "msg_pending_migrations_executed": {"fr": "Migrations en attente exécutées.", "en": "Pending migrations executed."},
+
+    "nav_tls_passthrough": {"fr": "TLS passthrough", "en": "TLS passthrough"},
+    "title_tls_passthrough": {"fr": "TLS passthrough", "en": "TLS passthrough"},
+    "tls_passthrough_info": {"fr": "Redirige le trafic TLS chiffré d'un domaine directement vers une autre machine, sans le déchiffrer sur ce serveur.", "en": "Routes a domain's encrypted TLS traffic directly to another machine, without decrypting it on this server."},
+    "th_destination": {"fr": "Destination", "en": "Destination"},
+    "label_destination": {"fr": "Destination (IP)", "en": "Destination (IP)"},
+    "placeholder_destination_local": {"fr": "127.0.0.1", "en": "127.0.0.1"},
+    "no_tls_passthrough_entry": {"fr": "Aucune entrée TLS passthrough.", "en": "No TLS passthrough entry."},
+    "btn_add_entry": {"fr": "Ajouter", "en": "Add"},
+    "btn_remove_entry": {"fr": "Retirer", "en": "Remove"},
+    "confirm_remove_tls_passthrough_entry": {"fr": "Retirer l'entrée TLS passthrough pour {domain} ?", "en": "Remove the TLS passthrough entry for {domain}?"},
+    "err_tls_passthrough_fields_required": {"fr": "Domaine, destination et port sont obligatoires.", "en": "Domain, destination and port are required."},
+    "msg_tls_passthrough_entry_added": {"fr": "Entrée TLS passthrough ajoutée pour {domain}.", "en": "TLS passthrough entry added for {domain}."},
+    "msg_tls_passthrough_entry_removed": {"fr": "Entrée TLS passthrough retirée pour {domain}.", "en": "TLS passthrough entry removed for {domain}."},
 
     "title_settings": {"fr": "Réglages", "en": "Settings"},
     "h3_appearance": {"fr": "Apparence", "en": "Appearance"},
@@ -1349,6 +1460,8 @@ STRINGS = {
     "title_log_named": {"fr": "{description} — Journaux", "en": "{description} — Logs"},
     "th_path_generic": {"fr": "Chemin", "en": "Path"},
     "th_start": {"fr": "Début", "en": "Start"},
+    "log_status_ok": {"fr": "Réussi", "en": "Succeeded"},
+    "log_status_failed": {"fr": "Échoué", "en": "Failed"},
     "th_end": {"fr": "Fin", "en": "End"},
     "th_suboperations": {"fr": "Sous-opérations", "en": "Sub-operations"},
     "err_operation_failed_help": {"fr": "L'opération a échoué ! Vous pouvez essayer de demander de l'aide à la communauté Wappos.", "en": "The operation failed! You can try asking the Wappos community for help."},
@@ -1372,6 +1485,15 @@ STRINGS = {
     "dg_step_start_container": {"fr": "Démarrage du conteneur", "en": "Starting container"},
     "dg_step_expose_app": {"fr": "Exposition de l'app", "en": "Exposing app"},
     "dg_step_restart_container": {"fr": "Redémarrage du conteneur", "en": "Restarting container"},
+    "dg_step_check_connectivity": {"fr": "Vérification de la connexion", "en": "Checking connectivity"},
+    "dg_warn_port_not_responding": {
+        "fr": "Le conteneur a démarré mais ne répond pas sur le port {port} — vérifiez le port réel utilisé par cette application (voir sa documentation) depuis Modifier les paramètres.",
+        "en": "The container started but is not responding on port {port} — check the actual port used by this application (see its documentation) from Edit parameters.",
+    },
+    "dg_warn_app_returns_error_status": {
+        "fr": "L'application a démarré mais renvoie une erreur ({status}) à l'adresse choisie. Certaines applications ne supportent pas d'être installées sous un chemin (ex. /monapp) et ont besoin d'un sous-domaine dédié — réessayez avec cette option si le problème persiste.",
+        "en": "The application started but returns an error ({status}) at the chosen address. Some applications do not support being installed under a path (e.g. /myapp) and need a dedicated subdomain instead — retry with that option if the problem persists.",
+    },
     "dg_err_https_only": {"fr": "Seules les URL https:// sont acceptées.", "en": "Only https:// URLs are accepted."},
     "dg_err_url_fetch_failed": {"fr": "Impossible de récupérer l'URL ({detail}).", "en": "Could not fetch the URL ({detail})."},
     "dg_err_file_too_large": {"fr": "Fichier trop volumineux (>200 Ko).", "en": "File too large (>200 KB)."},
@@ -1448,6 +1570,453 @@ STRINGS = {
     "dg_err_docker_hub_query_failed": {"fr": "Impossible d'interroger Docker Hub ({detail}).", "en": "Could not query Docker Hub ({detail})."},
     "dg_step_fetch_new_image": {"fr": "Récupération de la nouvelle image", "en": "Fetching new image"},
     "dg_err_image_download_failed": {"fr": "Échec du téléchargement de la nouvelle image", "en": "New image download failed"},
+
+    "page_body_documentation_superadmin": {
+        "fr": (
+            "<h2>À propos de cette interface</h2>"
+            "<p>Wappos Admin est l'interface d'administration technique de votre serveur Wappos, réservée aux comptes "
+            "administrateurs. Elle s'appuie sur YunoHost, le système d'exploitation serveur qui gère réellement les comptes, "
+            "les domaines, les certificats, les applications et les sauvegardes — cette interface ne fait qu'afficher et "
+            "piloter ce que YunoHost fait déjà, sans jamais dupliquer sa logique de sécurité. Vous êtes connecté ici en tant "
+            "que <strong>superadmin</strong> : vous avez accès à l'intégralité des fonctions décrites ci-dessous, sans "
+            "restriction de domaine.</p>"
+            "<p>Pour la documentation destinée aux utilisateurs finaux (portail d'applications, profil, mot de passe), "
+            "consultez la page Documentation du portail (lien \"Administration\" présent dans son pied de page, dans "
+            "l'autre sens).</p>"
+
+            "<h2>Deux profils d'administrateur</h2>"
+            "<p>Wappos distingue deux niveaux de compte administrateur :</p>"
+            "<ul>"
+            "<li><strong>Superadmin</strong> : membre du groupe système <code>admins</code>. Accès complet, sans "
+            "restriction, à toutes les fonctions de cette interface — c'est vous.</li>"
+            "<li><strong>Administrateur de domaine</strong> : membre du groupe <code>wappos_domain_admins</code>, jamais du "
+            "groupe <code>admins</code>. Un administrateur de domaine ne voit et ne gère que ce qui appartient à son ou ses "
+            "domaines : ses utilisateurs, ses applications, ses permissions, la configuration de son domaine. Il n'a accès à "
+            "aucune fonction affectant le serveur dans son ensemble (voir la liste des exclusions plus bas).</li>"
+            "</ul>"
+            "<p>Un administrateur de domaine n'a pas de compte séparé technique : c'est un compte utilisateur ordinaire, "
+            "simplement ajouté au groupe <code>wappos_domain_admins</code> puis associé à un ou plusieurs domaines. Voir la "
+            "section \"Créer un administrateur de domaine\" plus bas pour la procédure complète.</p>"
+
+            "<h2>Tableau de bord (Accueil)</h2>"
+            "<p>La page d'accueil affiche un menu de raccourcis vers les grandes sections (Utilisateurs, Domaines, "
+            "Applications, et pour vous uniquement : Groupes et permissions, Diagnostic, Sauvegardes, Système), ainsi qu'un "
+            "tableau de bord synthétique réservé au superadmin : espace disque par volume, état des services système, "
+            "résultat du dernier diagnostic, unités système en échec, date de la dernière sauvegarde, et nombre de mises à "
+            "jour disponibles (applications et système). Chaque tuile du tableau de bord est cliquable et mène directement à "
+            "la page correspondante pour plus de détail.</p>"
+
+            "<h2>Utilisateurs</h2>"
+            "<p>Liste tous les comptes du serveur. Pour vous, chaque compte administrateur affiche un badge (\"Superadmin\" "
+            "ou \"Administrateur de domaine : &lt;domaine(s)&gt;\"), et la liste est triée pour faire remonter les comptes "
+            "administrateurs en premier.</p>"
+            "<h3>Créer un compte</h3>"
+            "<p>Depuis le bas de la page Utilisateurs : identifiant, domaine de messagerie, nom complet et mot de passe "
+            "initial. L'identifiant ne peut contenir que des minuscules, chiffres, points et tirets bas.</p>"
+            "<h3>Modifier un compte</h3>"
+            "<p>Cliquez sur un compte dans la liste pour arriver directement sur sa page d'édition : nom complet, adresse "
+            "mail principale, alias et adresses de transfert, quota de messagerie, clés SSH publiques (ajout/suppression), "
+            "réinitialisation du mot de passe, et suppression du compte (avec option de purger ses données).</p>"
+            "<h3>Export / import CSV</h3>"
+            "<p>L'export CSV télécharge la liste des comptes (filtrée à vos domaines si vous étiez administrateur de "
+            "domaine — sans objet pour vous, superadmin, qui obtenez toujours la liste complète). L'import CSV, "
+            "<strong>réservé au superadmin</strong>, permet de créer, mettre à jour ou supprimer des comptes en masse à "
+            "partir d'un fichier, avec options de confirmation pour les mises à jour et les suppressions.</p>"
+
+            "<h2>Groupes et permissions</h2>"
+            "<p>Cette section est <strong>entièrement réservée au superadmin</strong> — un administrateur de domaine n'y a "
+            "aucun accès, même pour les utilisateurs ou permissions de son propre domaine.</p>"
+            "<h3>Groupes</h3>"
+            "<p>Les groupes systèmes (\"Comptes administrateurs\", \"Administrateurs de domaines\", \"Tous les comptes\", "
+            "\"Visiteurs\") et les groupes personnalisés que vous créez sont listés en haut de page. Chaque groupe personnalisé "
+            "peut être supprimé (sauf les groupes systèmes et le groupe <code>wappos_domain_admins</code>, protégé de la "
+            "suppression pour ne pas casser le mécanisme d'administration scopée). Pour chaque groupe, vous pouvez gérer ses "
+            "membres et, plus bas sur la page, les permissions d'application qui lui sont accordées.</p>"
+            "<h3 id=\"admin-domaine\">Créer un administrateur de domaine</h3>"
+            "<ol>"
+            "<li>Créez un compte utilisateur normal depuis la page Utilisateurs (ou utilisez un compte existant).</li>"
+            "<li>Sur la page Groupes, ouvrez la carte \"Administrateurs de domaines\" et ajoutez ce compte comme membre du "
+            "groupe <code>wappos_domain_admins</code>.</li>"
+            "<li>Toujours dans cette même carte, cochez le ou les domaines que ce compte doit administrer, puis "
+            "enregistrez. C'est cette attribution — pas la seule appartenance au groupe — qui détermine concrètement quels "
+            "domaines, utilisateurs et applications ce compte pourra voir et gérer.</li>"
+            "</ol>"
+            "<p>Un compte membre de <code>wappos_domain_admins</code> mais sans domaine attribué peut se connecter à cette "
+            "interface, mais n'y verra aucune donnée exploitable tant qu'aucun domaine ne lui est attribué.</p>"
+            "<h3>Permissions d'application</h3>"
+            "<p>Chaque application installée expose une ou plusieurs permissions (généralement \"main\", parfois "
+            "\"admin\" ou d'autres selon l'application). Depuis la page Groupes ou depuis la page de détail d'une "
+            "application, vous choisissez quels groupes ou comptes individuels peuvent y accéder, et réglez ses propriétés "
+            "d'affichage (libellé, visibilité de la tuile sur le portail, logo personnalisé).</p>"
+
+            "<h2>Domaines</h2>"
+            "<p>Liste tous les domaines et sous-domaines configurés, avec l'état de leur certificat HTTPS. Cliquer sur un "
+            "domaine ouvre sa page de détail : configuration, actions disponibles, gestion du certificat (installation, "
+            "renouvellement), panneaux de configuration spécifiques, et suppression du domaine (avec option de retirer "
+            "aussi ses applications).</p>"
+            "<h3>Ajouter un domaine</h3>"
+            "<p>Le domaine doit déjà pointer vers ce serveur au niveau DNS. Un certificat Let's Encrypt peut être installé "
+            "automatiquement à la création. Pour les domaines DynDNS Wappos/YunoHost (<code>*.nohost.me</code>, "
+            "<code>*.noho.st</code>, <code>*.ynh.fr</code>), un mot de passe de récupération optionnel peut être défini.</p>"
+            "<h3>Envoi des enregistrements DNS</h3>"
+            "<p>Quand le registrar du domaine le permet, un bouton propose de pousser automatiquement les enregistrements "
+            "DNS nécessaires (avec un mode simulation avant application réelle).</p>"
+
+            "<h2 id=\"reseau-local\">Accès réseau local</h2>"
+            "<p>Cette section, présente sur la page Domaines, permet de rendre Wappos accessible depuis le réseau local "
+            "par un nom simple (par exemple <code>wappos.lan</code>) plutôt que par l'adresse IP du serveur — pratique pour "
+            "les usages internes qui ne nécessitent pas d'exposition sur Internet. Elle est entièrement réservée au "
+            "superadmin.</p>"
+            "<h3>Sans rien installer : domaines en .local</h3>"
+            "<p>Sans aucune installation supplémentaire, vous pouvez ajouter un domaine se terminant par "
+            "<code>.local</code> via le formulaire général \"Ajouter un domaine\", en haut de la page. La résolution "
+            "repose alors sur la découverte automatique du réseau (mDNS/Bonjour), un mécanisme standard déjà intégré à la "
+            "plupart des ordinateurs (Windows, macOS, Linux). Limite connue et non contournable par ce mécanisme : "
+            "<strong>Android ne prend pas en charge le mDNS de façon fiable</strong>, ce qui rend ces domaines "
+            "généralement inaccessibles depuis un téléphone ou une tablette Android sur le réseau local.</p>"
+            "<h3>Solution fiable sur tous les appareils : AdGuard Home</h3>"
+            "<p>Pour un accès local fiable y compris depuis Android, installez AdGuard Home (application disponible dans "
+            "le catalogue d'applications). Une fois installé, la carte \"Accès réseau local\" de la page Domaines vous "
+            "permet d'activer l'accès local en un clic (domaine <code>wappos.lan</code> créé automatiquement), puis "
+            "d'ajouter d'autres domaines en <code>.lan</code> selon vos besoins. Chaque domaine <code>.lan</code> ajouté "
+            "crée une réécriture DNS dans AdGuard Home, qui répond alors directement avec l'adresse IP locale du serveur à "
+            "tout appareil du réseau qui l'utilise comme serveur DNS (le mDNS n'entre plus en jeu, ce qui explique la "
+            "fiabilité sur Android). Le retrait d'un domaine local retire aussi automatiquement la réécriture DNS "
+            "associée.</p>"
+
+            "<h2>Applications</h2>"
+            "<h3>Applications YunoHost</h3>"
+            "<p>Liste les applications installées nativement via YunoHost (hors applications Docker Gate et applications "
+            "internes Wappos, qui ne sont pas affichées ici). Pour chaque application : mise à jour, changement de domaine/"
+            "chemin, renommage de son libellé, gestion de ses permissions et de ses groupes autorisés, panneaux de "
+            "configuration et actions spécifiques à l'application, réglages techniques bruts (réservés aux cas avancés), "
+            "et suppression (avec option de purge des données). Un administrateur de domaine peut effectuer toutes ces "
+            "actions sur une application déjà installée sur l'un de ses domaines, y compris la supprimer — seules "
+            "l'installation d'une nouvelle application (\"Parcourir le catalogue\") et la bascule technique cross-domaine "
+            "restent réservées au superadmin.</p>"
+            "<h3>Docker Gate</h3>"
+            "<p>Docker Gate est l'outil maison qui permet d'installer des applications supplémentaires packagées avec "
+            "Docker, même quand elles n'existent pas en paquet YunoHost natif. Depuis cette section : ajout d'une nouvelle "
+            "application Docker (assistant guidé : sous-domaine, chemin, visibilité, ressources), démarrage/arrêt/"
+            "redémarrage du conteneur, consultation des journaux et des statistiques de ressources en direct, mise à jour "
+            "de l'image, modification de la configuration (image, port, chemin de données, variables d'environnement, "
+            "limites CPU/mémoire, intégration LDAP), changement de domaine, et suppression. Une page d'audit dédiée liste "
+            "les conteneurs, volumes et réseaux orphelins, les images obsolètes, et permet si besoin la désinstallation "
+            "complète de Docker CE de la machine.</p>"
+            "<p>Comme pour les applications YunoHost, un administrateur de domaine ne voit et ne gère que les applications "
+            "Docker installées sur son ou ses domaines (liste, actions, modification, suppression) ; il ne peut pas créer "
+            "une application Docker sur un domaine qui ne lui appartient pas. La page d'audit (conteneurs/volumes/réseaux "
+            "orphelins, désinstallation de Docker CE) porte sur la machine entière, sans notion de domaine : elle est "
+            "réservée au superadmin.</p>"
+
+            "<h2>Diagnostic</h2>"
+            "<p><strong>Réservé au superadmin.</strong> Affiche les rapports de diagnostic système de YunoHost (DNS, "
+            "certificats, mail, sécurité, services, etc.), permet de relancer un diagnostic complet ou catégorie par "
+            "catégorie, et d'ignorer/réactiver certains signalements non pertinents pour votre configuration.</p>"
+
+            "<h2>Sauvegardes</h2>"
+            "<p><strong>Réservé au superadmin</strong> — un administrateur de domaine n'a aucun accès aux sauvegardes, "
+            "même pour ses propres domaines. Cette page permet de créer une archive (globale ou limitée à certaines "
+            "applications), de consulter l'historique des archives existantes avec leur contenu détaillé, de télécharger, "
+            "restaurer ou supprimer une archive, de configurer une planification automatique (fréquence, périmètre, durée "
+            "de rétention), et de prévisualiser quelles archives seraient purgées par la politique de rétention en "
+            "vigueur.</p>"
+
+            "<h2>Sécurité</h2>"
+            "<p><strong>Réservé au superadmin.</strong> Permet d'activer ou de désactiver l'authentification SSH par mot "
+            "de passe (la connexion par clé reste toujours possible), et affiche une synthèse de sécurité (ancienneté du "
+            "mot de passe root, etc.).</p>"
+
+            "<h2>Système</h2>"
+            "<p>L'ensemble de ce menu est <strong>réservé au superadmin</strong>.</p>"
+            "<ul>"
+            "<li><strong>Mises à jour</strong> : liste les applications et catégories système à mettre à jour, avec "
+            "lancement de la mise à jour depuis la page.</li>"
+            "<li><strong>Migrations</strong> : liste les migrations YunoHost en attente ou déjà effectuées, avec "
+            "possibilité de les lancer (une par une ou toutes) après acceptation de l'avertissement correspondant.</li>"
+            "<li><strong>Régénération de la configuration</strong> : force YunoHost à réappliquer sa configuration système "
+            "(mode simulation ou application réelle).</li>"
+            "<li><strong>Mot de passe root</strong>, <strong>redémarrage</strong> et <strong>arrêt</strong> du serveur : "
+            "ces trois actions exigent la saisie d'un mot de confirmation avant validation, étant donné leur impact "
+            "immédiat sur l'ensemble du serveur et de tous ses utilisateurs.</li>"
+            "<li><strong>Services</strong> : liste des services systemd et des services Wappos, avec détail, journaux, et "
+            "actions de démarrage/arrêt/redémarrage/activation/désactivation par service.</li>"
+            "<li><strong>Journaux</strong> : historique des opérations effectuées par YunoHost, consultables par jour, "
+            "avec possibilité de partager un journal individuel via le service de collage sécurisé de YunoHost.</li>"
+            "<li><strong>Pare-feu</strong> : état des ports TCP/UDP ouverts, activation/désactivation de l'UPnP, ouverture "
+            "ou fermeture de ports.</li>"
+            "<li><strong>Stockage</strong> : liste des disques et points de montage avec leur occupation, et rapports "
+            "SMART pour la santé des disques.</li>"
+            "<li><strong>Performance</strong> : tableau de bord de supervision (Prometheus) des composants Wappos "
+            "(portail, interface d'administration, API) — nécessite qu'un accès Prometheus dédié ait été configuré sur le "
+            "serveur, sans quoi la page l'indique simplement comme indisponible.</li>"
+            "<li><strong>Réglages avancés</strong> : panneaux de configuration globaux de YunoHost, dont les réglages de "
+            "compression des sauvegardes.</li>"
+            "</ul>"
+
+            "<h2>Pied de page</h2>"
+            "<p>Présent en bas de chaque page une fois connecté : lien vers cette documentation, numéro de version de "
+            "l'interface, et lien vers BYRTN.</p>"
+        ),
+        "en": (
+            "<h2>About this interface</h2>"
+            "<p>Wappos Admin is your Wappos server's technical administration interface, reserved for administrator "
+            "accounts. It relies on YunoHost, the server operating system that actually manages accounts, domains, "
+            "certificates, applications and backups — this interface only displays and drives what YunoHost already does, "
+            "never duplicating its security logic. You are logged in here as a <strong>superadmin</strong>: you have full "
+            "access to every function described below, with no domain restriction.</p>"
+            "<p>For end-user documentation (the app portal, profile, password), see the Documentation page of the portal "
+            "(the \"Administration\" link in its footer goes the other way).</p>"
+
+            "<h2>Two administrator profiles</h2>"
+            "<p>Wappos distinguishes two levels of administrator account:</p>"
+            "<ul>"
+            "<li><strong>Superadmin</strong>: a member of the system <code>admins</code> group. Full, unrestricted access "
+            "to every function of this interface — that's you.</li>"
+            "<li><strong>Domain administrator</strong>: a member of the <code>wappos_domain_admins</code> group, never of "
+            "the <code>admins</code> group. A domain administrator only sees and manages what belongs to their domain(s): "
+            "their users, applications, permissions, and domain configuration. They have no access to any function "
+            "affecting the server as a whole (see the exclusion list further down).</li>"
+            "</ul>"
+            "<p>A domain administrator has no separate technical account: it is an ordinary user account, simply added to "
+            "the <code>wappos_domain_admins</code> group and then associated with one or more domains. See \"Creating a "
+            "domain administrator\" below for the full procedure.</p>"
+
+            "<h2>Dashboard (Home)</h2>"
+            "<p>The home page shows a shortcut menu to the main sections (Users, Domains, Applications, and for you only: "
+            "Groups and permissions, Diagnosis, Backups, System), plus a summary dashboard reserved for the superadmin: "
+            "disk space per volume, system service status, latest diagnosis result, failed system units, last backup "
+            "date, and number of available updates (apps and system). Every dashboard tile is clickable and leads "
+            "straight to the corresponding page for more detail.</p>"
+
+            "<h2>Users</h2>"
+            "<p>Lists every account on the server. For you, each administrator account shows a badge (\"Superadmin\" or "
+            "\"Domain admin: &lt;domain(s)&gt;\"), and the list is sorted to bring administrator accounts to the top.</p>"
+            "<h3>Creating an account</h3>"
+            "<p>From the bottom of the Users page: username, mail domain, full name and initial password. The username "
+            "may only contain lowercase letters, digits, dots and underscores.</p>"
+            "<h3>Editing an account</h3>"
+            "<p>Click an account in the list to land directly on its edit page: full name, primary email address, "
+            "aliases and forwarding addresses, mailbox quota, public SSH keys (add/remove), password reset, and account "
+            "deletion (with an option to purge its data).</p>"
+            "<h3>CSV export / import</h3>"
+            "<p>CSV export downloads the account list (filtered to your domains if you were a domain admin — not "
+            "relevant to you as superadmin, who always get the full list). CSV import, <strong>reserved to the "
+            "superadmin</strong>, lets you bulk-create, update or delete accounts from a file, with confirmation options "
+            "for updates and deletions.</p>"
+
+            "<h2>Groups and permissions</h2>"
+            "<p>This section is <strong>entirely reserved to the superadmin</strong> — a domain administrator has no "
+            "access to it at all, even for their own domain's users or permissions.</p>"
+            "<h3>Groups</h3>"
+            "<p>System groups (\"Administrator accounts\", \"Domain administrators\", \"All accounts\", \"Visitors\") and "
+            "any custom groups you create are listed at the top of the page. Any custom group can be deleted (except "
+            "system groups and the <code>wappos_domain_admins</code> group, protected from deletion so as not to break "
+            "the scoped-administration mechanism). For each group, you can manage its members and, further down the page, "
+            "the app permissions granted to it.</p>"
+            "<h3 id=\"admin-domaine\">Creating a domain administrator</h3>"
+            "<ol>"
+            "<li>Create a normal user account from the Users page (or use an existing one).</li>"
+            "<li>On the Groups page, open the \"Domain administrators\" card and add that account as a member of the "
+            "<code>wappos_domain_admins</code> group.</li>"
+            "<li>Still in that same card, check the domain(s) this account should administer, then save. It is this "
+            "assignment — not mere group membership — that actually determines which domains, users and applications this "
+            "account will be able to see and manage.</li>"
+            "</ol>"
+            "<p>An account that belongs to <code>wappos_domain_admins</code> but has no domain assigned can log in to "
+            "this interface, but won't see any usable data until a domain is assigned to it.</p>"
+            "<h3>Application permissions</h3>"
+            "<p>Every installed application exposes one or more permissions (usually \"main\", sometimes \"admin\" or "
+            "others depending on the app). From the Groups page or from an application's detail page, you choose which "
+            "groups or individual accounts may access it, and set its display properties (label, tile visibility on the "
+            "portal, custom logo).</p>"
+
+            "<h2>Domains</h2>"
+            "<p>Lists every configured domain and subdomain, with its HTTPS certificate status. Clicking a domain opens "
+            "its detail page: configuration, available actions, certificate management (install, renew), app-specific "
+            "config panels, and domain deletion (with an option to also remove its applications).</p>"
+            "<h3>Adding a domain</h3>"
+            "<p>The domain must already point to this server at the DNS level. A Let's Encrypt certificate can be "
+            "installed automatically on creation. For Wappos/YunoHost DynDNS domains (<code>*.nohost.me</code>, "
+            "<code>*.noho.st</code>, <code>*.ynh.fr</code>), an optional recovery password can be set.</p>"
+            "<h3>Pushing DNS records</h3>"
+            "<p>When the domain's registrar supports it, a button lets you automatically push the required DNS records "
+            "(with a dry-run mode before actually applying).</p>"
+
+            "<h2 id=\"reseau-local\">Local network access</h2>"
+            "<p>This section, on the Domains page, makes Wappos reachable from the local network by a simple name (e.g. "
+            "<code>wappos.lan</code>) instead of the server's IP address — handy for internal uses that don't need "
+            "Internet exposure. It is entirely reserved to the superadmin.</p>"
+            "<h3>Without installing anything: .local domains</h3>"
+            "<p>Without any extra installation, you can add a domain ending in <code>.local</code> via the general \"Add "
+            "a domain\" form at the top of the page. Resolution then relies on automatic network discovery (mDNS/"
+            "Bonjour), a standard mechanism already built into most computers (Windows, macOS, Linux). Known, "
+            "non-bypassable limitation of this mechanism: <strong>Android does not support mDNS reliably</strong>, which "
+            "generally makes these domains unreachable from an Android phone or tablet on the local network.</p>"
+            "<h3>Reliable on every device: AdGuard Home</h3>"
+            "<p>For reliable local access including from Android, install AdGuard Home (available in the app catalog). "
+            "Once installed, the \"Local network access\" card on the Domains page lets you enable local access in one "
+            "click (a <code>wappos.lan</code> domain is created automatically), then add more <code>.lan</code> domains "
+            "as needed. Each added <code>.lan</code> domain creates a DNS rewrite in AdGuard Home, which then answers "
+            "directly with the server's local IP address to any device on the network using it as a DNS server (mDNS is "
+            "no longer involved, which is why it's reliable on Android). Removing a local domain also automatically "
+            "removes its associated DNS rewrite.</p>"
+
+            "<h2>Applications</h2>"
+            "<h3>YunoHost applications</h3>"
+            "<p>Lists applications installed natively through YunoHost (excluding Docker Gate apps and Wappos's own "
+            "internal apps, which aren't shown here). For each application: upgrade, change domain/path, rename its "
+            "label, manage its permissions and authorized groups, app-specific config panels and actions, raw technical "
+            "settings (reserved for advanced cases), and removal (with an option to purge its data). A domain "
+            "administrator can perform all of these actions on an application already installed on one of their domains, "
+            "including removing it — only installing a new application (\"Browse the catalog\") and the cross-domain "
+            "technical toggle remain reserved to the superadmin.</p>"
+            "<h3>Docker Gate</h3>"
+            "<p>Docker Gate is the in-house tool that lets you install extra applications packaged with Docker, even when "
+            "no native YunoHost package exists for them. From this section: adding a new Docker app (guided wizard: "
+            "subdomain, path, visibility, resources), starting/stopping/restarting the container, viewing live logs and "
+            "resource stats, updating the image, editing configuration (image, port, data path, environment variables, "
+            "CPU/memory limits, LDAP integration), changing domain, and removal. A dedicated audit page lists orphan "
+            "containers, volumes and networks, stale images, and, if needed, lets you fully uninstall Docker CE from the "
+            "machine.</p>"
+            "<p>As with YunoHost applications, a domain administrator only sees and manages Docker applications installed "
+            "on their own domain(s) (list, actions, editing, removal); they cannot create a Docker application on a "
+            "domain they don't own. The audit page (orphan containers/volumes/networks, uninstalling Docker CE) covers "
+            "the whole machine, with no notion of domain: it is reserved to the superadmin.</p>"
+
+            "<h2>Diagnosis</h2>"
+            "<p><strong>Reserved to the superadmin.</strong> Shows YunoHost's system diagnosis reports (DNS, "
+            "certificates, mail, security, services, etc.), lets you re-run a full or per-category diagnosis, and lets "
+            "you ignore/unignore reports that aren't relevant to your setup.</p>"
+
+            "<h2>Backups</h2>"
+            "<p><strong>Reserved to the superadmin</strong> — a domain administrator has no access to backups at all, "
+            "even for their own domains. This page lets you create an archive (full or limited to specific apps), browse "
+            "the history of existing archives with their detailed content, download, restore or delete an archive, "
+            "configure an automatic schedule (frequency, scope, retention period), and preview which archives the "
+            "current retention policy would prune.</p>"
+
+            "<h2>Security</h2>"
+            "<p><strong>Reserved to the superadmin.</strong> Lets you enable or disable SSH password authentication (key-"
+            "based login always remains possible), and shows a security summary (root password age, etc.).</p>"
+
+            "<h2>System</h2>"
+            "<p>This whole menu is <strong>reserved to the superadmin</strong>.</p>"
+            "<ul>"
+            "<li><strong>Updates</strong>: lists applications and system categories to update, with the update itself "
+            "launchable from the page.</li>"
+            "<li><strong>Migrations</strong>: lists pending or already-run YunoHost migrations, with the ability to run "
+            "them (one at a time or all) after accepting the corresponding warning.</li>"
+            "<li><strong>Regenerate configuration</strong>: forces YunoHost to reapply its system configuration (dry-run "
+            "or real application).</li>"
+            "<li><strong>Root password</strong>, <strong>reboot</strong> and <strong>shutdown</strong> of the server: "
+            "these three actions require typing a confirmation word before proceeding, given their immediate impact on "
+            "the whole server and every one of its users.</li>"
+            "<li><strong>Services</strong>: list of systemd services and Wappos services, with detail, logs, and per-"
+            "service start/stop/restart/enable/disable actions.</li>"
+            "<li><strong>Logs</strong>: history of operations performed by YunoHost, browsable by day, with the ability "
+            "to share an individual log via YunoHost's secure paste service.</li>"
+            "<li><strong>Firewall</strong>: status of open TCP/UDP ports, enabling/disabling UPnP, opening or closing "
+            "ports.</li>"
+            "<li><strong>Storage</strong>: list of disks and mount points with their usage, and SMART reports for disk "
+            "health.</li>"
+            "<li><strong>Performance</strong>: a monitoring dashboard (Prometheus) for Wappos's own components (portal, "
+            "admin interface, API) — requires a dedicated Prometheus credential to have been configured on the server, "
+            "otherwise the page simply reports it as unavailable.</li>"
+            "<li><strong>Advanced settings</strong>: YunoHost's global configuration panels, including backup "
+            "compression settings.</li>"
+            "</ul>"
+
+            "<h2>Footer</h2>"
+            "<p>Present at the bottom of every page once logged in: a link to this documentation, the interface's "
+            "version number, and a link to BYRTN.</p>"
+        ),
+    },
+
+    "page_body_documentation_domain_admin": {
+        "fr": (
+            "<h2>Votre rôle : administrateur de domaine</h2>"
+            "<p>Vous êtes connecté à Wappos Admin en tant qu'<strong>administrateur de domaine</strong> : vous gérez "
+            "uniquement ce qui appartient au(x) domaine(s) qui vous ont été attribués par le superadmin de ce serveur — "
+            "utilisateurs, applications, permissions et configuration de ce domaine. Vous n'êtes membre d'aucun groupe "
+            "d'administration système global, et vous n'avez accès à aucune fonction affectant le serveur dans son "
+            "ensemble.</p>"
+
+            "<h2>Ce que vous pouvez gérer</h2>"
+            "<h3>Utilisateurs</h3>"
+            "<p>La liste et les actions (création, modification, réinitialisation de mot de passe, clés SSH, "
+            "suppression, export CSV) ne portent que sur les comptes dont l'adresse mail appartient à votre ou vos "
+            "domaines.</p>"
+            "<h3>Domaines</h3>"
+            "<p>Vous voyez et gérez uniquement le ou les domaines qui vous ont été attribués (configuration, certificat, "
+            "envoi DNS, suppression). Vous pouvez aussi créer un nouveau domaine à condition que ce soit un "
+            "<strong>sous-domaine strict</strong> d'un domaine qui vous appartient déjà (par exemple "
+            "<code>boutique.mondomaine.fr</code> si <code>mondomaine.fr</code> vous appartient) — au-delà, la création "
+            "d'un domaine indépendant reste réservée au superadmin.</p>"
+            "<h3>Applications</h3>"
+            "<p>Vous gérez les applications déjà installées sur vos domaines : mise à jour, changement de domaine/chemin "
+            "(vers un domaine qui vous appartient également), renommage, permissions et groupes autorisés, panneaux de "
+            "configuration et actions spécifiques, réglages techniques bruts, et <strong>suppression</strong>. Seule "
+            "l'installation d'une nouvelle application depuis le catalogue reste réservée au superadmin.</p>"
+            "<h3>Permissions</h3>"
+            "<p>Pour les permissions des applications installées sur vos domaines : choix des groupes/comptes autorisés, "
+            "et réglages d'affichage (libellé, visibilité de la tuile, logo).</p>"
+            "<h3>Docker Gate</h3>"
+            "<p>Comme pour les applications YunoHost, vous ne voyez et ne gérez que les applications Docker installées "
+            "sur votre ou vos domaines, et ne pouvez pas en créer une nouvelle sur un domaine qui ne vous appartient pas. "
+            "La page d'audit Docker (nettoyage des conteneurs/volumes/réseaux orphelins, désinstallation de Docker CE) "
+            "porte sur la machine entière et vous est inaccessible.</p>"
+
+            "<h2>Ce que vous ne pouvez pas faire</h2>"
+            "<p>Les sections suivantes sont entièrement réservées au superadmin et n'apparaissent pas, ou renverront une "
+            "erreur d'accès si vous tentiez d'y accéder directement par leur adresse : Groupes et permissions (y compris "
+            "la gestion des groupes et l'attribution des domaines), Diagnostic, Sauvegardes, Sécurité, et tout le menu "
+            "Système (mises à jour, migrations, régénération de configuration, mot de passe root, redémarrage, arrêt, "
+            "services, journaux, pare-feu, stockage, performance, réglages avancés). L'installation d'une nouvelle "
+            "application, la bascule technique cross-domaine, l'ajout d'un domaine local (<code>.lan</code>) et l'import "
+            "CSV d'utilisateurs sont également réservés au superadmin.</p>"
+            "<p>Pour toute action bloquée qui vous semble nécessaire, contactez le superadmin de ce serveur.</p>"
+        ),
+        "en": (
+            "<h2>Your role: domain administrator</h2>"
+            "<p>You are logged in to Wappos Admin as a <strong>domain administrator</strong>: you only manage what "
+            "belongs to the domain(s) assigned to you by this server's superadmin — users, applications, permissions and "
+            "configuration for that domain. You are not a member of any global system administration group, and you have "
+            "no access to any function affecting the server as a whole.</p>"
+
+            "<h2>What you can manage</h2>"
+            "<h3>Users</h3>"
+            "<p>The list and its actions (creation, editing, password reset, SSH keys, deletion, CSV export) only cover "
+            "accounts whose email address belongs to your domain(s).</p>"
+            "<h3>Domains</h3>"
+            "<p>You see and manage only the domain(s) assigned to you (configuration, certificate, DNS push, deletion). "
+            "You can also create a new domain provided it is a <strong>strict subdomain</strong> of a domain you already "
+            "own (e.g. <code>shop.mydomain.com</code> if you own <code>mydomain.com</code>) — beyond that, creating an "
+            "independent domain remains reserved to the superadmin.</p>"
+            "<h3>Applications</h3>"
+            "<p>You manage applications already installed on your domains: upgrade, changing domain/path (to a domain "
+            "you also own), renaming, permissions and authorized groups, app-specific config panels and actions, raw "
+            "technical settings, and <strong>removal</strong>. Only installing a new application from the catalog "
+            "remains reserved to the superadmin.</p>"
+            "<h3>Permissions</h3>"
+            "<p>For permissions of applications installed on your domains: choosing authorized groups/accounts, and "
+            "display settings (label, tile visibility, logo).</p>"
+            "<h3>Docker Gate</h3>"
+            "<p>As with YunoHost applications, you only see and manage Docker applications installed on your own "
+            "domain(s), and cannot create a new one on a domain you don't own. The Docker audit page (cleaning up orphan "
+            "containers/volumes/networks, uninstalling Docker CE) covers the whole machine and is not accessible to "
+            "you.</p>"
+
+            "<h2>What you cannot do</h2>"
+            "<p>The following sections are entirely reserved to the superadmin and either won't appear, or will return "
+            "an access error if you tried to reach them directly by address: Groups and permissions (including group "
+            "management and domain assignment), Diagnosis, Backups, Security, and the entire System menu (updates, "
+            "migrations, configuration regeneration, root password, reboot, shutdown, services, logs, firewall, storage, "
+            "performance, advanced settings). Installing a new application, the cross-domain technical toggle, adding a "
+            "local (<code>.lan</code>) domain, and CSV user import are also reserved to the superadmin.</p>"
+            "<p>For anything blocked that you believe you need, contact this server's superadmin.</p>"
+        ),
+    },
 }
 
 

@@ -5,9 +5,6 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_migrations') }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
-
     <div class="alert alert-info">
       {{ t('migrations_intro')|safe }}
     </div>
@@ -59,7 +56,8 @@
         <div class="card-body">
           <ul class="migration-done-list">
             {% for m in done %}
-              <li>{{ m.description }} <span class="field-info">({{ m.state }})</span></li>
+              {% set state_class = 'migration-state-ok' if m.state == 'success' else ('migration-state-error' if m.state == 'error' else 'migration-state-other') %}
+              <li>{{ m.description }} <span class="migration-state-chip {{ state_class }}">{{ m.state }}</span></li>
             {% endfor %}
           </ul>
         </div>
@@ -84,4 +82,8 @@
     .migration-done-details summary::-webkit-details-marker { display: none; }
     .migration-done-list { margin: 0; padding-left: 1.25rem; font-size: 0.9rem; }
     .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
+    .migration-state-chip { font-size: 0.72rem; border-radius: 5px; padding: 0.1rem 0.45rem; margin-left: 0.3rem; }
+    .migration-state-ok { background: var(--color-message-bg); color: var(--color-message-text); }
+    .migration-state-error { background: var(--color-error-bg); color: var(--color-error-text); }
+    .migration-state-other { background: var(--color-hover-bg); color: var(--color-text-muted); }
 {% endblock %}

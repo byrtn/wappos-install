@@ -163,6 +163,9 @@ t() {
             step_roundcube_title) echo "Installation du webmail Wappos" ;;
             step_roundcube_why) echo "Permet de consulter vos mails depuis un navigateur." ;;
             success_roundcube) echo "Webmail installe" ;;
+            step_adminer_title) echo "Installation du gestionnaire de base de donnees Wappos" ;;
+            step_adminer_why) echo "Permet aux administrateurs d'acceder directement aux bases de donnees." ;;
+            success_adminer) echo "Gestionnaire de base de donnees installe" ;;
             step_agenda_title) echo "Installation de l'agenda Wappos" ;;
             step_agenda_why) echo "Permet de gerer vos rendez-vous et vos contacts." ;;
             success_agenda) echo "Agenda installe" ;;
@@ -258,6 +261,9 @@ t() {
             step_roundcube_title) echo "Installing the Wappos webmail" ;;
             step_roundcube_why) echo "Lets you read your mail from a browser." ;;
             success_roundcube) echo "Webmail installed" ;;
+            step_adminer_title) echo "Installing the Wappos database manager" ;;
+            step_adminer_why) echo "Lets administrators access databases directly." ;;
+            success_adminer) echo "Database manager installed" ;;
             step_agenda_title) echo "Installing the Wappos calendar" ;;
             step_agenda_why) echo "Lets you manage your appointments and contacts." ;;
             success_agenda) echo "Calendar installed" ;;
@@ -606,6 +612,18 @@ if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(
 CRON_EOF
 
     success_line "$(t success_roundcube)"
+fi
+
+if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'adminer' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then
+    step "$(t step_adminer_title)" "$(t step_adminer_why)"
+    quiet yunohost app install adminer --args "domain=$main_domain&path=/adminer&init_main_permission=admins"
+
+    bash "$script_dir/branding/adminer/apply-branding.sh"
+    cat > /etc/cron.d/wappos-adminer-branding <<CRON_EOF
+@daily root bash $script_dir/branding/adminer/apply-branding.sh >/dev/null 2>&1
+CRON_EOF
+
+    success_line "$(t success_adminer)"
 fi
 
 if ! yunohost app list --output-as json | python3 -c "import json,sys; sys.exit(0 if 'nextcloud' in [a['id'] for a in json.load(sys.stdin)['apps']] else 1)"; then

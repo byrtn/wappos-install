@@ -6,9 +6,7 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_backups') }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
-
+    {% if is_superadmin %}
     <div class="card create-card">
       <div class="card-header"><h3>{{ t('h3_auto_backup_cleanup') }}</h3></div>
       <div class="card-body">
@@ -71,6 +69,7 @@
         <p class="field-info" style="margin: 0.5rem 0 0;">{{ t('help_backup_schedule') }}</p>
       </div>
     </div>
+    {% endif %}
 
     {% if compression_section %}
       <div class="card create-card">

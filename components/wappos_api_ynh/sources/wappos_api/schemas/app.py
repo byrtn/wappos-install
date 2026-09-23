@@ -8,6 +8,7 @@ from pydantic import BaseModel
 class AppInfo(BaseModel):
     id: str
     name: str
+    label: str
     description: str
     version: str
     domain_path: str | None = None

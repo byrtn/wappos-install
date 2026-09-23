@@ -1,0 +1,6 @@
+#!/bin/bash
+set -eu
+
+if [ -f /etc/yunohost/wappos_domain_smtp_relay.json ]; then
+    python3 /opt/yunohost/wappos_api/scripts/smtp_relay.py ensure-infrastructure || true
+fi

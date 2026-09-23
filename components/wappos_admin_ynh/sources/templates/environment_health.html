@@ -1,0 +1,89 @@
+{% extends "base.html" %}
+{% set active_tab = "environment" %}
+{% block title %}{{ t('title_environment_health') }}{% endblock %}
+
+{% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_environment_health') }}</span>{% endblock %}
+
+{% block content %}
+    <div class="card create-card">
+      <div class="card-header"><h3>{{ t('h3_certificates') }}</h3></div>
+      <ul class="fw-port-list">
+        {% for domain, cert in certificates.items() %}
+          <li class="fw-port-row">
+            <div class="fw-port-line">
+              <span class="fw-port-num">{{ domain }}</span>
+              <span class="info-chip info-chip-{{ cert.style or 'unknown' }}">{{ cert.summary or cert.CA_type }}</span>
+              {% if cert.validity is not none %}<span class="field-info">{{ t('cert_days_left', days=cert.validity) }}</span>{% endif %}
+            </div>
+          </li>
+        {% else %}
+          <li class="fw-port-row fw-port-empty">{{ t('no_domain_in_scope') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>{{ t('h3_diagnosis_summary') }}</h3></div>
+      <div class="card-body">
+        <p style="margin: 0;">
+          <span class="info-chip info-chip-{{ 'danger' if diag_error_count else 'success' }}">{{ t('count_errors', n=diag_error_count) }}</span>
+          <span class="info-chip info-chip-{{ 'warning' if diag_warning_count else 'success' }}">{{ t('count_warnings', n=diag_warning_count) }}</span>
+        </p>
+        <p class="field-info" style="margin: 0.5rem 0 0;"><a href="{{ url_for('diagnosis') }}">{{ t('link_view_full_diagnosis') }}</a></p>
+      </div>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>{{ t('h3_disk_usage_by_app') }}</h3></div>
+      <p class="field-info" style="margin: 0 1.5rem 0.5rem;">{{ t('disk_usage_help') }}</p>
+      <ul class="fw-port-list">
+        {% for a in app_disk_usage %}
+          <li class="fw-port-row">
+            <div class="fw-port-line">
+              <span class="fw-port-num">{{ a.label }}</span>
+              <span class="field-info">{{ a.bytes|filesizeformat }}</span>
+            </div>
+          </li>
+        {% else %}
+          <li class="fw-port-row fw-port-empty">{{ t('no_disk_usage_data') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+
+    <div class="card create-card">
+      <div class="card-header"><h3>{{ t('h3_docker_containers') }}</h3></div>
+      <ul class="fw-port-list">
+        {% for a in docker_apps %}
+          <li class="fw-port-row">
+            <div class="fw-port-line">
+              <span class="fw-port-num">{{ a.slug }}</span>
+              {% if a.container_status %}
+                <span class="info-chip info-chip-{{ 'success' if a.container_status == 'running' else 'warning' }}">{{ a.container_status }}</span>
+              {% elif a.container_missing %}
+                <span class="info-chip info-chip-danger">{{ t('container_not_found') }}</span>
+              {% endif %}
+              <span class="field-info">{{ a.domain }}{{ a.path if a.path != '/' else '' }}</span>
+            </div>
+          </li>
+        {% else %}
+          <li class="fw-port-row fw-port-empty">{{ t('no_docker_container') }}</li>
+        {% endfor %}
+      </ul>
+    </div>
+{% endblock %}
+
+{% block extra_style %}
+    .card { margin-bottom: 1.25rem; }
+    .fw-port-list { list-style: none; margin: 0; padding: 0.25rem 1.5rem 0.75rem; }
+    .fw-port-row { padding: 0.7rem 0; border-bottom: 1px solid var(--color-border); }
+    .fw-port-row:last-child { border-bottom: none; }
+    .fw-port-empty { color: var(--color-text-muted); font-size: 0.85rem; }
+    .fw-port-line { display: flex; align-items: center; flex-wrap: wrap; gap: 0.5rem; }
+    .fw-port-num { font-weight: 600; }
+    .field-info { color: var(--color-text-muted); font-size: 0.8rem; }
+    .info-chip { display: inline-block; border-radius: 5px; padding: 0.15rem 0.55rem; font-size: 0.78rem; }
+    .info-chip-success { background: #e8f5e9; color: #1a4d24; }
+    .info-chip-warning { background: #fff3cd; color: #6b4e00; }
+    .info-chip-danger { background: #fbe9e7; color: #7a1f00; }
+    .info-chip-unknown { background: var(--color-hover-bg); color: var(--color-text); }
+{% endblock %}

@@ -5,14 +5,12 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">{{ t('nav_docker_apps') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_logs_slug', slug=slug) }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
-
     <div class="quick-add-row" style="gap: 0.6rem;">
       <a href="{{ url_for('docker_logs', slug=slug, tail=tail) }}" class="btn">{{ t('btn_refresh') }}</a>
       <a href="{{ url_for('docker_logs', slug=slug, tail=tail * 5) }}" class="btn">{{ t('btn_see_more_lines', n=(tail * 5)) }}</a>
     </div>
 
-    <div class="card create-card">
+    <div class="card create-card card-default-open">
       <div class="card-header"><h3>{{ t('h3_live_resources') }}</h3></div>
       <div class="card-body">
         <div id="stats-content" class="stats-grid">
@@ -21,7 +19,7 @@
       </div>
     </div>
 
-    <div class="card create-card">
+    <div class="card create-card card-default-open">
       <div class="card-header"><h3>{{ t('h3_last_n_lines', n=tail) }}</h3></div>
       <div class="card-body">
         {% if logs %}
@@ -34,6 +32,7 @@
 {% endblock %}
 
 {% block extra_style %}
+    .card.create-card { margin-bottom: 1.25rem; }
     .field-info { color: var(--color-text-muted); font-size: 0.85rem; }
     .docker-logs-output { max-height: 70vh; overflow: auto; background: var(--color-hover-bg); padding: 0.75rem;
                            border-radius: 6px; font-size: 0.8rem; white-space: pre-wrap; word-break: break-word; }

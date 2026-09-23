@@ -11,14 +11,14 @@
     </div>
     <ul class="app-list" id="app-list">
       {% for a in apps %}
-        <li class="app-item" data-search="{{ (a.name ~ ' ' ~ a.id ~ ' ' ~ (a.description or ''))|lower }}">
+        <li class="app-item" data-search="{{ (a.label ~ ' ' ~ a.name ~ ' ' ~ a.id ~ ' ' ~ (a.description or ''))|lower }}">
           <div class="app-item-main">
             {% if a.logo_hash %}
               <img src="{{ url_for('app_logo_asset', filename=a.logo_hash ~ '.png') }}" alt="" class="app-item-logo">
             {% else %}
-              <span class="app-item-logo app-item-logo-placeholder">{{ a.name[:1]|upper }}</span>
+              <span class="app-item-logo app-item-logo-placeholder">{{ (a.label or a.name)[:1]|upper }}</span>
             {% endif %}
-            <strong><a href="{{ url_for('app_detail', app_id=a.id) }}">{{ a.name }}</a></strong>
+            <strong><a href="{{ url_for('app_detail', app_id=a.id) }}">{{ a.label or a.name }}</a></strong>
             <span class="app-item-id">{{ a.id }}</span>
           </div>
           {% if a.description %}<p class="app-item-description">{{ a.description }}</p>{% endif %}
@@ -55,12 +55,14 @@
                       <label for="logo-{{ p.id }}">{{ t('label_logo_png') }}</label>
                       <input type="file" id="logo-{{ p.id }}" name="logo" accept="image/png">
                     </div>
-                    <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; margin-right: 1rem; font-size: 0.85rem;">
-                      <input type="checkbox" name="show_tile" {{ "checked" if p.show_tile else "" }}> {{ t('checkbox_show_tile') }}
-                    </label>
-                    <label style="display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; font-size: 0.85rem;">
-                      <input type="checkbox" name="hide_from_public" {{ "checked" if p.hide_from_public else "" }}> {{ t('checkbox_hide_from_public') }}
-                    </label>
+                    <div class="inline-field-row">
+                      <label class="checkbox-field">
+                        <input type="checkbox" name="show_tile" {{ "checked" if p.show_tile else "" }}> <span>{{ t('checkbox_show_tile') }}</span>
+                      </label>
+                      <label class="checkbox-field">
+                        <input type="checkbox" name="hide_from_public" {{ "checked" if p.hide_from_public else "" }}> <span>{{ t('checkbox_hide_from_public') }}</span>
+                      </label>
+                    </div>
                     <div style="margin-top: 0.75rem;">
                       <button type="submit" class="btn">{{ t('btn_save') }}</button>
                     </div>
@@ -89,6 +91,7 @@
     }
     .app-list { list-style: none; margin: 0; padding: 0; }
     .app-item { background: var(--color-card-bg); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+                border-left: 4px solid var(--color-link);
                 padding: 1rem 1.5rem; margin-bottom: 0.75rem; }
     .app-item-main { display: flex; align-items: center; gap: 0.5rem; }
     .app-item-logo { width: 2rem; height: 2rem; border-radius: 6px; object-fit: contain; flex-shrink: 0; }

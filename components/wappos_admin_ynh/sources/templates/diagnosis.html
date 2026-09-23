@@ -5,8 +5,6 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_diagnosis') }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="alert alert-danger">{{ error }}</div>{% endif %}
-    {% if message %}<div class="alert alert-success">{{ message }}</div>{% endif %}
         <div class="alert alert-info">
       {% if reports %}
         {{ t('diagnosis_intro_with_reports') }}
@@ -24,11 +22,13 @@
           <button type="submit" class="btn">{{ t('btn_run_never_run_category') }}</button>
         </form>
       {% endif %}
+      {% if is_superadmin %}
       <div style="display: flex; justify-content: flex-end; margin-top: 0.75rem;">
-        <form class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}">
+        <form id="diag-run-full-form" class="diag-run-form" data-custom-loading method="post" action="{{ url_for('run_diagnosis') }}">
           <button type="submit" class="btn">{{ t('btn_run_full_diagnosis') if reports else t('btn_start_initial_diagnosis') }}</button>
         </form>
       </div>
+      {% endif %}
     </div>
 
     <div id="diag-progress-overlay" class="diag-progress-overlay" style="display: none;">
@@ -93,7 +93,7 @@
 {% endblock %}
 
 {% block extra_style %}
-    .diag-card { padding: 0; margin-bottom: 1rem; overflow: visible; }
+    .diag-card { padding: 0; margin-bottom: 1rem; overflow: visible; border-left: none; }
     .diag-header { display: flex; align-items: center; gap: 0.6rem; padding: 1rem 1.5rem; cursor: pointer;
                    list-style: none; flex-wrap: wrap; }
     .diag-header::-webkit-details-marker { display: none; }

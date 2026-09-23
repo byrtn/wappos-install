@@ -5,7 +5,7 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">{{ t('nav_docker_apps') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('breadcrumb_confirm') }}</span>{% endblock %}
 
 {% block content %}
-    <div class="card create-card">
+    <div class="card create-card card-default-open">
       <div class="card-header"><h3>{{ t('h3_check_before_install') }}</h3></div>
       <div class="card-body">
         <ul class="confirm-list">

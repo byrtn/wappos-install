@@ -18,15 +18,19 @@ from wappos_api import locale_context
 from wappos_api.config import settings
 from wappos_api.connectors import adguard as adguard_connector
 from wappos_api.connectors import admin as admin_connector
+from wappos_api.connectors import domain_owners as domain_owners_connector
 from wappos_api.connectors import domains_public as domains_public_connector
 from wappos_api.connectors import portal as portal_connector
 from wappos_api.connectors import cross_domain as cross_domain_connector
+from wappos_api.connectors import smtp_relay as smtp_relay_connector
 from wappos_api.connectors import security_status as security_status_connector
 from wappos_api.connectors import ssh_access as ssh_access_connector
-from wappos_api.errors import UpstreamValidationError, WapposApiError
+from wappos_api import scope as scope_module
+from wappos_api.errors import ForbiddenError, UpstreamValidationError, WapposApiError
 from wappos_api.schemas.adguard import AdguardRewrite, AdguardRewriteRequest, AdguardStatus
 from wappos_api.schemas.admin import (
     AdminLoginRequest,
+    AdminSessionInfo,
     AdminTokenResponse,
     CreateUserRequest,
     UpdateUserRequest,
@@ -35,6 +39,12 @@ from wappos_api.schemas.app import AppCatalog, AppDetail, AppInfo, AppManifest
 from wappos_api.schemas.backup import BackupCreateRequest, BackupRestoreRequest
 from wappos_api.schemas.diagnosis import DiagnosisIgnoreRequest, DiagnosisReport
 from wappos_api.schemas.domain import DomainCertificate, DomainDetail, LocalDomainRequest, LocalDomainResult
+from wappos_api.schemas.domain_owner import (
+    DomainOwnersResponse,
+    DomainOwnersUpdateRequest,
+    PrimaryDomainResponse,
+    PrimaryDomainUpdateRequest,
+)
 from wappos_api.schemas.firewall import FirewallRules
 from wappos_api.schemas.group import (
     CreateGroupRequest,
@@ -53,9 +63,11 @@ from wappos_api.schemas.portal import PortalLoginRequest, PortalLogoutResponse, 
 from wappos_api.schemas.service import ServiceInfo
 from wappos_api.schemas.cross_domain import CrossDomainStatus
 from wappos_api.schemas.security_status import SecurityOverview
+from wappos_api.schemas.smtp_relay import DomainSmtpRelay, DomainSmtpRelayRequest
 from wappos_api.schemas.ssh_access import SshAccessStatus
 from wappos_api.schemas.storage import DiskInfo, MountInfo, SmartReport
 from wappos_api.schemas.system import SystemHealth, WapposComponentVersion
+from wappos_api.schemas.tls_passthrough import TlsPassthroughEntry, TlsPassthroughInfo, TlsPassthroughUpdateRequest
 from wappos_api.schemas.tools import (
     Migration,
     MigrationRunRequest,
@@ -237,16 +249,26 @@ def portal_domains() -> list[str]:
 @app.post("/admin/login", response_model=AdminTokenResponse)
 def admin_login(payload: AdminLoginRequest) -> AdminTokenResponse:
     try:
-        token = admin_connector.login(payload.user, payload.password)
+        token = admin_connector.login(payload.user, payload.password, login_domain=payload.login_domain)
     except WapposApiError as exc:
         _raise_as_http(exc)
     return AdminTokenResponse(token=token)
 
 
+@app.get("/admin/session", response_model=AdminSessionInfo)
+def admin_session(x_admin_token: str = Header()) -> AdminSessionInfo:
+    try:
+        scope = scope_module.resolve_scope(x_admin_token)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return AdminSessionInfo(is_superadmin=scope is None, owned_domains=scope or [])
+
+
 @app.get("/admin/users", response_model=list[User])
 def admin_users(x_admin_token: str = Header()) -> list[User]:
     try:
-        return admin_connector.list_users(x_admin_token)
+        scope = scope_module.resolve_scope(x_admin_token)
+        return scope_module.filter_users(admin_connector.list_users(x_admin_token), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -254,6 +276,7 @@ def admin_users(x_admin_token: str = Header()) -> list[User]:
 @app.post("/admin/users", status_code=204)
 def admin_create_user(payload: CreateUserRequest, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_domain_in_scope(payload.domain, scope_module.resolve_scope(x_admin_token))
         admin_connector.create_user(
             x_admin_token,
             username=payload.username,
@@ -270,6 +293,7 @@ def admin_create_user(payload: CreateUserRequest, x_admin_token: str = Header())
 @app.put("/admin/users/{username}", status_code=204)
 def admin_update_user(username: str, payload: UpdateUserRequest, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_user_in_scope(x_admin_token, username, scope_module.resolve_scope(x_admin_token))
         admin_connector.update_user(x_admin_token, username, **payload.model_dump(exclude_unset=True))
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -279,6 +303,7 @@ def admin_update_user(username: str, payload: UpdateUserRequest, x_admin_token: 
 @app.delete("/admin/users/{username}", status_code=204)
 def admin_delete_user(username: str, purge: bool = False, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_user_in_scope(x_admin_token, username, scope_module.resolve_scope(x_admin_token))
         admin_connector.delete_user(x_admin_token, username, purge=purge)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -288,6 +313,7 @@ def admin_delete_user(username: str, purge: bool = False, x_admin_token: str = H
 @app.get("/admin/users/{username}/ssh-keys", response_model=list[SshKey])
 def admin_user_ssh_keys(username: str, x_admin_token: str = Header()) -> list[SshKey]:
     try:
+        scope_module.require_user_in_scope(x_admin_token, username, scope_module.resolve_scope(x_admin_token))
         return admin_connector.list_user_ssh_keys(x_admin_token, username)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -296,6 +322,7 @@ def admin_user_ssh_keys(username: str, x_admin_token: str = Header()) -> list[Ss
 @app.post("/admin/users/{username}/ssh-keys", status_code=204)
 def admin_add_user_ssh_key(username: str, payload: SshKeyAddRequest, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_user_in_scope(x_admin_token, username, scope_module.resolve_scope(x_admin_token))
         admin_connector.add_user_ssh_key(x_admin_token, username, payload.key, comment=payload.comment)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -307,6 +334,7 @@ def admin_remove_user_ssh_key(
     username: str, payload: SshKeyRemoveRequest, x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope_module.require_user_in_scope(x_admin_token, username, scope_module.resolve_scope(x_admin_token))
         admin_connector.remove_user_ssh_key(x_admin_token, username, payload.key)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -316,7 +344,8 @@ def admin_remove_user_ssh_key(
 @app.get("/admin/domains", response_model=list[str])
 def admin_domains(full: bool = False, x_admin_token: str = Header()) -> list[str]:
     try:
-        return admin_connector.list_domain_names(x_admin_token, full=full)
+        scope = scope_module.resolve_scope(x_admin_token)
+        return scope_module.filter_domains(admin_connector.list_domain_names(x_admin_token, full=full), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -324,7 +353,13 @@ def admin_domains(full: bool = False, x_admin_token: str = Header()) -> list[str
 @app.get("/admin/domains/certificates", response_model=dict[str, DomainCertificate])
 def admin_domains_certificates(x_admin_token: str = Header()) -> dict:
     try:
-        return admin_connector.get_certificates_status(x_admin_token)
+        scope = scope_module.resolve_scope(x_admin_token)
+        certificates = admin_connector.get_certificates_status(x_admin_token)
+        return {
+            domain: detail
+            for domain, detail in certificates.items()
+            if scope_module.domain_in_scope(domain, scope)
+        }
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -332,14 +367,48 @@ def admin_domains_certificates(x_admin_token: str = Header()) -> dict:
 @app.get("/admin/domains/{domain}", response_model=DomainDetail)
 def admin_domain_detail(domain: str, x_admin_token: str = Header()) -> DomainDetail:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_domain_detail(x_admin_token, domain)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
 
+@app.get("/admin/domains/{domain}/smtp-relay", response_model=DomainSmtpRelay | None)
+def admin_domain_smtp_relay(domain: str, x_admin_token: str = Header()) -> DomainSmtpRelay | None:
+    try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
+        relay = smtp_relay_connector.get_relay(domain)
+        return DomainSmtpRelay(**relay) if relay else None
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.put("/admin/domains/{domain}/smtp-relay", status_code=204)
+def admin_set_domain_smtp_relay(
+    domain: str, payload: DomainSmtpRelayRequest, x_admin_token: str = Header()
+) -> Response:
+    try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
+        smtp_relay_connector.set_relay(domain, payload.host, payload.port, payload.user, payload.password)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return Response(status_code=204)
+
+
+@app.delete("/admin/domains/{domain}/smtp-relay", status_code=204)
+def admin_remove_domain_smtp_relay(domain: str, x_admin_token: str = Header()) -> Response:
+    try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
+        smtp_relay_connector.remove_relay(domain)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return Response(status_code=204)
+
+
 @app.get("/admin/domains/{domain}/config")
 def admin_domain_config(domain: str, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_domain_config(x_admin_token, domain)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -348,6 +417,7 @@ def admin_domain_config(domain: str, x_admin_token: str = Header()) -> dict:
 @app.get("/admin/domains/{domain}/dns/suggest")
 def admin_domain_dns_suggest(domain: str, x_admin_token: str = Header()) -> dict[str, str]:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         return {"suggestion": admin_connector.get_domain_dns_suggestion(x_admin_token, domain)}
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -358,6 +428,7 @@ def admin_set_domain_config(
     domain: str, panel_key: str, args: str = Body(..., embed=True), x_admin_token: str = Header()
 ) -> dict:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         return admin_connector.set_domain_config(x_admin_token, domain, panel_key, args)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -366,6 +437,7 @@ def admin_set_domain_config(
 @app.put("/admin/domains/{domain}/main", status_code=204)
 def admin_set_main_domain(domain: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.set_main_domain(x_admin_token, domain)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -381,6 +453,7 @@ def admin_install_domain_certificate(
     x_admin_token: str = Header(),
 ) -> Response:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         admin_connector.install_domain_certificate(
             x_admin_token, domain, force=force, self_signed=self_signed, no_checks=no_checks
         )
@@ -394,6 +467,7 @@ def admin_renew_domain_certificate(
     domain: str, force: bool = False, email: bool = False, no_checks: bool = False, x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         admin_connector.renew_domain_certificate(x_admin_token, domain, force=force, email=email, no_checks=no_checks)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -408,15 +482,73 @@ def admin_add_domain(
     x_admin_token: str = Header(),
 ) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
         admin_connector.add_domain(
             x_admin_token,
             domain,
             install_letsencrypt_cert=install_letsencrypt_cert,
             dyndns_recovery_password=dyndns_recovery_password,
         )
+        inherited = domain_owners_connector.inherit_ownership_for_new_domain(domain)
+        if scope is not None and not inherited:
+            username = admin_connector.resolve_caller_username(x_admin_token)
+            if username:
+                domain_owners_connector.add_owner(domain, username)
     except WapposApiError as exc:
         _raise_as_http(exc)
     return Response(status_code=204)
+
+
+@app.get("/admin/domain-owners", response_model=dict[str, list[str]])
+def admin_list_domain_owners(x_admin_token: str = Header()) -> dict[str, list[str]]:
+    try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return domain_owners_connector.list_owners()
+
+
+@app.get("/admin/domain-owners/{domain}", response_model=DomainOwnersResponse)
+def admin_get_domain_owners(domain: str, x_admin_token: str = Header()) -> DomainOwnersResponse:
+    try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return DomainOwnersResponse(domain=domain, owners=domain_owners_connector.get_owners(domain))
+
+
+@app.put("/admin/domain-owners/{domain}", response_model=DomainOwnersResponse)
+def admin_set_domain_owners(
+    domain: str, payload: DomainOwnersUpdateRequest, x_admin_token: str = Header()
+) -> DomainOwnersResponse:
+    try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
+        domain_owners_connector.require_known_domain_format(domain)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    domain_owners_connector.set_owners(domain, payload.owners)
+    return DomainOwnersResponse(domain=domain, owners=domain_owners_connector.get_owners(domain))
+
+
+@app.get("/admin/domain-admins/{username}/primary-domain", response_model=PrimaryDomainResponse)
+def admin_get_primary_domain(username: str, x_admin_token: str = Header()) -> PrimaryDomainResponse:
+    try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return PrimaryDomainResponse(username=username, domain=domain_owners_connector.get_primary_domain(username))
+
+
+@app.put("/admin/domain-admins/{username}/primary-domain", response_model=PrimaryDomainResponse)
+def admin_set_primary_domain(
+    username: str, payload: PrimaryDomainUpdateRequest, x_admin_token: str = Header()
+) -> PrimaryDomainResponse:
+    try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
+        domain_owners_connector.set_primary_domain(username, payload.domain)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return PrimaryDomainResponse(username=username, domain=domain_owners_connector.get_primary_domain(username))
 
 
 @app.delete("/admin/domains/{domain}", status_code=204)
@@ -428,12 +560,14 @@ def admin_remove_domain(
     x_admin_token: str = Header(),
 ) -> Response:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         admin_connector.remove_domain(
             x_admin_token, domain, remove_apps=remove_apps, ignore_dyndns=ignore_dyndns,
             dyndns_recovery_password=dyndns_recovery_password,
         )
     except WapposApiError as exc:
         _raise_as_http(exc)
+    domain_owners_connector.set_owners(domain, [])
     return Response(status_code=204)
 
 
@@ -455,6 +589,7 @@ def _check_local_domain_name(domain: str) -> None:
 def admin_add_local_domain(payload: LocalDomainRequest, x_admin_token: str = Header()) -> LocalDomainResult:
     _check_local_domain_name(payload.domain)
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.add_domain(x_admin_token, payload.domain)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -474,6 +609,10 @@ def admin_add_local_domain(payload: LocalDomainRequest, x_admin_token: str = Hea
 @app.delete("/admin/local-domains/{domain}", response_model=LocalDomainResult)
 def admin_remove_local_domain(domain: str, x_admin_token: str = Header()) -> LocalDomainResult:
     _check_local_domain_name(domain)
+    try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
+    except WapposApiError as exc:
+        _raise_as_http(exc)
 
     adguard_rewrite_removed = None
     if adguard_connector.is_installed():
@@ -496,6 +635,7 @@ def admin_push_domain_dns(
     domain: str, dry_run: bool = True, force: bool = False, purge: bool = False, x_admin_token: str = Header()
 ) -> dict:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         return admin_connector.push_domain_dns(x_admin_token, domain, dry_run=dry_run, force=force, purge=purge)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -504,7 +644,7 @@ def admin_push_domain_dns(
 @app.get("/admin/adguard/status", response_model=AdguardStatus)
 def admin_adguard_status(x_admin_token: str = Header()) -> AdguardStatus:
     try:
-        admin_connector.list_domain_names(x_admin_token)
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return AdguardStatus(installed=adguard_connector.is_installed())
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -513,7 +653,7 @@ def admin_adguard_status(x_admin_token: str = Header()) -> AdguardStatus:
 @app.get("/admin/adguard/rewrites", response_model=list[AdguardRewrite])
 def admin_adguard_rewrites(x_admin_token: str = Header()) -> list[AdguardRewrite]:
     try:
-        admin_connector.list_domain_names(x_admin_token)
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return adguard_connector.list_rewrites()
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -522,7 +662,7 @@ def admin_adguard_rewrites(x_admin_token: str = Header()) -> list[AdguardRewrite
 @app.get("/admin/ssh-access", response_model=SshAccessStatus)
 def admin_ssh_access_status(x_admin_token: str = Header()) -> SshAccessStatus:
     try:
-        admin_connector.list_domain_names(x_admin_token)
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return SshAccessStatus(password_auth_enabled=ssh_access_connector.password_auth_enabled())
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -531,7 +671,7 @@ def admin_ssh_access_status(x_admin_token: str = Header()) -> SshAccessStatus:
 @app.put("/admin/ssh-access", status_code=204)
 def admin_ssh_access_set(payload: SshAccessStatus, x_admin_token: str = Header()) -> Response:
     try:
-        admin_connector.list_domain_names(x_admin_token)
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         if payload.password_auth_enabled:
             ssh_access_connector.enable_password_auth()
         else:
@@ -544,7 +684,7 @@ def admin_ssh_access_set(payload: SshAccessStatus, x_admin_token: str = Header()
 @app.get("/admin/security-overview", response_model=SecurityOverview)
 def admin_security_overview(x_admin_token: str = Header()) -> SecurityOverview:
     try:
-        admin_connector.list_domain_names(x_admin_token)
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return SecurityOverview(**security_status_connector.overview())
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -553,6 +693,7 @@ def admin_security_overview(x_admin_token: str = Header()) -> SecurityOverview:
 @app.post("/admin/adguard/rewrites", status_code=204)
 def admin_adguard_add_rewrite(payload: AdguardRewriteRequest, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         domains = admin_connector.list_domain_names(x_admin_token, full=True)
         bare_domain = payload.domain[2:] if payload.domain.startswith("*.") else payload.domain
         if bare_domain not in domains and not any(bare_domain.endswith(f".{d}") for d in domains):
@@ -569,7 +710,7 @@ def admin_adguard_add_rewrite(payload: AdguardRewriteRequest, x_admin_token: str
 @app.delete("/admin/adguard/rewrites/{domain}", status_code=204)
 def admin_adguard_remove_rewrite(domain: str, x_admin_token: str = Header()) -> Response:
     try:
-        admin_connector.list_domain_names(x_admin_token)
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         adguard_connector.remove_rewrite(domain)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -579,7 +720,8 @@ def admin_adguard_remove_rewrite(domain: str, x_admin_token: str = Header()) -> 
 @app.get("/admin/apps", response_model=list[AppInfo])
 def admin_apps(x_admin_token: str = Header()) -> list[AppInfo]:
     try:
-        return admin_connector.list_apps(x_admin_token)
+        scope = scope_module.resolve_scope(x_admin_token)
+        return scope_module.filter_apps(admin_connector.list_apps(x_admin_token), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -593,6 +735,8 @@ def admin_install_app(
     x_admin_token: str = Header(),
 ) -> dict:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_install_allowed(x_admin_token, app_id, args, scope)
         return admin_connector.install_app(x_admin_token, app_id, label=label, args=args, force=force)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -619,7 +763,9 @@ def admin_app_map(
     app: str | None = None, raw: bool = False, user: str | None = None, x_admin_token: str = Header()
 ) -> dict:
     try:
-        return admin_connector.get_app_map(x_admin_token, app_id=app, raw=raw, user=user)
+        scope = scope_module.resolve_scope(x_admin_token)
+        app_map = admin_connector.get_app_map(x_admin_token, app_id=app, raw=raw, user=user)
+        return scope_module.filter_app_map(app_map, scope, raw)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -627,7 +773,17 @@ def admin_app_map(
 @app.get("/admin/apps/{app_id}", response_model=AppDetail)
 def admin_app_detail(app_id: str, x_admin_token: str = Header()) -> AppDetail:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_app_detail(x_admin_token, app_id)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.get("/admin/apps/{app_id}/disk-usage")
+def admin_app_disk_usage(app_id: str, x_admin_token: str = Header()) -> dict:
+    try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
+        return {"bytes": admin_connector.get_app_disk_usage(x_admin_token, app_id)}
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -635,6 +791,7 @@ def admin_app_detail(app_id: str, x_admin_token: str = Header()) -> AppDetail:
 @app.delete("/admin/apps/{app_id}", status_code=204)
 def admin_remove_app(app_id: str, purge: bool = False, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         admin_connector.remove_app(x_admin_token, app_id, purge=purge)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -644,6 +801,7 @@ def admin_remove_app(app_id: str, purge: bool = False, x_admin_token: str = Head
 @app.put("/admin/apps/{app_id}/upgrade")
 def admin_upgrade_app(app_id: str, force: bool = False, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         return admin_connector.upgrade_app(x_admin_token, app_id, force=force)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -657,6 +815,9 @@ def admin_change_app_url(
     x_admin_token: str = Header(),
 ) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope)
+        scope_module.require_domain_in_scope(domain, scope)
         admin_connector.change_app_url(x_admin_token, app_id, domain, path)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -668,6 +829,7 @@ def admin_change_app_label(
     app_id: str, new_label: str = Body(..., embed=True), x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         admin_connector.change_app_label(x_admin_token, app_id, new_label)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -677,6 +839,7 @@ def admin_change_app_label(
 @app.put("/admin/apps/{app_id}/dismiss_notification/{name}", status_code=204)
 def admin_dismiss_app_notification(app_id: str, name: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         admin_connector.dismiss_app_notification(x_admin_token, app_id, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -686,7 +849,7 @@ def admin_dismiss_app_notification(app_id: str, name: str, x_admin_token: str = 
 @app.get("/admin/apps/{app_id}/cross-domain", response_model=CrossDomainStatus)
 def admin_app_cross_domain_status(app_id: str, x_admin_token: str = Header()) -> CrossDomainStatus:
     try:
-        admin_connector.list_domain_names(x_admin_token)
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return CrossDomainStatus(enabled=cross_domain_connector.status(app_id))
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -697,7 +860,7 @@ def admin_app_cross_domain_set(
     app_id: str, payload: CrossDomainStatus, x_admin_token: str = Header()
 ) -> Response:
     try:
-        admin_connector.list_domain_names(x_admin_token)
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         if payload.enabled:
             cross_domain_connector.enable(app_id)
         else:
@@ -707,9 +870,43 @@ def admin_app_cross_domain_set(
     return Response(status_code=204)
 
 
+@app.get("/admin/apps/{app_id}/cross-domain/domains", response_model=list[str])
+def admin_app_cross_domain_domains(app_id: str, x_admin_token: str = Header()) -> list[str]:
+    try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope)
+        domains = cross_domain_connector.list_domains(app_id)
+        return scope_module.filter_cross_domain_list(domains, scope)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.put("/admin/apps/{app_id}/cross-domain/{domain}", status_code=204)
+def admin_app_cross_domain_add_domain(app_id: str, domain: str, x_admin_token: str = Header()) -> Response:
+    try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_cross_domain_change_allowed(x_admin_token, app_id, domain, scope)
+        cross_domain_connector.add_domain(app_id, domain)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return Response(status_code=204)
+
+
+@app.delete("/admin/apps/{app_id}/cross-domain/{domain}", status_code=204)
+def admin_app_cross_domain_remove_domain(app_id: str, domain: str, x_admin_token: str = Header()) -> Response:
+    try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_cross_domain_change_allowed(x_admin_token, app_id, domain, scope)
+        cross_domain_connector.remove_domain(app_id, domain)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return Response(status_code=204)
+
+
 @app.get("/admin/apps/{app_id}/actions")
 def admin_app_actions(app_id: str, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         return admin_connector.list_app_actions(x_admin_token, app_id)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -720,6 +917,7 @@ def admin_run_app_action(
     app_id: str, action_id: str, args: str | None = Body(None, embed=True), x_admin_token: str = Header()
 ) -> dict:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         return admin_connector.run_app_action(x_admin_token, app_id, action_id, args=args)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -728,6 +926,7 @@ def admin_run_app_action(
 @app.get("/admin/apps/{app_id}/config")
 def admin_app_config(app_id: str, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_app_config(x_admin_token, app_id)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -738,6 +937,7 @@ def admin_set_app_config(
     app_id: str, panel_key: str, args: str = Body(..., embed=True), x_admin_token: str = Header()
 ) -> dict:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         return admin_connector.set_app_config(x_admin_token, app_id, panel_key, args)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -746,7 +946,8 @@ def admin_set_app_config(
 @app.get("/admin/permissions", response_model=dict[str, PermissionInfo])
 def admin_permissions(x_admin_token: str = Header()) -> dict[str, PermissionInfo]:
     try:
-        return admin_connector.list_permissions(x_admin_token)
+        scope = scope_module.resolve_scope(x_admin_token)
+        return scope_module.filter_permissions(admin_connector.list_permissions(x_admin_token), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -756,6 +957,9 @@ def admin_update_permission(
     permission: str, payload: PermissionUpdateRequest, x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_permission_in_scope(x_admin_token, permission, scope)
+        scope_module.require_permission_entries_in_scope(x_admin_token, payload.add, scope)
         admin_connector.update_permission(x_admin_token, permission, add=payload.add, remove=payload.remove)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -765,7 +969,8 @@ def admin_update_permission(
 @app.get("/admin/groups", response_model=list[GroupInfo])
 def admin_groups(x_admin_token: str = Header()) -> list[GroupInfo]:
     try:
-        return admin_connector.list_groups_full(x_admin_token)
+        scope = scope_module.resolve_scope(x_admin_token)
+        return scope_module.filter_groups(x_admin_token, admin_connector.list_groups_full(x_admin_token), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -773,6 +978,8 @@ def admin_groups(x_admin_token: str = Header()) -> list[GroupInfo]:
 @app.post("/admin/groups", status_code=204)
 def admin_create_group(payload: CreateGroupRequest, x_admin_token: str = Header()) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_new_group_name_allowed(payload.groupname, scope)
         admin_connector.create_group(x_admin_token, payload.groupname)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -782,6 +989,10 @@ def admin_create_group(payload: CreateGroupRequest, x_admin_token: str = Header(
 @app.delete("/admin/groups/{groupname}", status_code=204)
 def admin_delete_group(groupname: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        if groupname == settings.wappos_domain_admins_group:
+            raise ForbiddenError(f"Group {groupname} is protected and cannot be deleted")
+        scope_module.require_group_in_scope(x_admin_token, groupname, scope)
         admin_connector.delete_group(x_admin_token, groupname)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -793,6 +1004,9 @@ def admin_update_group_members(
     groupname: str, payload: GroupMembersUpdateRequest, x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_group_in_scope(x_admin_token, groupname, scope)
+        scope_module.require_usernames_in_scope(x_admin_token, payload.add, scope)
         admin_connector.update_group_members(x_admin_token, groupname, add=payload.add, remove=payload.remove)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -802,6 +1016,7 @@ def admin_update_group_members(
 @app.get("/admin/groups/{groupname}/aliases", response_model=list[str])
 def admin_group_aliases(groupname: str, x_admin_token: str = Header()) -> list[str]:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_group_mail_aliases(x_admin_token, groupname)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -812,6 +1027,8 @@ def admin_update_group_aliases(
     groupname: str, payload: GroupAliasesUpdateRequest, x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_group_in_scope(x_admin_token, groupname, scope)
         admin_connector.update_group_mailaliases(
             x_admin_token, groupname, add=payload.add, remove=payload.remove, force=payload.force
         )
@@ -823,7 +1040,8 @@ def admin_update_group_aliases(
 @app.get("/admin/users/export")
 def admin_export_users(x_admin_token: str = Header()) -> Response:
     try:
-        csv_text = admin_connector.export_users_csv(x_admin_token)
+        scope = scope_module.resolve_scope(x_admin_token)
+        csv_text = scope_module.filter_users_csv(admin_connector.export_users_csv(x_admin_token), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
     return Response(
@@ -842,6 +1060,10 @@ async def admin_import_users(
 ) -> dict:
     content = await csvfile.read()
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        if scope is not None:
+            delete = False
+            content = scope_module.filter_users_csv(content.decode("utf-8", errors="replace"), scope).encode("utf-8")
         return admin_connector.import_users_csv(
             x_admin_token, csvfile.filename or "users.csv", content, update=update, delete=delete
         )
@@ -852,6 +1074,7 @@ async def admin_import_users(
 @app.get("/admin/users/{username}", response_model=UserDetail)
 def admin_user_detail(username: str, x_admin_token: str = Header()) -> UserDetail:
     try:
+        scope_module.require_user_in_scope(x_admin_token, username, scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_user(x_admin_token, username)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -862,6 +1085,7 @@ def admin_update_permission_properties(
     permission: str, payload: PermissionPropertiesUpdateRequest, x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope_module.require_permission_in_scope(x_admin_token, permission, scope_module.resolve_scope(x_admin_token))
         admin_connector.update_permission_properties(
             x_admin_token, permission, **payload.model_dump(exclude_unset=True)
         )
@@ -876,6 +1100,7 @@ async def admin_update_permission_logo(
 ) -> Response:
     content = await logo.read()
     try:
+        scope_module.require_permission_in_scope(x_admin_token, permission, scope_module.resolve_scope(x_admin_token))
         admin_connector.update_permission_logo(x_admin_token, permission, logo.filename or "logo.png", content)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -885,7 +1110,8 @@ async def admin_update_permission_logo(
 @app.get("/admin/diagnosis", response_model=list[DiagnosisReport])
 def admin_diagnosis(x_admin_token: str = Header()) -> list[DiagnosisReport]:
     try:
-        return admin_connector.get_diagnosis(x_admin_token)
+        scope = scope_module.resolve_scope(x_admin_token)
+        return scope_module.filter_diagnosis_reports(admin_connector.get_diagnosis(x_admin_token), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -893,6 +1119,7 @@ def admin_diagnosis(x_admin_token: str = Header()) -> list[DiagnosisReport]:
 @app.get("/admin/diagnosis/share")
 def admin_diagnosis_share(x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return {"url": admin_connector.share_diagnosis_yunopaste(x_admin_token)}
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -901,8 +1128,10 @@ def admin_diagnosis_share(x_admin_token: str = Header()) -> dict:
 @app.post("/admin/diagnosis/run", response_model=list[DiagnosisReport])
 def admin_diagnosis_run(category: str | None = None, x_admin_token: str = Header()) -> list[DiagnosisReport]:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_diagnosis_category_allowed(category, scope)
         admin_connector.run_diagnosis(x_admin_token, category=category)
-        return admin_connector.get_diagnosis(x_admin_token)
+        return scope_module.filter_diagnosis_reports(admin_connector.get_diagnosis(x_admin_token), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -912,8 +1141,11 @@ def admin_diagnosis_ignore(
     category: str, payload: DiagnosisIgnoreRequest, x_admin_token: str = Header()
 ) -> list[DiagnosisReport]:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_diagnosis_category_allowed(category, scope)
+        scope_module.require_diagnosis_item_in_scope(payload.meta, scope)
         admin_connector.ignore_diagnosis_item(x_admin_token, category, payload.meta)
-        return admin_connector.get_diagnosis(x_admin_token)
+        return scope_module.filter_diagnosis_reports(admin_connector.get_diagnosis(x_admin_token), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -923,8 +1155,11 @@ def admin_diagnosis_unignore(
     category: str, payload: DiagnosisIgnoreRequest, x_admin_token: str = Header()
 ) -> list[DiagnosisReport]:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_diagnosis_category_allowed(category, scope)
+        scope_module.require_diagnosis_item_in_scope(payload.meta, scope)
         admin_connector.unignore_diagnosis_item(x_admin_token, category, payload.meta)
-        return admin_connector.get_diagnosis(x_admin_token)
+        return scope_module.filter_diagnosis_reports(admin_connector.get_diagnosis(x_admin_token), scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -932,6 +1167,7 @@ def admin_diagnosis_unignore(
 @app.get("/admin/services", response_model=list[ServiceInfo])
 def admin_services(x_admin_token: str = Header()) -> list[ServiceInfo]:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.list_services(x_admin_token)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -940,6 +1176,7 @@ def admin_services(x_admin_token: str = Header()) -> list[ServiceInfo]:
 @app.get("/admin/services/{name}", response_model=ServiceInfo)
 def admin_service_detail(name: str, x_admin_token: str = Header()) -> ServiceInfo:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_service(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -948,6 +1185,7 @@ def admin_service_detail(name: str, x_admin_token: str = Header()) -> ServiceInf
 @app.put("/admin/services/{name}/start", status_code=204)
 def admin_start_service(name: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.start_service(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -957,6 +1195,7 @@ def admin_start_service(name: str, x_admin_token: str = Header()) -> Response:
 @app.put("/admin/services/{name}/stop", status_code=204)
 def admin_stop_service(name: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.stop_service(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -966,6 +1205,7 @@ def admin_stop_service(name: str, x_admin_token: str = Header()) -> Response:
 @app.put("/admin/services/{name}/restart", status_code=204)
 def admin_restart_service(name: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.restart_service(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -975,6 +1215,7 @@ def admin_restart_service(name: str, x_admin_token: str = Header()) -> Response:
 @app.put("/admin/services/{name}/enable", status_code=204)
 def admin_enable_service(name: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.enable_service(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -984,6 +1225,7 @@ def admin_enable_service(name: str, x_admin_token: str = Header()) -> Response:
 @app.put("/admin/services/{name}/disable", status_code=204)
 def admin_disable_service(name: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.disable_service(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -993,6 +1235,7 @@ def admin_disable_service(name: str, x_admin_token: str = Header()) -> Response:
 @app.get("/admin/services/{name}/log", response_model=dict[str, list[str]])
 def admin_service_log(name: str, number: int = 50, x_admin_token: str = Header()) -> dict[str, list[str]]:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_service_log(x_admin_token, name, number=number)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1001,7 +1244,9 @@ def admin_service_log(name: str, number: int = 50, x_admin_token: str = Header()
 @app.get("/admin/logs", response_model=list[LogEntry])
 def admin_logs(limit: int = 50, x_admin_token: str = Header()) -> list[LogEntry]:
     try:
-        return admin_connector.list_logs(x_admin_token, limit=limit)
+        scope = scope_module.resolve_scope(x_admin_token)
+        entries = admin_connector.list_logs(x_admin_token, limit=limit)
+        return scope_module.filter_logs(x_admin_token, entries, scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -1009,6 +1254,8 @@ def admin_logs(limit: int = 50, x_admin_token: str = Header()) -> list[LogEntry]
 @app.get("/admin/logs/{name}", response_model=LogDetail)
 def admin_log_detail(name: str, number: int = 50, x_admin_token: str = Header()) -> LogDetail:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_log_in_scope(x_admin_token, name, scope)
         return admin_connector.get_log(x_admin_token, name, number=number)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1017,6 +1264,7 @@ def admin_log_detail(name: str, number: int = 50, x_admin_token: str = Header())
 @app.get("/admin/logs/{name}/share")
 def admin_log_share(name: str, x_admin_token: str = Header()) -> dict[str, str]:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return {"url": admin_connector.share_log(x_admin_token, name)}
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1025,7 +1273,10 @@ def admin_log_share(name: str, x_admin_token: str = Header()) -> dict[str, str]:
 @app.get("/admin/firewall", response_model=FirewallRules)
 def admin_firewall(x_admin_token: str = Header()) -> FirewallRules:
     try:
-        return admin_connector.list_firewall(x_admin_token)
+        scope = scope_module.resolve_scope(x_admin_token)
+        username = admin_connector.resolve_caller_username(x_admin_token)
+        rules = admin_connector.list_firewall(x_admin_token)
+        return scope_module.filter_firewall_rules(rules, username, scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -1035,6 +1286,12 @@ def admin_open_firewall_port(
     protocol: str, port: str, comment: str = "", upnp: bool = False, x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_firewall_port_open_allowed(port, scope)
+        if scope is not None:
+            username = admin_connector.resolve_caller_username(x_admin_token)
+            comment = scope_module.build_owned_firewall_comment(username or "", comment)
+            upnp = False
         admin_connector.open_firewall_port(x_admin_token, protocol, port, comment=comment, upnp=upnp)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1046,6 +1303,9 @@ def admin_close_firewall_port(
     protocol: str, port: str, upnp_only: bool = False, x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        username = admin_connector.resolve_caller_username(x_admin_token)
+        scope_module.require_firewall_port_owned_by(x_admin_token, protocol, port, username or "", scope)
         admin_connector.close_firewall_port(x_admin_token, protocol, port, upnp_only=upnp_only)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1055,6 +1315,9 @@ def admin_close_firewall_port(
 @app.delete("/admin/firewall/{protocol}/{port}", status_code=204)
 def admin_delete_firewall_port(protocol: str, port: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        username = admin_connector.resolve_caller_username(x_admin_token)
+        scope_module.require_firewall_port_owned_by(x_admin_token, protocol, port, username or "", scope)
         admin_connector.delete_firewall_port(x_admin_token, protocol, port)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1064,7 +1327,43 @@ def admin_delete_firewall_port(protocol: str, port: str, x_admin_token: str = He
 @app.put("/admin/firewall/upnp/{enabled}", status_code=204)
 def admin_set_upnp(enabled: bool, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.set_upnp(x_admin_token, enabled)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+    return Response(status_code=204)
+
+
+@app.get("/admin/tls-passthrough", response_model=TlsPassthroughInfo)
+def admin_tls_passthrough(x_admin_token: str = Header()) -> TlsPassthroughInfo:
+    try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_superadmin(scope)
+        enabled, entries = admin_connector.get_tls_passthrough_settings(x_admin_token)
+        entries = scope_module.filter_tls_passthrough_entries(entries, scope)
+        parsed = []
+        for entry in entries:
+            fields = scope_module.parse_tls_passthrough_entry(entry)
+            if fields is None:
+                continue
+            domain, destination, port = fields
+            parsed.append(TlsPassthroughEntry(domain=domain, destination=destination, port=int(port)))
+        return TlsPassthroughInfo(enabled=enabled, entries=parsed)
+    except WapposApiError as exc:
+        _raise_as_http(exc)
+
+
+@app.put("/admin/tls-passthrough", status_code=204)
+def admin_update_tls_passthrough(
+    payload: TlsPassthroughUpdateRequest, x_admin_token: str = Header()
+) -> Response:
+    try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_superadmin(scope)
+        submitted = [f"{e.domain};{e.destination};{e.port}" for e in payload.entries]
+        _enabled, existing_entries = admin_connector.get_tls_passthrough_settings(x_admin_token)
+        merged = scope_module.merge_tls_passthrough_entries(existing_entries, submitted, scope)
+        admin_connector.set_tls_passthrough_entries(x_admin_token, merged)
     except WapposApiError as exc:
         _raise_as_http(exc)
     return Response(status_code=204)
@@ -1073,7 +1372,9 @@ def admin_set_upnp(enabled: bool, x_admin_token: str = Header()) -> Response:
 @app.get("/admin/diagnosis/categories", response_model=list[str])
 def admin_diagnosis_categories(x_admin_token: str = Header()) -> list[str]:
     try:
-        return admin_connector.list_diagnosis_categories(x_admin_token)
+        scope = scope_module.resolve_scope(x_admin_token)
+        categories = admin_connector.list_diagnosis_categories(x_admin_token)
+        return scope_module.filter_diagnosis_categories(categories, scope)
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -1081,6 +1382,7 @@ def admin_diagnosis_categories(x_admin_token: str = Header()) -> list[str]:
 @app.get("/admin/storage/disks", response_model=list[DiskInfo])
 def admin_storage_disks(x_admin_token: str = Header()) -> list[DiskInfo]:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.list_disks(x_admin_token)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1089,6 +1391,7 @@ def admin_storage_disks(x_admin_token: str = Header()) -> list[DiskInfo]:
 @app.get("/admin/storage/mounts", response_model=list[MountInfo])
 def admin_storage_mounts(x_admin_token: str = Header()) -> list[MountInfo]:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.list_mounts(x_admin_token)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1097,6 +1400,7 @@ def admin_storage_mounts(x_admin_token: str = Header()) -> list[MountInfo]:
 @app.get("/admin/storage/disks/{name}/smart", response_model=SmartReport)
 def admin_storage_disk_smart(name: str, x_admin_token: str = Header()) -> SmartReport:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_disk_smart(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1105,6 +1409,7 @@ def admin_storage_disk_smart(name: str, x_admin_token: str = Header()) -> SmartR
 @app.get("/admin/system/health", response_model=SystemHealth)
 def admin_system_health(x_admin_token: str = Header()) -> SystemHealth:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_system_health(x_admin_token)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1113,6 +1418,7 @@ def admin_system_health(x_admin_token: str = Header()) -> SystemHealth:
 @app.get("/admin/system/wappos-versions", response_model=list[WapposComponentVersion])
 def admin_wappos_versions(x_admin_token: str = Header()) -> list[WapposComponentVersion]:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.list_wappos_component_versions(x_admin_token)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1121,6 +1427,7 @@ def admin_wappos_versions(x_admin_token: str = Header()) -> list[WapposComponent
 @app.get("/admin/settings")
 def admin_get_settings(x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_global_settings(x_admin_token)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1129,6 +1436,7 @@ def admin_get_settings(x_admin_token: str = Header()) -> dict:
 @app.put("/admin/settings/{panel_key}")
 def admin_set_settings(panel_key: str, args: str = Body(..., embed=True), x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.set_global_settings(x_admin_token, panel_key, args)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1137,6 +1445,7 @@ def admin_set_settings(panel_key: str, args: str = Body(..., embed=True), x_admi
 @app.delete("/admin/settings/{key}", status_code=204)
 def admin_reset_setting(key: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.reset_global_setting(x_admin_token, key)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1146,6 +1455,7 @@ def admin_reset_setting(key: str, x_admin_token: str = Header()) -> Response:
 @app.delete("/admin/settings", status_code=204)
 def admin_reset_all_settings(x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.reset_all_global_settings(x_admin_token)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1155,6 +1465,7 @@ def admin_reset_all_settings(x_admin_token: str = Header()) -> Response:
 @app.get("/admin/settings/{key}")
 def admin_get_setting(key: str, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_global_setting(x_admin_token, key)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1163,6 +1474,7 @@ def admin_get_setting(key: str, x_admin_token: str = Header()) -> dict:
 @app.get("/admin/apps/{app_id}/setting")
 def admin_get_app_setting(app_id: str, key: str, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         return admin_connector.app_setting(x_admin_token, app_id, key)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1173,6 +1485,7 @@ def admin_set_app_setting(
     app_id: str, key: str = Body(...), value: str = Body(...), x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         admin_connector.app_setting(x_admin_token, app_id, key, value=value)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1182,6 +1495,7 @@ def admin_set_app_setting(
 @app.delete("/admin/apps/{app_id}/setting", status_code=204)
 def admin_delete_app_setting(app_id: str, key: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         admin_connector.app_setting(x_admin_token, app_id, key, delete=True)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1193,6 +1507,10 @@ def admin_app_makedefault(
     app_id: str, domain: str | None = None, undo: bool = False, x_admin_token: str = Header()
 ) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope)
+        if domain is not None:
+            scope_module.require_domain_in_scope(domain, scope)
         admin_connector.app_makedefault(x_admin_token, app_id, domain=domain, undo=undo)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1202,6 +1520,7 @@ def admin_app_makedefault(
 @app.get("/admin/apps/{app_id}/shell")
 def admin_app_shell(app_id: str, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_app_in_scope(x_admin_token, app_id, scope_module.resolve_scope(x_admin_token))
         return {"output": admin_connector.get_app_shell_info(x_admin_token, app_id)}
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1210,6 +1529,7 @@ def admin_app_shell(app_id: str, x_admin_token: str = Header()) -> dict:
 @app.get("/admin/domains/{domain}/urlavailable")
 def admin_domain_url_available(domain: str, path: str, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         return {"available": admin_connector.check_domain_url_available(x_admin_token, domain, path)}
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1220,6 +1540,7 @@ def admin_run_domain_action(
     domain: str, action_id: str, args: str | None = Body(None, embed=True), x_admin_token: str = Header()
 ) -> dict:
     try:
+        scope_module.require_domain_in_scope(domain, scope_module.resolve_scope(x_admin_token))
         return admin_connector.run_domain_action(x_admin_token, domain, action_id, args=args)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1235,6 +1556,7 @@ def admin_firewall_allow(
     x_admin_token: str = Header(),
 ) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.allow_firewall(
             x_admin_token, protocol, port, ipv4_only=ipv4_only, ipv6_only=ipv6_only, no_upnp=no_upnp
         )
@@ -1253,6 +1575,7 @@ def admin_firewall_disallow(
     x_admin_token: str = Header(),
 ) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.disallow_firewall(
             x_admin_token, protocol, port, ipv4_only=ipv4_only, ipv6_only=ipv6_only, upnp_only=upnp_only
         )
@@ -1264,6 +1587,7 @@ def admin_firewall_disallow(
 @app.get("/admin/storage/disks/{name}")
 def admin_disk_info(name: str, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_disk_info(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1272,6 +1596,7 @@ def admin_disk_info(name: str, x_admin_token: str = Header()) -> dict:
 @app.get("/admin/hooks/{action}", response_model=list[str])
 def admin_list_hooks(action: str, x_admin_token: str = Header()) -> list[str]:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.list_hooks(x_admin_token, action)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1282,7 +1607,11 @@ def admin_list_backups(
     with_info: bool = True, human_readable: bool = False, x_admin_token: str = Header()
 ) -> dict:
     try:
-        return admin_connector.list_backups(x_admin_token, with_info=with_info, human_readable=human_readable)
+        scope = scope_module.resolve_scope(x_admin_token)
+        result = admin_connector.list_backups(x_admin_token, with_info=with_info, human_readable=human_readable)
+        if isinstance(result.get("archives"), dict):
+            result["archives"] = scope_module.filter_backups(x_admin_token, result["archives"], scope)
+        return result
     except WapposApiError as exc:
         _raise_as_http(exc)
 
@@ -1290,6 +1619,8 @@ def admin_list_backups(
 @app.post("/admin/backups")
 def admin_create_backup(payload: BackupCreateRequest, x_admin_token: str = Header()) -> dict:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_backup_params_allowed(x_admin_token, payload.system, payload.apps, scope)
         return admin_connector.create_backup(
             x_admin_token,
             name=payload.name,
@@ -1306,6 +1637,8 @@ def admin_backup_info(
     name: str, with_details: bool = True, human_readable: bool = False, x_admin_token: str = Header()
 ) -> dict:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_backup_in_scope(x_admin_token, name, scope)
         return admin_connector.get_backup_info(
             x_admin_token, name, with_details=with_details, human_readable=human_readable
         )
@@ -1316,6 +1649,8 @@ def admin_backup_info(
 @app.delete("/admin/backups/{name}", status_code=204)
 def admin_delete_backup(name: str, x_admin_token: str = Header()) -> Response:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_backup_in_scope(x_admin_token, name, scope)
         admin_connector.delete_backup(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1325,6 +1660,9 @@ def admin_delete_backup(name: str, x_admin_token: str = Header()) -> Response:
 @app.put("/admin/backups/{name}/restore")
 def admin_restore_backup(name: str, payload: BackupRestoreRequest, x_admin_token: str = Header()) -> dict:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_backup_in_scope(x_admin_token, name, scope)
+        scope_module.require_backup_params_allowed(x_admin_token, payload.system, payload.apps, scope)
         return admin_connector.restore_backup(
             x_admin_token,
             name,
@@ -1340,6 +1678,8 @@ def admin_restore_backup(name: str, payload: BackupRestoreRequest, x_admin_token
 @app.get("/admin/backups/{name}/download")
 def admin_download_backup(name: str, x_admin_token: str = Header()) -> StreamingResponse:
     try:
+        scope = scope_module.resolve_scope(x_admin_token)
+        scope_module.require_backup_in_scope(x_admin_token, name, scope)
         body, content_type, content_disposition = admin_connector.stream_backup_download(x_admin_token, name)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1350,6 +1690,7 @@ def admin_download_backup(name: str, x_admin_token: str = Header()) -> Streaming
 @app.get("/admin/tools/versions")
 def admin_versions(x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_versions(x_admin_token)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1358,6 +1699,7 @@ def admin_versions(x_admin_token: str = Header()) -> dict:
 @app.get("/admin/tools/update")
 def admin_available_updates(x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.get_available_updates(x_admin_token)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1366,6 +1708,7 @@ def admin_available_updates(x_admin_token: str = Header()) -> dict:
 @app.put("/admin/tools/update/{target}")
 def admin_refresh_updates(target: str, no_refresh: bool = False, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.refresh_updates(x_admin_token, target=target, no_refresh=no_refresh)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1374,6 +1717,7 @@ def admin_refresh_updates(target: str, no_refresh: bool = False, x_admin_token: 
 @app.put("/admin/tools/upgrade/{target}")
 def admin_run_upgrade(target: str, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.run_upgrade(x_admin_token, target)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1382,6 +1726,7 @@ def admin_run_upgrade(target: str, x_admin_token: str = Header()) -> dict:
 @app.get("/admin/migrations", response_model=list[Migration])
 def admin_migrations(pending: bool = False, done: bool = False, x_admin_token: str = Header()) -> list[dict]:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.list_migrations(x_admin_token, pending=pending, done=done)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1390,6 +1735,7 @@ def admin_migrations(pending: bool = False, done: bool = False, x_admin_token: s
 @app.put("/admin/migrations")
 def admin_run_migrations(payload: MigrationRunRequest, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.run_migrations(
             x_admin_token,
             targets=payload.targets or None,
@@ -1405,6 +1751,7 @@ def admin_run_migrations(payload: MigrationRunRequest, x_admin_token: str = Head
 @app.put("/admin/tools/regenconf")
 def admin_regen_conf(payload: RegenConfRequest, x_admin_token: str = Header()) -> dict:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         return admin_connector.regen_conf(
             x_admin_token,
             names=payload.names,
@@ -1420,6 +1767,7 @@ def admin_regen_conf(payload: RegenConfRequest, x_admin_token: str = Header()) -
 @app.put("/admin/tools/rootpw", status_code=204)
 def admin_change_root_password(payload: RootPasswordChangeRequest, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.change_root_password(x_admin_token, payload.new_password)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1429,6 +1777,7 @@ def admin_change_root_password(payload: RootPasswordChangeRequest, x_admin_token
 @app.put("/admin/tools/reboot", status_code=204)
 def admin_reboot(force: bool = False, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.reboot_server(x_admin_token, force=force)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1438,6 +1787,7 @@ def admin_reboot(force: bool = False, x_admin_token: str = Header()) -> Response
 @app.put("/admin/tools/shutdown", status_code=204)
 def admin_shutdown(force: bool = False, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.shutdown_server(x_admin_token, force=force)
     except WapposApiError as exc:
         _raise_as_http(exc)
@@ -1447,6 +1797,7 @@ def admin_shutdown(force: bool = False, x_admin_token: str = Header()) -> Respon
 @app.post("/admin/tools/postinstall", status_code=204)
 def admin_postinstall(payload: PostinstallRequest, x_admin_token: str = Header()) -> Response:
     try:
+        scope_module.require_superadmin(scope_module.resolve_scope(x_admin_token))
         admin_connector.run_postinstall(
             x_admin_token,
             domain=payload.domain,

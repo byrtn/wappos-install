@@ -28,25 +28,25 @@
       </div>
     </div>
 
+    {% if is_superadmin %}
     <div class="card create-card">
       <div class="card-header"><h3>{{ t('h3_local_network_access') }}</h3></div>
       <div class="card-body">
         {% if not adguard_installed %}
           <p class="field-info" style="margin: 0 0 0.75rem;">
-            {{ t('local_access_no_adguard_prefix') }}
+            {{ t('local_access_no_adguard_short') }}
             <a href="{{ url_for('app_catalog_page', q='adguard') }}">{{ t('install_adguard_link') }}</a>.
-          </p>
-          <p class="field-info" style="margin: 0;">
-            {{ t('local_access_no_adguard_fallback', dotlocal='<code>.local</code>') | safe }}
+            <a href="{{ url_for('documentation') }}#reseau-local">{{ t('link_learn_more') }}</a>
           </p>
         {% elif local_domains %}
           <p class="field-info" style="margin: 0 0 0.75rem;">
             {{ t('local_access_enabled') }}
+            <a href="{{ url_for('documentation') }}#reseau-local">{{ t('link_learn_more') }}</a>
           </p>
           <ul class="local-domain-list">
             {% for d in local_domains %}
               <li class="local-domain-item">
-                <span>{{ d }}</span>
+                <span>{{ d }} <span class="badge-active">{{ t('badge_active') }}</span></span>
                 <form method="post" action="{{ url_for('local_domain_remove', domain=d) }}"
                       data-confirm="{{ t('confirm_remove_local_domain', domain=d) }}">
                   <button type="submit" class="btn btn-danger">{{ t('btn_remove') }}</button>
@@ -65,7 +65,8 @@
           </details>
         {% else %}
           <p class="field-info" style="margin: 0 0 0.75rem;">
-            {{ t('local_access_disabled') }}
+            {{ t('local_access_disabled_short') }}
+            <a href="{{ url_for('documentation') }}#reseau-local">{{ t('link_learn_more') }}</a>
           </p>
           <form method="post" action="{{ url_for('local_domain_add') }}">
             <input type="hidden" name="domain" value="wappos.lan">
@@ -74,6 +75,7 @@
         {% endif %}
       </div>
     </div>
+    {% endif %}
 
     {% set cert_class = {'success': 'text-success', 'warning': 'text-warning', 'danger': 'text-danger'} %}
     {% macro domain_card(d, child=false) %}
@@ -114,6 +116,9 @@
     .local-domain-item { display: flex; align-items: center; justify-content: space-between; gap: 0.75rem;
             padding: 0.6rem 0.9rem; background: var(--color-hover-bg); border-radius: 8px; font-size: 0.9rem; }
     .local-domain-item form { margin: 0; }
+    .badge-active { display: inline-block; font-size: 0.68rem; font-weight: 600; text-transform: uppercase;
+            letter-spacing: 0.03em; background: var(--color-message-bg); color: var(--color-message-text);
+            border-radius: 999px; padding: 0.1rem 0.5rem; margin-left: 0.4rem; }
     .text-success { color: var(--color-text-success); }
     .text-warning { color: var(--color-text-warning); }
     .text-danger { color: var(--color-text-danger); }

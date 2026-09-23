@@ -5,10 +5,6 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('title_logs') }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}
-      <div class="alert alert-danger">{{ error }}</div>
-    {% endif %}
-
     <div class="message" style="background: #fff4e5; color: #7a4b00;">
       {{ t('logs_intro') }}
     </div>

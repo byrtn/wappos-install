@@ -26,19 +26,42 @@ def test_login_success_extracts_session_cookie(admin_login_url: str) -> None:
 
 
 @respx.mock
-def test_login_missing_credentials_raises_invalid_credentials(admin_login_url: str) -> None:
+def test_login_missing_credentials_raises_invalid_credentials(admin_login_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     respx.post(admin_login_url).mock(return_value=Response(400, text="Missing credentials parameter"))
+    monkeypatch.setattr(
+        admin,
+        "_authenticate_domain_admin",
+        lambda username, password, login_domain=None: (_ for _ in ()).throw(InvalidCredentialsError("not a domain admin")),
+    )
 
     with pytest.raises(InvalidCredentialsError):
         admin.login("adminynh", "")
 
 
 @respx.mock
-def test_login_wrong_password_raises_invalid_credentials(admin_login_url: str) -> None:
+def test_login_wrong_password_raises_invalid_credentials(admin_login_url: str, monkeypatch: pytest.MonkeyPatch) -> None:
     respx.post(admin_login_url).mock(return_value=Response(401, text="Invalid password or username"))
+    monkeypatch.setattr(
+        admin,
+        "_authenticate_domain_admin",
+        lambda username, password, login_domain=None: (_ for _ in ()).throw(InvalidCredentialsError("not a domain admin")),
+    )
 
     with pytest.raises(InvalidCredentialsError):
         admin.login("adminynh", "wrong-password")
+
+
+@respx.mock
+def test_login_falls_back_to_domain_admin_when_superadmin_rejected(
+    admin_login_url: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    respx.post(admin_login_url).mock(return_value=Response(401, text="Invalid password or username"))
+    monkeypatch.setattr(admin, "_authenticate_domain_admin", lambda username, password, login_domain=None: None)
+    monkeypatch.setattr(admin, "_create_domain_admin_session", lambda username: "da_faketoken")
+
+    token = admin.login("domain.admin", "correct-password")
+
+    assert token == "da_faketoken"
 
 
 @respx.mock

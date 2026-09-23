@@ -7,7 +7,7 @@
 {% block content %}
         <ul class="app-list">
       {% for s in services %}
-        <li class="app-item">
+        <li class="app-item {{ 'app-item-ok' if s.status in ('running', 'exited') else 'app-item-down' }}">
           <a href="{{ url_for('service_info', name=s.name) }}" class="service-item-link">
             <div class="app-item-main">
               <strong>{{ s.name }}</strong>
@@ -26,7 +26,7 @@
         <li class="app-item">{{ t('no_service') }}</li>
       {% endfor %}
       {% for s in standalone_services %}
-        <li class="app-item app-item-static">
+        <li class="app-item app-item-static {{ 'app-item-ok' if s.installed and s.status in ('running', 'exited') else ('app-item-down' if s.installed else '') }}">
           <div class="app-item-main">
             <strong>{{ s.label }}</strong>
           </div>
@@ -49,7 +49,9 @@
 {% block extra_style %}
     .app-list { list-style: none; margin: 0; padding: 0; }
     .app-item { background: var(--color-card-bg); border-radius: 12px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);
-                margin-bottom: 0.75rem; overflow: hidden; }
+                border-left: 4px solid var(--color-border-strong); margin-bottom: 0.75rem; overflow: hidden; }
+    .app-item-ok { border-left-color: var(--color-text-success); }
+    .app-item-down { border-left-color: var(--color-text-danger); }
     .service-item-link { display: block; padding: 1rem 1.5rem; color: inherit; text-decoration: none; }
     .app-item-static { padding: 1rem 1.5rem; }
     .app-item-main { display: flex; align-items: baseline; gap: 0.5rem; }

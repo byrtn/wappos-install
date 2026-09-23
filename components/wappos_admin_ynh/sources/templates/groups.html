@@ -11,16 +11,12 @@
           <span class="group-title">
             {% if g.is_special %}
               {{ {"admins": t('group_admins_label'), "all_users": t('group_all_users_label'), "visitors": t('group_visitors_label')}[g.name] }}
+            {% elif g.name == "wappos_domain_admins" %}
+              {{ t('group_domain_admins_label') }}
             {% else %}
               {{ t('group_named', name=g.name) }}
             {% endif %}
           </span>
-          {% if not g.is_special %}
-            <form method="post" action="{{ url_for('delete_group', groupname=g.name) }}"
-                  data-confirm="{{ t('confirm_delete_group', name=g.name) }}" class="group-delete-form">
-              <button type="submit" class="btn btn-danger">{{ t('btn_delete_short') }}</button>
-            </form>
-          {% endif %}
         </summary>
 
         <div class="group-body">
@@ -38,6 +34,8 @@
                     <em>{{ t('group_explain_visitors_note') }}</em>
                   {% endif %}
                 </p>
+              {% elif g.name == "wappos_domain_admins" %}
+                <p class="diag-item-details group-explain">{{ t('group_explain_wappos_domain_admins') }}</p>
               {% endif %}
               {% if g.name == "admins" or not g.is_special %}
                 <form method="post" action="{{ url_for('update_group_members', groupname=g.name) }}"
@@ -56,29 +54,146 @@
             </div>
           </div>
 
+          {% if g.name == "wappos_domain_admins" %}
+            <hr>
+
+            <div class="group-row">
+              <strong class="group-row-label">{{ t('h3_domain_admin_owned_domains') }}</strong>
+              <div class="group-row-content">
+                <p class="diag-item-details group-explain">{{ t('domain_admin_owned_domains_info') }}</p>
+                {% if g.members %}
+                  <div class="domain-admin-search-wrap">
+                    <input type="text" class="domain-admin-search" placeholder="{{ t('label_filter_domain_admins') }}"
+                           oninput="wappasFilterDomainAdminRows(this)">
+                  </div>
+                  <table class="domain-admin-overview responsive-table">
+                    <thead>
+                      <tr>
+                        <th>{{ t('th_domain_admin_account') }}</th>
+                        <th>{{ t('th_domain_admin_owned') }}</th>
+                        <th>{{ t('th_domain_admin_primary') }}</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {% for member in g.members %}
+                        {% set owned = domain_admin_owned_domains.get(member, []) %}
+                        {% set primary = domain_admin_primary_domains.get(member, '') %}
+                        <tr class="domain-admin-row" data-target="domain-admin-edit-{{ loop.index }}"
+                            data-search="{{ (member ~ ' ' ~ owned|join(' ') ~ ' ' ~ primary)|lower }}"
+                            onclick="wappasToggleDomainAdminRow(this)">
+                          <td data-label="{{ t('th_domain_admin_account') }}" class="domain-admin-overview-account">
+                            <span class="domain-admin-chevron" aria-hidden="true">&#9656;</span>{{ member }}
+                          </td>
+                          <td data-label="{{ t('th_domain_admin_owned') }}" class="domain-admin-collapsed-detail">
+                            {% for domain in owned %}
+                              <span class="domain-chip">{{ domain }}</span>
+                            {% else %}
+                              <span class="field-info">{{ t('domain_admin_overview_no_domains') }}</span>
+                            {% endfor %}
+                          </td>
+                          <td data-label="{{ t('th_domain_admin_primary') }}" class="domain-admin-collapsed-detail">
+                            {% if primary %}
+                              <span class="domain-primary-tag"><span aria-hidden="true">&#9733;</span> {{ primary }}</span>
+                            {% else %}
+                              <span class="field-info">{{ t('domain_admin_overview_no_primary') }}</span>
+                            {% endif %}
+                          </td>
+                        </tr>
+                        <tr class="domain-admin-edit-row" id="domain-admin-edit-{{ loop.index }}" style="display: none;">
+                          <td colspan="3">
+                            <div class="domain-admin-mobile-summary">
+                              <div class="domain-admin-summary-line">
+                                <strong>{{ t('th_domain_admin_owned') }}</strong>
+                                {% for domain in owned %}
+                                  <span class="domain-chip">{{ domain }}</span>
+                                {% else %}
+                                  <span class="field-info">{{ t('domain_admin_overview_no_domains') }}</span>
+                                {% endfor %}
+                              </div>
+                              <div class="domain-admin-summary-line">
+                                <strong>{{ t('th_domain_admin_primary') }}</strong>
+                                {% if primary %}
+                                  <span class="domain-primary-tag"><span aria-hidden="true">&#9733;</span> {{ primary }}</span>
+                                {% else %}
+                                  <span class="field-info">{{ t('domain_admin_overview_no_primary') }}</span>
+                                {% endif %}
+                              </div>
+                            </div>
+                            <form method="post" action="{{ url_for('update_domain_admin_owned_domains', username=member) }}"
+                                  class="domain-admin-edit-form">
+                              <div class="domain-admin-list">
+                                {% for domain in all_domains %}
+                                  {% set is_primary = domain == primary %}
+                                  <label class="domain-admin-list-row">
+                                    <input type="checkbox" name="domains" value="{{ domain }}"
+                                           {{ "checked" if domain in owned else "" }}>
+                                    <span class="domain-admin-list-name">{{ domain }}</span>
+                                    <button type="button" class="domain-admin-star {{ 'is-primary' if is_primary else '' }}"
+                                            data-domain="{{ domain }}" onclick="wappasSetPrimaryDomain(this)"
+                                            title="{{ t('star_is_primary') if is_primary else t('star_set_as_primary') }}"
+                                            aria-label="{{ t('star_is_primary') if is_primary else t('star_set_as_primary') }}">
+                                      <span aria-hidden="true">{{ "★" if is_primary else "☆" }}</span>
+                                    </button>
+                                  </label>
+                                {% endfor %}
+                              </div>
+                              <input type="hidden" name="primary_domain" value="{{ primary }}">
+                              <span class="field-info">{{ t('primary_domain_info') }}</span>
+                              <button type="submit" class="btn" style="margin-top: 0.5rem;">{{ t('btn_save_domain_admin_owned_domains') }}</button>
+                            </form>
+                          </td>
+                        </tr>
+                      {% endfor %}
+                    </tbody>
+                  </table>
+                  <p class="field-info domain-admin-no-match" style="display: none; margin: 0.5rem 0 0;">{{ t('domain_admin_no_search_results') }}</p>
+                {% else %}
+                  <p class="field-info" style="margin: 0;">{{ t('domain_owners_no_candidates') }}</p>
+                {% endif %}
+              </div>
+            </div>
+          {% endif %}
+
           <hr>
 
           <div class="group-row">
             <strong class="group-row-label">{{ t('label_permissions') }}</strong>
             <div class="group-row-content">
-              <form method="post" action="{{ url_for('update_group_permissions', groupname=g.name) }}"
-                    data-groupname="{{ g.name }}" onsubmit="return wappasConfirmGroupPermissions(this, this.dataset.groupname);">
-                <div class="tag-checklist">
-                  {% for p in permission_options %}
-                                        {% set forbidden = (g.name == 'visitors' and p.protected) or (g.name in ('all_users', 'admins') and p.id in ('ssh.main', 'sftp.main')) %}
-                    <label class="tag-checkbox" {% if forbidden %}title="{{ t('forbidden_for_group_title') }}"{% endif %}>
-                      {% if forbidden %}
-                                                <input type="hidden" name="locked" value="{{ p.id }}">
-                      {% endif %}
-                      <input type="checkbox" name="permissions" value="{{ p.id }}" {{ "checked" if p.id in g.permissions else "" }} {{ "disabled" if forbidden else "" }}>
-                      {{ p.label }}
-                    </label>
-                  {% endfor %}
-                </div>
-                <button type="submit" class="btn">{{ t('btn_save_permissions') }}</button>
-              </form>
+              {% if g.name == "wappos_domain_admins" %}
+                <p class="diag-item-details group-explain">{{ t('domain_admins_group_permissions_moved') }}</p>
+              {% else %}
+                <form method="post" action="{{ url_for('update_group_permissions', groupname=g.name) }}"
+                      data-groupname="{{ g.name }}" onsubmit="return wappasConfirmGroupPermissions(this, this.dataset.groupname);">
+                  <div class="tag-checklist">
+                    {% for p in permission_options %}
+                                          {% set forbidden = (g.name == 'visitors' and p.protected) or (g.name in ('all_users', 'admins') and p.id in ('ssh.main', 'sftp.main')) %}
+                      <label class="tag-checkbox" {% if forbidden %}title="{{ t('forbidden_for_group_title') }}"{% endif %}>
+                        {% if forbidden %}
+                                                  <input type="hidden" name="locked" value="{{ p.id }}">
+                        {% endif %}
+                        <input type="checkbox" name="permissions" value="{{ p.id }}" {{ "checked" if p.id in g.permissions else "" }} {{ "disabled" if forbidden else "" }}>
+                        {{ p.label }}
+                      </label>
+                    {% endfor %}
+                  </div>
+                  <button type="submit" class="btn">{{ t('btn_save_permissions') }}</button>
+                </form>
+              {% endif %}
             </div>
           </div>
+
+          {% if not g.is_special and g.name != "wappos_domain_admins" %}
+            <hr>
+
+            <div class="group-row">
+              <div class="group-row-content">
+                <form method="post" action="{{ url_for('delete_group', groupname=g.name) }}"
+                      data-confirm="{{ t('confirm_delete_group', name=g.name) }}" class="group-delete-form">
+                  <button type="submit" class="btn btn-danger">{{ t('btn_delete_group') }}</button>
+                </form>
+              </div>
+            </div>
+          {% endif %}
         </div>
       </details>
     {% endfor %}
@@ -144,31 +259,49 @@
       </div>
     </div>
 
-    <div class="card create-card">
-      <div class="card-header"><h3>{{ t('h3_permission_detail') }}</h3></div>
-      <div class="card-body">
-        <table class="permission-detail-table">
-          <thead>
-            <tr>
-              <th>{{ t('th_permission') }}</th>
-              <th>{{ t('th_url') }}</th>
-              <th>{{ t('th_additional_urls') }}</th>
-              <th>{{ t('th_effective_users') }}</th>
-            </tr>
-          </thead>
-          <tbody>
-            {% for p in permission_options %}
+    <h3 class="section-title">{{ t('h3_permission_detail') }}</h3>
+    {% for domain, perms in permissions_by_domain.items() %}
+      <div class="card create-card perm-domain-card {{ 'perm-domain-system' if not domain else '' }}">
+        <div class="card-header">
+          <h3>{{ domain if domain else t('perm_domain_system') }}</h3>
+        </div>
+        <div class="card-body">
+          <table class="permission-detail-table responsive-table-compact">
+            <thead>
               <tr>
-                <td data-label="{{ t('th_permission') }}">{{ p.label }}</td>
-                <td data-label="{{ t('th_url') }}">{{ p.url or "—" }}</td>
-                <td data-label="{{ t('th_additional_urls') }}">{{ p.additional_urls|join(", ") if p.additional_urls else "—" }}</td>
-                <td data-label="{{ t('th_effective_users') }}">{{ p.corresponding_users|join(", ") if p.corresponding_users else "—" }}</td>
+                <th>{{ t('th_permission') }}</th>
+                <th>{{ t('th_path') }}</th>
+                <th>{{ t('th_effective_users') }}</th>
               </tr>
-            {% endfor %}
-          </tbody>
-        </table>
+            </thead>
+            <tbody>
+              {% for p in perms %}
+                <tr>
+                  <td data-label="{{ t('th_permission') }}"><span class="perm-name">{{ p.label }}</span></td>
+                  <td data-label="{{ t('th_path') }}">
+                    <span class="perm-path-chip">{{ p.path or "/" }}</span>
+                    {% for extra in p.additional %}
+                      <span class="perm-path-chip perm-path-chip-extra">{{ extra.domain }}{{ extra.path }}</span>
+                    {% endfor %}
+                  </td>
+                  <td data-label="{{ t('th_effective_users') }}" class="span-full">
+                    {% if not p.corresponding_users %}
+                      <span class="field-info">{{ t('perm_no_users') }}</span>
+                    {% elif p.all_users %}
+                      <span class="app-pill app-pill-all">{{ t('perm_all_accounts', n=p.corresponding_users|length) }}</span>
+                    {% else %}
+                      <div class="app-pill-list">
+                        {% for u in p.corresponding_users %}<span class="app-pill">{{ u }}</span>{% endfor %}
+                      </div>
+                    {% endif %}
+                  </td>
+                </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
       </div>
-    </div>
+    {% endfor %}
 {% endblock %}
 
 {% block extra_style %}
@@ -194,22 +327,69 @@
     .individual-account-picker { margin-bottom: 1rem; }
     .individual-account-picker select { padding: 0.4rem 0.6rem; border-radius: 6px;
                      border: 1px solid var(--color-border-strong); font-size: 0.9rem; }
+    .section-title { font-size: 0.85rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em;
+                     color: var(--color-text-faint); margin: 2rem 0 0.9rem; }
+    .perm-domain-card { border-left: 4px solid var(--color-link); }
+    .perm-domain-card.perm-domain-system { border-left: 4px solid var(--color-border-strong); }
+    .perm-domain-card .card-header { display: flex; align-items: center; }
+    .perm-domain-card .card-header h3 { color: var(--color-link); }
+    .perm-domain-card.perm-domain-system .card-header h3 { color: var(--color-text-muted); font-weight: 600; }
     .permission-detail-table { width: 100%; border-collapse: collapse; font-size: 0.85rem; }
-    .permission-detail-table th, .permission-detail-table td { text-align: left; padding: 0.5rem 0.75rem;
+    .permission-detail-table th, .permission-detail-table td { text-align: left; padding: 0.6rem 0.85rem;
                      border-bottom: 1px solid var(--color-border); overflow-wrap: anywhere; }
-    .permission-detail-table th { color: var(--color-text-muted); font-weight: 600; }
+    .permission-detail-table th { color: var(--color-text-muted); font-weight: 600;
+                     text-transform: uppercase; font-size: 0.72rem; letter-spacing: 0.03em; }
+    .permission-detail-table tr:last-child td { border-bottom: none; }
+    .perm-name { font-weight: 600; }
+    .perm-path-chip { display: inline-block; font-family: monospace; font-size: 0.78rem;
+                     background: var(--color-info-bg); color: var(--color-info-text);
+                     border-radius: 5px; padding: 0.2rem 0.5rem; margin: 0.1rem 0.3rem 0.1rem 0; }
+    .perm-path-chip-extra { background: var(--color-warning-bg); color: var(--color-text-warning); }
+    .app-pill-list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+    .app-pill { display: inline-block; border: 1px solid var(--color-border-strong); border-radius: 6px;
+                     padding: 0.2rem 0.5rem; font-size: 0.78rem; color: var(--color-text); background: var(--color-hover-bg); }
+    .app-pill-all { background: var(--color-message-bg); color: var(--color-message-text);
+                     border-color: transparent; font-weight: 600; }
+    .domain-admin-search-wrap { margin-bottom: 0.75rem; max-width: 320px; }
+    .domain-admin-search { width: 100%; padding: 0.4rem 0.6rem; border-radius: 6px;
+                     border: 1px solid var(--color-border-strong); font-size: 0.82rem; }
+    .domain-admin-overview { width: 100%; border-collapse: collapse; font-size: 0.82rem; margin-bottom: 0; }
+    .domain-admin-overview th { text-align: left; padding: 0.35rem 0.5rem; color: var(--color-text-faint);
+                     font-weight: 600; text-transform: uppercase; font-size: 0.68rem; letter-spacing: 0.03em; }
+    .domain-admin-overview td { padding: 0.45rem 0.5rem; border-top: 1px solid var(--color-border); vertical-align: middle; }
+    .domain-admin-overview-account { font-weight: 600; }
+    .domain-admin-chevron { display: inline-block; width: 0.9rem; color: var(--color-text-faint);
+                     font-size: 0.7rem; transition: transform 0.15s ease; }
+    .domain-admin-row { cursor: pointer; }
+    .domain-admin-row:hover td { background: var(--color-hover-bg); }
+    .domain-admin-row.open td { background: var(--color-hover-bg); }
+    .domain-admin-row.open .domain-admin-chevron { color: var(--color-text); transform: rotate(90deg); }
+    .domain-admin-overview.responsive-table td { max-width: 100%; overflow-wrap: anywhere; }
+    .domain-admin-mobile-summary { display: none; }
+    .domain-admin-summary-line { font-size: 0.82rem; margin-bottom: 0.5rem; }
+    .domain-admin-summary-line strong { display: block; font-size: 0.68rem; text-transform: uppercase;
+                     letter-spacing: 0.03em; color: var(--color-text-faint); font-weight: 600; margin-bottom: 0.2rem; }
     @media (max-width: 640px) {
-      .permission-detail-table thead { display: none; }
-      .permission-detail-table, .permission-detail-table tbody, .permission-detail-table tr,
-      .permission-detail-table td { display: block; width: 100%; }
-      .permission-detail-table tr { border: 1px solid var(--color-border); border-radius: 8px;
-                     margin-bottom: 0.75rem; overflow: hidden; }
-      .permission-detail-table td { border-bottom: 1px solid var(--color-border); padding: 0.5rem 0.75rem; }
-      .permission-detail-table tr td:last-child { border-bottom: none; }
-      .permission-detail-table td::before { content: attr(data-label); display: block; font-size: 0.72rem;
-                     color: var(--color-text-faint); text-transform: uppercase; letter-spacing: 0.03em;
-                     margin-bottom: 0.15rem; }
+      .domain-admin-overview.responsive-table .domain-admin-collapsed-detail { display: none; }
+      .domain-admin-overview.responsive-table .domain-admin-overview-account::before { display: none; }
+      .domain-admin-overview-account { font-size: 0.95rem; }
+      .domain-admin-mobile-summary { display: block; margin-bottom: 0.75rem; }
     }
+    .domain-admin-edit-row td { border-top: none; padding: 0 0.5rem 0.85rem; }
+    .domain-admin-edit-form { margin: 0; }
+    .domain-chip { display: inline-block; background: var(--color-info-bg); color: var(--color-info-text);
+                     border-radius: 6px; padding: 0.15rem 0.5rem; font-size: 0.76rem; margin: 0 0.3rem 0.2rem 0; }
+    .domain-primary-tag { display: inline-flex; align-items: center; gap: 0.3rem; font-weight: 600;
+                     color: var(--color-text-warning); }
+    .domain-admin-list { display: flex; flex-direction: column; border: 1px solid var(--color-border);
+                     border-radius: 8px; overflow: hidden; max-width: 420px; }
+    .domain-admin-list-row { display: flex; align-items: center; gap: 0.6rem; padding: 0.5rem 0.65rem;
+                     font-size: 0.82rem; border-bottom: 1px solid var(--color-border); }
+    .domain-admin-list-row:last-child { border-bottom: none; }
+    .domain-admin-list-name { flex: 1; }
+    .domain-admin-star { background: none; border: none; cursor: pointer; font-size: 1rem;
+                     color: var(--color-text-faint); padding: 0.1rem 0.2rem; line-height: 1; }
+    .domain-admin-star.is-primary { color: var(--color-text-warning); }
 {% endblock %}
 
 {% block extra_script %}
@@ -218,6 +398,8 @@
     var GROUPS_I18N = {
       confirmGrantDangerous: {{ t('confirm_grant_dangerous_perm', perms='%s', group='%s')|tojson }},
       confirmRemoveSelfAdmins: {{ t('confirm_remove_self_from_admins')|tojson }},
+      starIsPrimary: {{ t('star_is_primary')|tojson }},
+      starSetAsPrimary: {{ t('star_set_as_primary')|tojson }},
     };
     function wappasFormat(template) {
       var args = Array.prototype.slice.call(arguments, 1);
@@ -249,6 +431,57 @@
         return confirm(GROUPS_I18N.confirmRemoveSelfAdmins);
       }
       return true;
+    }
+    function wappasSetPrimaryDomain(button) {
+      var form = button.closest('form');
+      if (!form) return;
+      var domain = button.dataset.domain;
+      var hidden = form.querySelector('input[name="primary_domain"]');
+      if (hidden) {
+        hidden.value = domain;
+      }
+      var checkbox = form.querySelector('input[name="domains"][value="' + CSS.escape(domain) + '"]');
+      if (checkbox) {
+        checkbox.checked = true;
+      }
+      form.querySelectorAll('.domain-admin-star').forEach(function (star) {
+        var active = star === button;
+        star.classList.toggle('is-primary', active);
+        star.querySelector('span').textContent = active ? '★' : '☆';
+        var label = active ? GROUPS_I18N.starIsPrimary : GROUPS_I18N.starSetAsPrimary;
+        star.title = label;
+        star.setAttribute('aria-label', label);
+      });
+    }
+    function wappasToggleDomainAdminRow(row) {
+      var target = document.getElementById(row.dataset.target);
+      if (!target) return;
+      var wasOpen = target.style.display !== 'none';
+      document.querySelectorAll('.domain-admin-edit-row').forEach(function (r) { r.style.display = 'none'; });
+      document.querySelectorAll('.domain-admin-row').forEach(function (r) { r.classList.remove('open'); });
+      if (!wasOpen) {
+        target.style.display = '';
+        row.classList.add('open');
+      }
+    }
+    function wappasFilterDomainAdminRows(input) {
+      var query = input.value.trim().toLowerCase();
+      var anyMatch = false;
+      document.querySelectorAll('.domain-admin-row').forEach(function (row) {
+        var match = !query || row.dataset.search.indexOf(query) !== -1;
+        row.style.display = match ? '' : 'none';
+        if (match) {
+          anyMatch = true;
+        } else {
+          var target = document.getElementById(row.dataset.target);
+          if (target) target.style.display = 'none';
+          row.classList.remove('open');
+        }
+      });
+      var noMatch = input.closest('.group-row-content').querySelector('.domain-admin-no-match');
+      if (noMatch) {
+        noMatch.style.display = anyMatch ? 'none' : '';
+      }
     }
     function showIndividualAccountPerms(name) {
         document.querySelectorAll('.individual-account-perms').forEach(function (el) {

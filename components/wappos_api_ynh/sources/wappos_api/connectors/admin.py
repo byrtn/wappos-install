@@ -9,6 +9,7 @@ import json
 import logging
 import os
 import pickle
+import secrets
 import socket
 import subprocess
 import threading
@@ -16,8 +17,10 @@ import time
 import tomllib
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from urllib.parse import urlencode
 
 import httpx
+import ldap
 
 from wappos_api import locale_context
 from wappos_api.config import settings
@@ -196,7 +199,7 @@ def ping() -> None:
         )
 
 
-def login(username: str, password: str) -> str:
+def _login_superadmin(username: str, password: str) -> str:
     try:
         response = httpx.post(
             f"{settings.yunohost_api_base_url}/login",
@@ -218,12 +221,185 @@ def login(username: str, password: str) -> str:
     return token
 
 
+_LDAP_URI = "ldap://localhost:389"
+_LDAP_BASE_DN = "dc=yunohost,dc=org"
+_LDAP_USER_DN = "uid={uid},ou=users," + _LDAP_BASE_DN
+
+_DOMAIN_ADMIN_TOKEN_PREFIX = "da_"
+_DOMAIN_ADMIN_SESSION_VALIDITY = 3 * 24 * 3600
+_domain_admin_sessions_lock = threading.Lock()
+
+
+def _domain_admin_sessions_file() -> Path:
+    return _TTL_CACHE_DIR / "domain_admin_sessions.pickle"
+
+_SERVICE_SESSION_REFRESH_SECONDS = 24 * 3600
+_service_session_lock = threading.Lock()
+_service_session_cache: dict[str, tuple[float, str]] = {}
+
+
+def _service_account_credentials() -> tuple[str, str]:
+    try:
+        data = json.loads(Path(settings.wappos_service_account_secret_path).read_text())
+        return data["username"], data["password"]
+    except (OSError, ValueError, KeyError) as exc:
+        raise UpstreamUnavailableError("wappos_api service account credentials unavailable") from exc
+
+
+def _service_session_token() -> str:
+    with _service_session_lock:
+        cached = _service_session_cache.get("token")
+        if cached and time.time() - cached[0] < _SERVICE_SESSION_REFRESH_SECONDS:
+            return cached[1]
+
+    username, password = _service_account_credentials()
+    token = _login_superadmin(username, password)
+
+    with _service_session_lock:
+        _service_session_cache["token"] = (time.time(), token)
+    return token
+
+
+def _ldap_group_members(group_cn: str) -> set[str]:
+    service_user, service_password = _service_account_credentials()
+    con = ldap.initialize(_LDAP_URI)
+    try:
+        con.simple_bind_s(_LDAP_USER_DN.format(uid=service_user), service_password)
+        result = con.search_s(
+            f"cn={group_cn},ou=groups,{_LDAP_BASE_DN}", ldap.SCOPE_BASE, attrlist=["memberUid"]
+        )
+    except ldap.LDAPError as exc:
+        raise UpstreamUnavailableError("LDAP unreachable while checking domain-admin group membership") from exc
+    finally:
+        con.unbind_s()
+
+    if not result:
+        return set()
+    _, attrs = result[0]
+    return {m.decode() if isinstance(m, bytes) else m for m in attrs.get("memberUid", [])}
+
+
+def _verify_ldap_password(username: str, password: str) -> bool:
+    con = ldap.initialize(_LDAP_URI)
+    try:
+        con.simple_bind_s(_LDAP_USER_DN.format(uid=username), password)
+    except ldap.INVALID_CREDENTIALS:
+        return False
+    except ldap.LDAPError as exc:
+        raise UpstreamUnavailableError("LDAP unreachable while verifying domain-admin credentials") from exc
+    else:
+        return True
+    finally:
+        con.unbind_s()
+
+
+def _authenticate_domain_admin(username: str, password: str, login_domain: str | None = None) -> None:
+    members = _ldap_group_members(settings.wappos_domain_admins_group)
+    if username not in members:
+        raise InvalidCredentialsError("not a domain admin")
+    if not _verify_ldap_password(username, password):
+        raise InvalidCredentialsError("invalid domain admin credentials")
+
+    from wappos_api.connectors import domain_owners
+
+    primary_domain = domain_owners.get_primary_domain(username)
+    if not login_domain or primary_domain is None or login_domain != primary_domain:
+        raise InvalidCredentialsError("login domain does not match primary domain")
+
+
+def _load_domain_admin_sessions() -> dict[str, tuple[float, str]]:
+    sessions_file = _domain_admin_sessions_file()
+    if not sessions_file.exists():
+        return {}
+    try:
+        with open(sessions_file, "rb") as f:
+            fcntl.flock(f, fcntl.LOCK_SH)
+            try:
+                return pickle.load(f)
+            finally:
+                fcntl.flock(f, fcntl.LOCK_UN)
+    except (EOFError, pickle.UnpicklingError, OSError):
+        return {}
+
+
+def _save_domain_admin_sessions(store: dict[str, tuple[float, str]]) -> None:
+    _TTL_CACHE_DIR.mkdir(parents=True, exist_ok=True)
+    sessions_file = _domain_admin_sessions_file()
+    with open(sessions_file, "a+b") as f:
+        fcntl.flock(f, fcntl.LOCK_EX)
+        try:
+            f.seek(0)
+            f.truncate()
+            pickle.dump(store, f)
+        finally:
+            fcntl.flock(f, fcntl.LOCK_UN)
+    os.chmod(sessions_file, 0o600)
+
+
+def _create_domain_admin_session(username: str) -> str:
+    token = _DOMAIN_ADMIN_TOKEN_PREFIX + secrets.token_urlsafe(32)
+    now = time.time()
+    with _domain_admin_sessions_lock:
+        store = _load_domain_admin_sessions()
+        store = {tok: v for tok, v in store.items() if now - v[0] < _DOMAIN_ADMIN_SESSION_VALIDITY}
+        store[token] = (now, username)
+        _save_domain_admin_sessions(store)
+    return token
+
+
+def _lookup_domain_admin_session(token: str) -> str | None:
+    with _domain_admin_sessions_lock:
+        store = _load_domain_admin_sessions()
+    entry = store.get(token)
+    if entry is None:
+        return None
+    created, username = entry
+    if time.time() - created >= _DOMAIN_ADMIN_SESSION_VALIDITY:
+        return None
+    return username
+
+
+def _resolve_upstream_token(session_token: str) -> str:
+    if not session_token.startswith(_DOMAIN_ADMIN_TOKEN_PREFIX):
+        return session_token
+    if _lookup_domain_admin_session(session_token) is None:
+        raise InvalidCredentialsError("domain admin session expired or invalid")
+    return _service_session_token()
+
+
+def resolve_caller_username(session_token: str) -> str | None:
+    if not session_token.startswith(_DOMAIN_ADMIN_TOKEN_PREFIX):
+        return None
+    return _lookup_domain_admin_session(session_token)
+
+
+def resolve_caller_scope(session_token: str) -> list[str] | None:
+    if not session_token.startswith(_DOMAIN_ADMIN_TOKEN_PREFIX):
+        return None
+    username = _lookup_domain_admin_session(session_token)
+    if username is None:
+        raise InvalidCredentialsError("domain admin session expired or invalid")
+    from wappos_api.connectors import domain_owners
+
+    return domain_owners.domains_owned_by(username)
+
+
+def login(username: str, password: str, login_domain: str | None = None) -> str:
+    try:
+        return _login_superadmin(username, password)
+    except InvalidCredentialsError:
+        pass
+
+    _authenticate_domain_admin(username, password, login_domain)
+    return _create_domain_admin_session(username)
+
+
 def list_users(session_token: str) -> list[User]:
     try:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -248,7 +424,7 @@ def get_user(session_token: str, username: str) -> UserDetail:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users/{username}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -277,7 +453,7 @@ def list_domain_names(session_token: str, full: bool = False) -> list[str]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domains",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -300,7 +476,7 @@ def get_domain_detail(session_token: str, domain: str) -> DomainDetail:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domains/{domain}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -336,7 +512,7 @@ def get_domain_config(session_token: str, domain: str) -> dict:
             f"{settings.yunohost_api_base_url}/domains/{domain}/config",
             params={"full": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -354,7 +530,7 @@ def get_domain_dns_suggestion(session_token: str, domain: str) -> str:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domains/{domain}/dns/suggest",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -375,8 +551,8 @@ def set_domain_config(session_token: str, domain: str, panel_key: str, args: str
             data={"args": args},
             files=_FORCE_MULTIPART,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
-            timeout=settings.upstream_timeout_seconds,
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
+            timeout=_HEAVY_DOMAIN_OP_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
         raise UpstreamUnavailableError(f"YunoHost API PUT /domains/{domain}/config/{panel_key} unreachable") from exc
@@ -394,7 +570,7 @@ def set_main_domain(session_token: str, domain: str) -> None:
             f"{settings.yunohost_api_base_url}/domains/{domain}/main",
             json={"new_main_domain": domain},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_HEAVY_DOMAIN_OP_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -423,7 +599,7 @@ def install_domain_certificate(
             f"{settings.yunohost_api_base_url}/domains/{domain}/cert",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_CERTIFICATE_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -437,7 +613,7 @@ def get_certificates_status(session_token: str) -> dict:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/domains/*/cert",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -466,7 +642,7 @@ def renew_domain_certificate(
             f"{settings.yunohost_api_base_url}/domains/{domain}/cert/renew",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_CERTIFICATE_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -491,7 +667,7 @@ def add_domain(
             f"{settings.yunohost_api_base_url}/domains",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_CERTIFICATE_TIMEOUT_SECONDS if install_letsencrypt_cert else _HEAVY_DOMAIN_OP_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -521,7 +697,7 @@ def remove_domain(
             f"{settings.yunohost_api_base_url}/domains/{domain}",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_HEAVY_DOMAIN_OP_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -542,7 +718,7 @@ def push_domain_dns(session_token: str, domain: str, dry_run: bool = True, force
             url,
             json={"domain": domain},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -561,7 +737,7 @@ def list_apps(session_token: str) -> list[AppInfo]:
             f"{settings.yunohost_api_base_url}/apps",
             params={"full": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -582,6 +758,7 @@ def list_apps(session_token: str) -> list[AppInfo]:
         AppInfo(
             id=data["id"],
             name=data["name"],
+            label=data.get("label") or data["name"],
             description=data["description"],
             version=data["version"],
             domain_path=data.get("domain_path"),
@@ -610,7 +787,7 @@ def get_app_detail(session_token: str, app_id: str) -> AppDetail:
             f"{settings.yunohost_api_base_url}/apps/{app_id}",
             params={"full": "", "with_pre_upgrade_notifications": "true"},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -669,7 +846,7 @@ def install_app(
             f"{settings.yunohost_api_base_url}/apps",
             json={"app": app_id, "label": label, "args": args, "force": force},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -690,7 +867,7 @@ def remove_app(session_token: str, app_id: str, purge: bool = False) -> None:
             json={"app": app_id},
             params={"purge": "1"} if purge else None,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -705,7 +882,7 @@ def upgrade_app(session_token: str, app_id: str, force: bool = False) -> dict:
             f"{settings.yunohost_api_base_url}/apps/{app_id}/upgrade",
             params={"force": ""} if force else None,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -725,7 +902,7 @@ def change_app_url(session_token: str, app_id: str, domain: str, path: str) -> N
             f"{settings.yunohost_api_base_url}/apps/{app_id}/changeurl",
             json={"app": app_id, "domain": domain, "path": path},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -740,7 +917,7 @@ def change_app_label(session_token: str, app_id: str, new_label: str) -> None:
             f"{settings.yunohost_api_base_url}/apps/{app_id}/label",
             json={"app": app_id, "new_label": new_label},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -755,7 +932,7 @@ def dismiss_app_notification(session_token: str, app_id: str, name: str) -> None
             f"{settings.yunohost_api_base_url}/apps/{app_id}/dismiss_notification/{name}",
             json={"app": app_id, "name": name},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -772,7 +949,7 @@ def get_app_catalog(session_token: str) -> AppCatalog:
             f"{settings.yunohost_api_base_url}/apps/catalog",
             params={"full": "", "with_categories": "", "with_antifeatures": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -835,7 +1012,7 @@ def get_app_manifest(session_token: str, app_id: str) -> AppManifest:
             f"{settings.yunohost_api_base_url}/apps/manifest",
             params={"app": app_id},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -873,7 +1050,7 @@ def list_app_actions(session_token: str, app_id: str) -> dict:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/actions",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -895,7 +1072,7 @@ def run_app_action(session_token: str, app_id: str, action_id: str, args: str | 
             f"{settings.yunohost_api_base_url}/apps/{app_id}/actions/{action_id}",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -914,7 +1091,7 @@ def get_app_config(session_token: str, app_id: str) -> dict:
             f"{settings.yunohost_api_base_url}/apps/{app_id}/config",
             params={"full": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -934,7 +1111,7 @@ def set_app_config(session_token: str, app_id: str, panel_key: str, args: str) -
             data={"args": args},
             files=_FORCE_MULTIPART,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_APP_LIFECYCLE_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -953,7 +1130,7 @@ def list_permissions(session_token: str) -> dict[str, PermissionInfo]:
             f"{settings.yunohost_api_base_url}/users/permissions",
             params={"full": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1003,7 +1180,7 @@ def _update_permission_group(session_token: str, permission: str, action: str, g
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/users/permissions/{permission}/{action}/{group}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1020,7 +1197,7 @@ def list_groups_full(session_token: str) -> list[GroupInfo]:
             f"{settings.yunohost_api_base_url}/users/groups",
             params={"full": "", "include_primary_groups": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1055,7 +1232,7 @@ def create_group(session_token: str, groupname: str) -> None:
             f"{settings.yunohost_api_base_url}/users/groups",
             json={"groupname": groupname},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1069,7 +1246,7 @@ def delete_group(session_token: str, groupname: str) -> None:
         response = httpx.delete(
             f"{settings.yunohost_api_base_url}/users/groups/{groupname}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1092,7 +1269,7 @@ def _update_group_member(session_token: str, group: str, action: str, user: str)
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/users/groups/{group}/{action}/{user}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1113,7 +1290,7 @@ def run_diagnosis(session_token: str, category: str | None = None) -> None:
             f"{settings.yunohost_api_base_url}/diagnosis/run" + ("?force" if category else ""),
             json={"categories": [category]} if category else {},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_DIAGNOSIS_RUN_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -1136,7 +1313,7 @@ def get_diagnosis(session_token: str) -> list[DiagnosisReport]:
             f"{settings.yunohost_api_base_url}/diagnosis",
             params={"full": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1195,7 +1372,7 @@ def share_diagnosis_yunopaste(session_token: str) -> str:
             f"{settings.yunohost_api_base_url}/diagnosis",
             params={"share": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=30.0,
         )
     except httpx.HTTPError as exc:
@@ -1224,7 +1401,7 @@ def _set_diagnosis_item_ignored(session_token: str, action: str, category: str, 
             f"{settings.yunohost_api_base_url}/diagnosis/{action}",
             json={"filter": filter_},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1276,7 +1453,7 @@ def create_user(
                 "mailbox_quota": mailbox_quota,
             },
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1291,7 +1468,7 @@ def update_user(session_token: str, username: str, **fields: object) -> None:
             f"{settings.yunohost_api_base_url}/users/{username}",
             json={**fields, "username": username},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1307,7 +1484,7 @@ def delete_user(session_token: str, username: str, purge: bool = False) -> None:
             f"{settings.yunohost_api_base_url}/users/{username}",
             json={"username": username, "purge": purge},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1322,7 +1499,7 @@ def list_user_ssh_keys(session_token: str, username: str) -> list[dict[str, str]
             f"{settings.yunohost_api_base_url}/users/ssh/keys",
             params={"username": username},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1344,7 +1521,7 @@ def add_user_ssh_key(session_token: str, username: str, key: str, comment: str |
             f"{settings.yunohost_api_base_url}/users/ssh/key",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1360,7 +1537,7 @@ def remove_user_ssh_key(session_token: str, username: str, key: str) -> None:
             f"{settings.yunohost_api_base_url}/users/ssh/key",
             json={"username": username, "key": key},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1374,7 +1551,7 @@ def export_users_csv(session_token: str) -> str:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users/export",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1398,7 +1575,7 @@ def import_users_csv(
             data=data,
             files={"csvfile": (filename, content, "text/csv")},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1416,7 +1593,7 @@ def get_group_mail_aliases(session_token: str, groupname: str) -> list[str]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/users/groups/{groupname}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1456,7 +1633,7 @@ def _update_group_mailalias(
                 f"{settings.yunohost_api_base_url}/users/groups/{groupname}/aliases/{alias}",
                 json=body,
                 headers=_yunohost_api_headers(),
-                cookies={_SESSION_COOKIE_NAME: session_token},
+                cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
                 timeout=settings.upstream_timeout_seconds,
             )
         else:
@@ -1465,7 +1642,7 @@ def _update_group_mailalias(
                 f"{settings.yunohost_api_base_url}/users/groups/{groupname}/aliases/{alias}",
                 json=body,
                 headers=_yunohost_api_headers(),
-                cookies={_SESSION_COOKIE_NAME: session_token},
+                cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
                 timeout=settings.upstream_timeout_seconds,
             )
     except httpx.HTTPError as exc:
@@ -1487,7 +1664,7 @@ def update_permission_properties(session_token: str, permission: str, **fields: 
             f"{settings.yunohost_api_base_url}/users/permissions/{permission}",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1502,7 +1679,7 @@ def update_permission_logo(session_token: str, permission: str, filename: str, c
             f"{settings.yunohost_api_base_url}/users/permissions/{permission}",
             files={"logo": (filename, content, "image/png")},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1517,7 +1694,7 @@ def list_services(session_token: str) -> list[ServiceInfo]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/services",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1562,7 +1739,7 @@ def get_service(session_token: str, name: str) -> ServiceInfo:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/services/{name}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1591,7 +1768,7 @@ def _service_state_matches(session_token: str, name: str, action: str) -> bool:
         check = httpx.get(
             f"{settings.yunohost_api_base_url}/services/{name}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
         return check.status_code == 200 and check.json().get(field) in expected
@@ -1604,7 +1781,7 @@ def _service_action(session_token: str, name: str, action: str) -> None:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/services/{name}/{action}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_SERVICE_ACTION_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -1657,7 +1834,7 @@ def get_service_log(session_token: str, name: str, number: int = 50) -> dict[str
             f"{settings.yunohost_api_base_url}/services/{name}/log",
             params={"number": number},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1677,7 +1854,7 @@ def list_logs(session_token: str, limit: int = 50) -> list[LogEntry]:
             f"{settings.yunohost_api_base_url}/logs",
             params={"limit": limit, "with_details": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1707,7 +1884,7 @@ def get_log(session_token: str, name: str, number: int = 50) -> LogDetail:
             f"{settings.yunohost_api_base_url}/logs/{name}",
             params={"filter_irrelevant": "", "with_suboperations": "", "number": number},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1748,7 +1925,7 @@ def share_log(session_token: str, name: str) -> str:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/logs/{name}/share",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_LOG_SHARE_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -1768,7 +1945,7 @@ def list_firewall(session_token: str) -> FirewallRules:
             f"{settings.yunohost_api_base_url}/firewall",
             params={"raw": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1805,7 +1982,7 @@ def open_firewall_port(session_token: str, protocol: str, port: int | str, comme
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/open/{port}",
             params=params,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_UPNP_TIMEOUT_SECONDS if upnp else settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1823,7 +2000,7 @@ def close_firewall_port(session_token: str, protocol: str, port: int | str, upnp
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/close/{port}",
             params=params,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1837,7 +2014,7 @@ def delete_firewall_port(session_token: str, protocol: str, port: int | str) -> 
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/delete/{port}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1852,7 +2029,7 @@ def set_upnp(session_token: str, enabled: bool) -> None:
         response = httpx.put(
             f"{settings.yunohost_api_base_url}/firewall/upnp/{action}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_UPNP_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -1878,7 +2055,7 @@ def list_diagnosis_categories(session_token: str) -> list[str]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/diagnosis/categories",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -1900,7 +2077,7 @@ def list_disks(session_token: str) -> list[DiskInfo]:
             f"{settings.yunohost_api_base_url}/storage/disk/list",
             params={"with_info": "", "human_readable_size": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2086,7 +2263,7 @@ def get_system_health(session_token: str) -> SystemHealth:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/versions",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2175,7 +2352,7 @@ def list_wappos_component_versions(session_token: str) -> list[WapposComponentVe
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/versions",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2217,6 +2394,36 @@ def _dir_size_bytes(path: str) -> int | None:
         return int(result.stdout.split()[0])
     except (ValueError, IndexError):
         return None
+
+
+_APP_DISK_USAGE_ALLOWED_PREFIXES = ("/var/www/", "/home/yunohost.app/")
+
+
+def get_app_install_dir(session_token: str, app_id: str) -> str | None:
+    try:
+        response = httpx.get(
+            f"{settings.yunohost_api_base_url}/apps/{app_id}",
+            params={"full": ""},
+            headers=_yunohost_api_headers(),
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
+            timeout=settings.upstream_timeout_seconds,
+        )
+    except httpx.HTTPError as exc:
+        raise UpstreamUnavailableError(f"YunoHost API /apps/{app_id} unreachable") from exc
+
+    _raise_for_admin_error(response, f"YunoHost API /apps/{app_id}")
+    try:
+        data = response.json()
+        return (data.get("settings") or {}).get("install_dir")
+    except ValueError as exc:
+        raise UpstreamProtocolError(f"YunoHost API /apps/{app_id} returned an unexpected JSON shape") from exc
+
+
+def get_app_disk_usage(session_token: str, app_id: str) -> int | None:
+    install_dir = get_app_install_dir(session_token, app_id)
+    if not install_dir or not install_dir.startswith(_APP_DISK_USAGE_ALLOWED_PREFIXES):
+        return None
+    return _dir_size_bytes(install_dir)
 
 
 _CONSUMER_SIZES_CACHE_FILE = Path(__file__).parent.parent.parent / ".package" / "consumer_sizes_cache.json"
@@ -2271,7 +2478,7 @@ def list_mounts(session_token: str) -> list[MountInfo]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/storage/disk/list",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2348,7 +2555,7 @@ def get_global_settings(session_token: str) -> dict:
             f"{settings.yunohost_api_base_url}/settings",
             params={"full": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2368,8 +2575,8 @@ def set_global_settings(session_token: str, panel_key: str, args: str) -> dict:
             data={"args": args},
             files=_FORCE_MULTIPART,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
-            timeout=settings.upstream_timeout_seconds,
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
+            timeout=_HEAVY_DOMAIN_OP_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
         raise UpstreamUnavailableError(f"YunoHost API PUT /settings/{panel_key} unreachable") from exc
@@ -2386,7 +2593,7 @@ def reset_global_setting(session_token: str, key: str) -> None:
         response = httpx.delete(
             f"{settings.yunohost_api_base_url}/settings/{key}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2400,7 +2607,7 @@ def reset_all_global_settings(session_token: str) -> None:
         response = httpx.delete(
             f"{settings.yunohost_api_base_url}/settings",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2415,7 +2622,7 @@ def get_global_setting(session_token: str, key: str) -> dict:
             f"{settings.yunohost_api_base_url}/settings/{key}",
             params={"full": ""},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2426,6 +2633,34 @@ def get_global_setting(session_token: str, key: str) -> dict:
         return response.json() or {}
     except ValueError:
         return {}
+
+
+def get_tls_passthrough_settings(session_token: str) -> tuple[bool, list[str]]:
+    data = get_global_settings(session_token)
+    for panel in data.get("panels", []):
+        if panel.get("id") != "misc":
+            continue
+        for section in panel.get("sections", []):
+            if section.get("id") != "tls_passthrough":
+                continue
+            enabled = False
+            entries: list[str] = []
+            for option in section.get("options", []):
+                if option.get("id") == "tls_passthrough_enabled":
+                    enabled = bool(option.get("value"))
+                elif option.get("id") == "tls_passthrough_list":
+                    raw = option.get("value") or ""
+                    entries = [e for e in raw.split(",") if e]
+            return enabled, entries
+    return False, []
+
+
+def set_tls_passthrough_entries(session_token: str, entries: list[str]) -> None:
+    write_args = urlencode({"tls_passthrough_enabled": "1", "tls_passthrough_list": ",".join(entries)})
+    set_global_settings(session_token, "misc", write_args)
+    if not entries:
+        disable_args = urlencode({"tls_passthrough_enabled": "0", "tls_passthrough_list": ""})
+        set_global_settings(session_token, "misc", disable_args)
 
 
 def get_app_map(session_token: str, app_id: str | None = None, raw: bool = False, user: str | None = None) -> dict:
@@ -2441,7 +2676,7 @@ def get_app_map(session_token: str, app_id: str | None = None, raw: bool = False
             f"{settings.yunohost_api_base_url}/apps/map",
             params=params,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2467,7 +2702,7 @@ def app_setting(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/settings",
             params=params,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2493,7 +2728,7 @@ def app_makedefault(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/default",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2510,7 +2745,7 @@ def get_app_shell_info(session_token: str, app_id: str) -> str:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/apps/{app_id}/shell",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_APP_SHELL_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -2526,7 +2761,7 @@ def check_domain_url_available(session_token: str, domain: str, path: str) -> bo
             f"{settings.yunohost_api_base_url}/domain/{domain}/urlavailable",
             params={"path": path},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2548,8 +2783,8 @@ def run_domain_action(session_token: str, domain: str, action_id: str, args: str
             f"{settings.yunohost_api_base_url}/domain/{domain}/actions/{action_id}",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
-            timeout=settings.upstream_timeout_seconds,
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
+            timeout=_HEAVY_DOMAIN_OP_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
         raise UpstreamUnavailableError(
@@ -2583,7 +2818,7 @@ def allow_firewall(
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/allow/{port}",
             params=params,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2612,7 +2847,7 @@ def disallow_firewall(
             f"{settings.yunohost_api_base_url}/firewall/{protocol}/disallow/{port}",
             params=params,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2626,7 +2861,7 @@ def get_disk_info(session_token: str, name: str) -> dict:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/storage/disk/info/{name}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2644,7 +2879,7 @@ def list_hooks(session_token: str, action: str) -> list[str]:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/hooks/{action}",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2673,7 +2908,7 @@ def list_backups(session_token: str, with_info: bool = True, human_readable: boo
             f"{settings.yunohost_api_base_url}/backups",
             params=params,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2697,7 +2932,7 @@ def get_backup_info(session_token: str, name: str, with_details: bool = True, hu
             f"{settings.yunohost_api_base_url}/backups/{name}",
             params=params,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2731,7 +2966,7 @@ def create_backup(
             f"{settings.yunohost_api_base_url}/backups",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_BACKUP_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -2767,7 +3002,7 @@ def restore_backup(
             f"{settings.yunohost_api_base_url}/backups/{name}/restore",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_BACKUP_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -2787,7 +3022,7 @@ def delete_backup(session_token: str, name: str) -> None:
             f"{settings.yunohost_api_base_url}/backups/{name}",
             json={"name": name},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2804,7 +3039,7 @@ def stream_backup_download(session_token: str, name: str):
             "GET",
             f"{settings.yunohost_api_base_url}/backups/{name}/download",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
         )
         response = client.send(request_, stream=True)
     except httpx.HTTPError as exc:
@@ -2839,7 +3074,7 @@ def get_versions(session_token: str) -> dict:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/versions",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2858,7 +3093,7 @@ def get_available_updates(session_token: str) -> dict:
         response = httpx.get(
             f"{settings.yunohost_api_base_url}/update",
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2880,7 +3115,7 @@ def refresh_updates(session_token: str, target: str = "all", no_refresh: bool = 
             f"{settings.yunohost_api_base_url}/update/{target}",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -2901,7 +3136,7 @@ def run_upgrade(session_token: str, target: str) -> dict:
             f"{settings.yunohost_api_base_url}/upgrade/{target}",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -2926,7 +3161,7 @@ def list_migrations(session_token: str, pending: bool = False, done: bool = Fals
             f"{settings.yunohost_api_base_url}/migrations",
             params=params,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -2965,7 +3200,7 @@ def run_migrations(
             url,
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -3004,7 +3239,7 @@ def regen_conf(
             url,
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:
@@ -3023,7 +3258,7 @@ def change_root_password(session_token: str, new_password: str) -> None:
             f"{settings.yunohost_api_base_url}/rootpw",
             json={"new_password": new_password},
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -3041,7 +3276,7 @@ def reboot_server(session_token: str, force: bool = False) -> None:
             f"{settings.yunohost_api_base_url}/reboot",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -3059,7 +3294,7 @@ def shutdown_server(session_token: str, force: bool = False) -> None:
             f"{settings.yunohost_api_base_url}/shutdown",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=settings.upstream_timeout_seconds,
         )
     except httpx.HTTPError as exc:
@@ -3095,7 +3330,7 @@ def run_postinstall(
             f"{settings.yunohost_api_base_url}/postinstall",
             json=body,
             headers=_yunohost_api_headers(),
-            cookies={_SESSION_COOKIE_NAME: session_token},
+            cookies={_SESSION_COOKIE_NAME: _resolve_upstream_token(session_token)},
             timeout=_TOOLS_TIMEOUT_SECONDS,
         )
     except httpx.HTTPError as exc:

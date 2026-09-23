@@ -418,8 +418,6 @@ STRINGS = {
 
     "page_body_support_faq": {
         "fr": (
-            "<h2>Questions fréquentes</h2>"
-
             "<h3>J'ai oublié mon mot de passe, que faire ?</h3>"
             "<p>Ce portail ne propose pas de réinitialisation de mot de passe en autonomie à ce jour. Contactez l'administrateur "
             "de votre serveur (voir plus bas) : lui seul peut réinitialiser un mot de passe depuis l'interface d'administration.</p>"
@@ -456,8 +454,6 @@ STRINGS = {
             "<p>Non, jamais, sur aucun serveur : c'est l'identifiant unique et permanent de votre compte.</p>"
         ),
         "en": (
-            "<h2>Frequently asked questions</h2>"
-
             "<h3>I forgot my password, what should I do?</h3>"
             "<p>This portal doesn't offer self-service password reset at this time. Contact your server's administrator (see "
             "below): only they can reset a password from the administration interface.</p>"
@@ -495,6 +491,7 @@ STRINGS = {
         ),
     },
 
+    "h2_faq": {"fr": "Questions fréquentes", "en": "Frequently asked questions"},
     "h2_contact_admin": {"fr": "Vous avez une autre question ?", "en": "Have another question?"},
     "contact_admin_intro": {
         "fr": "Contactez l'administrateur de votre serveur :",

@@ -5,9 +5,7 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('docker_apps') }}">{{ t('nav_docker_apps') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('breadcrumb_add') }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="error" style="margin-bottom: 1.25rem;">{{ error }}</div>{% endif %}
-
-    <div class="card create-card">
+    <div class="card create-card card-default-open">
       <div class="card-header"><h3>{{ t('h3_step1_catalogue') }}</h3></div>
       <div class="card-body">
         <p class="field-info" style="margin: 0 0 0.75rem;">
@@ -54,19 +52,21 @@
     </details>
 
     <form method="post" action="{{ url_for('docker_add') }}" id="docker-add-form">
-      <div class="card create-card" id="params-card">
+      <div class="card create-card card-default-open" id="params-card">
         <div class="card-header"><h3>{{ t('h3_step2_params') }}</h3></div>
         <div class="card-body">
           <p id="chosen-app-label" class="field-info" style="display: none; font-size: 1rem; font-weight: 600; color: var(--color-text); margin: 0 0 1rem;"></p>
 
           <div class="field" style="margin-top: 0.75rem;">
             <label>{{ t('label_exposure') }}</label>
-            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap; margin-right: 1.5rem;">
-              <input type="radio" name="mode" value="path" id="mode-path" checked> {{ t('radio_under_path') }}
-            </label>
-            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap;">
-              <input type="radio" name="mode" value="subdomain" id="mode-subdomain"> {{ t('radio_dedicated_subdomain') }}
-            </label>
+            <div class="inline-field-row">
+              <label class="checkbox-field">
+                <input type="radio" name="mode" value="path" id="mode-path" checked> <span>{{ t('radio_under_path') }}</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="radio" name="mode" value="subdomain" id="mode-subdomain"> <span>{{ t('radio_dedicated_subdomain') }}</span>
+              </label>
+            </div>
           </div>
 
           <div id="mode-path-fields" class="fields" style="margin-top: 0.5rem;">
@@ -102,15 +102,17 @@
 
           <div class="field" style="margin-top: 0.75rem;">
             <label>{{ t('label_visibility') }}</label>
-            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap; margin-right: 1.5rem;">
-              <input type="radio" name="visibility" value="admins" checked> {{ t('radio_admins_only') }}
-            </label>
-            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap; margin-right: 1.5rem;">
-              <input type="radio" name="visibility" value="all_users"> {{ t('radio_all_accounts') }}
-            </label>
-            <label style="display: inline-flex; align-items: center; gap: 0.4rem; font-size: 0.9rem; white-space: nowrap;">
-              <input type="radio" name="visibility" value="visitors"> {{ t('radio_visitors_public') }}
-            </label>
+            <div class="inline-field-row">
+              <label class="checkbox-field">
+                <input type="radio" name="visibility" value="admins" checked> <span>{{ t('radio_admins_only') }}</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="radio" name="visibility" value="all_users"> <span>{{ t('radio_all_accounts') }}</span>
+              </label>
+              <label class="checkbox-field">
+                <input type="radio" name="visibility" value="visitors"> <span>{{ t('radio_visitors_public') }}</span>
+              </label>
+            </div>
           </div>
 
           <details class="advanced-options" id="tech-params" style="margin-top: 0.75rem;">
@@ -162,6 +164,13 @@
             <div class="field" style="margin-top: 0.75rem;">
               <label><input type="checkbox" id="ldap_enabled" name="ldap_enabled" {{ "checked" if form and form.get('ldap_enabled') == 'on' else "" }}> {{ t('label_ldap_capable') }}</label>
               <span class="field-help">{{ t('ldap_help') }}</span>
+              <div class="ldap-connection-box">
+                <p style="margin: 0 0 0.4rem;">{{ t('ldap_connection_details_title') }}</p>
+                <code>LDAP_HOST={{ ldap_connection.LDAP_HOST }}</code><br>
+                <code>LDAP_PORT={{ ldap_connection.LDAP_PORT }}</code><br>
+                <code>LDAP_BASE_DN={{ ldap_connection.LDAP_BASE_DN }}</code><br>
+                <span class="field-info">{{ t('ldap_connection_anonymous_bind') }}</span>
+              </div>
             </div>
 
             <div class="field" style="margin-top: 0.75rem;">
@@ -190,6 +199,9 @@
 {% block extra_style %}
     .field-info { color: var(--color-text-muted); font-size: 0.8rem; }
     .field-help { display: block; margin-top: 0.3rem; color: var(--color-text-muted); font-size: 0.78rem; }
+    .ldap-connection-box { margin-top: 0.5rem; padding: 0.6rem 0.75rem; border: 1px solid var(--color-border);
+                     border-radius: 6px; background: var(--color-hover-bg); font-size: 0.78rem; }
+    .ldap-connection-box code { font-size: 0.78rem; }
     .card.create-card { margin-bottom: 1.25rem; }
     .advanced-options > summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--color-link); }
     .manual-entry-toggle > summary { cursor: pointer; font-size: 0.9rem; font-weight: 600; color: var(--color-link);
@@ -303,6 +315,7 @@
       var slug = slugSource.toLowerCase().replace(/[^a-z0-9-]+/g, "-").replace(/^-+|-+$/g, "").slice(0, 30);
       document.getElementById("slug").value = slug;
       if (slug) document.getElementById("path").value = "/" + slug;
+      document.getElementById("tech-params").open = true;
       var label = document.getElementById("chosen-app-label");
       label.textContent = wappasFormat(I18N.youAreInstalling, a.title || slug);
       label.style.display = "block";

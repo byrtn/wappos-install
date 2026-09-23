@@ -5,9 +5,6 @@
 {% block breadcrumb %}<span class="breadcrumb-sep">&rsaquo;</span><a href="{{ url_for('system_menu') }}">{{ t('title_system') }}</a><span class="breadcrumb-sep">&rsaquo;</span><span class="breadcrumb-current">{{ t('breadcrumb_security') }}</span>{% endblock %}
 
 {% block content %}
-    {% if error %}<div class="error">{{ error }}</div>{% endif %}
-    {% if message %}<div class="message">{{ message }}</div>{% endif %}
-
     <div class="card">
       <div class="card-header"><h3>{{ t('h3_ssh_access') }}</h3></div>
       <div class="card-body">
@@ -86,14 +83,14 @@
         {% elif not overview.root_ssh_keys %}
           <p class="field-info" style="margin: 0;">{{ t('no_root_ssh_key') }}</p>
         {% else %}
-          <table>
+          <table class="responsive-table-compact">
             <thead><tr><th>{{ t('th_comment') }}</th><th>{{ t('th_key_type') }}</th><th>{{ t('th_fingerprint') }}</th></tr></thead>
             <tbody>
               {% for k in overview.root_ssh_keys %}
                 <tr>
-                  <td>{{ k.comment or "—" }}</td>
-                  <td>{{ k.type }}</td>
-                  <td style="font-family: monospace; font-size: 0.8rem;">{{ k.fingerprint }}</td>
+                  <td data-label="{{ t('th_comment') }}">{% if k.comment %}{{ k.comment }}{% else %}<span class="field-info">{{ t('value_dash') }}</span>{% endif %}</td>
+                  <td data-label="{{ t('th_key_type') }}"><span class="ssh-key-type-chip">{{ k.type }}</span></td>
+                  <td data-label="{{ t('th_fingerprint') }}" class="span-full"><span class="ssh-fingerprint-chip">{{ k.fingerprint }}</span></td>
                 </tr>
               {% endfor %}
             </tbody>
@@ -121,5 +118,10 @@
     .sec-status-on .sec-status-dot { background: var(--color-danger); }
     .sec-status-off { color: var(--color-text-success); }
     .sec-status-off .sec-status-dot { background: var(--color-success); }
+    .ssh-key-type-chip { display: inline-block; background: var(--color-hover-bg); color: var(--color-text);
+                     border-radius: 5px; padding: 0.15rem 0.5rem; font-size: 0.82rem; }
+    .ssh-fingerprint-chip { display: inline-block; font-family: monospace; font-size: 0.78rem;
+                     background: var(--color-info-bg); color: var(--color-info-text); border-radius: 5px; padding: 0.15rem 0.5rem;
+                     max-width: 100%; overflow-wrap: anywhere; }
     .sec-status-unknown { color: var(--color-text-muted); }
 {% endblock %}

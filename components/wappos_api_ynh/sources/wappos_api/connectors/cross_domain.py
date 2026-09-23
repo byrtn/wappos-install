@@ -39,3 +39,22 @@ def disable(app_id: str) -> None:
     result = _run("disable", app_id)
     if result.returncode != 0:
         raise UpstreamProtocolError(f"cross_domain.py disable failed: {result.stderr.strip()}")
+
+
+def list_domains(app_id: str) -> list[str]:
+    result = _run("list-domains", app_id)
+    if result.returncode != 0:
+        raise UpstreamProtocolError(f"cross_domain.py list-domains failed: {result.stderr.strip()}")
+    return [line for line in result.stdout.splitlines() if line]
+
+
+def add_domain(app_id: str, domain: str) -> None:
+    result = _run("add-domain", app_id, domain)
+    if result.returncode != 0:
+        raise UpstreamProtocolError(f"cross_domain.py add-domain failed: {result.stderr.strip()}")
+
+
+def remove_domain(app_id: str, domain: str) -> None:
+    result = _run("remove-domain", app_id, domain)
+    if result.returncode != 0:
+        raise UpstreamProtocolError(f"cross_domain.py remove-domain failed: {result.stderr.strip()}")

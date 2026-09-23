@@ -6,16 +6,21 @@
 
 {% block content %}
         <div class="nav-list">
+      {% if is_superadmin %}
       <a class="nav-list-item" href="{{ url_for('settings_page') }}"><span>{{ t('nav_settings') }}</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('system_page') }}"><span>{{ t('nav_updates') }}</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('migrations_page') }}"><span>{{ t('nav_migrations') }}</span><span class="chevron">&rsaquo;</span></a>
+      {% endif %}
       <a class="nav-list-item" href="{{ url_for('firewall') }}"><span>{{ t('nav_firewall') }}</span><span class="chevron">&rsaquo;</span></a>
+      <a class="nav-list-item" href="{{ url_for('logs') }}"><span>{{ t('nav_logs') }}</span><span class="chevron">&rsaquo;</span></a>
+      {% if is_superadmin %}
+      <a class="nav-list-item" href="{{ url_for('tls_passthrough_page') }}"><span>{{ t('nav_tls_passthrough') }}</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('security_page') }}"><span>{{ t('nav_security') }}</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('services') }}"><span>{{ t('nav_services') }}</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('performance_page') }}"><span>{{ t('nav_performance') }}</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('storage') }}"><span>{{ t('nav_storage') }}</span><span class="chevron">&rsaquo;</span></a>
-      <a class="nav-list-item" href="{{ url_for('logs') }}"><span>{{ t('nav_logs') }}</span><span class="chevron">&rsaquo;</span></a>
       <a class="nav-list-item" href="{{ url_for('app_map_page') }}"><span>{{ t('nav_app_map')|safe }}</span><span class="chevron">&rsaquo;</span></a>
+      {% endif %}
     </div>
 
 {% endblock %}

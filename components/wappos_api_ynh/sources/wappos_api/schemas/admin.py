@@ -8,10 +8,16 @@ from pydantic import BaseModel
 class AdminLoginRequest(BaseModel):
     user: str
     password: str
+    login_domain: str | None = None
 
 
 class AdminTokenResponse(BaseModel):
     token: str
+
+
+class AdminSessionInfo(BaseModel):
+    is_superadmin: bool
+    owned_domains: list[str] = []
 
 
 class CreateUserRequest(BaseModel):
